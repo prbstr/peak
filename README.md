@@ -33,7 +33,7 @@ Mac:
 ```sh
 brew install mosquitto
 brew services start mosquitto
-cd mind && npm install && cp .env.example .env   # PEAK_MODEL is an Ollama model, e.g. richardyoung/qwen3-14b-abliterated:q4_K_M
+cd mind && npm install && cp .env.example .env   # PEAK_MODEL is an Ollama model, e.g. huihui_ai/qwen3-abliterated:8b
 npm start
 ```
 

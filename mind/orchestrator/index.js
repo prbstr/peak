@@ -7,7 +7,7 @@ import { tools, runTool } from './tools.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
 const OLLAMA = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
-const MODEL = process.env.PEAK_MODEL ?? 'richardyoung/qwen3-14b-abliterated:q4_K_M';
+const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-abliterated:8b';
 
 const client = mqtt.connect(BROKER);
 
