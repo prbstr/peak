@@ -9,7 +9,7 @@ sudo raspi-config nonint do_hostname "$NODE"
 sudo raspi-config nonint do_i2c 0
 
 sudo apt update
-sudo apt install -y mosquitto-clients python3-venv i2c-tools rpicam-apps espeak-ng
+sudo apt install -y mosquitto-clients python3-venv i2c-tools rpicam-apps espeak-ng ffmpeg alsa-utils
 
 # Hardware watchdog: reboot the Pi if it hangs
 CONFIG=/boot/firmware/config.txt
