@@ -122,3 +122,4 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 - Wants Claude to run things, not hand over commands; where `sudo` or purchases are needed, say exactly what to run or buy.
 - Commits are local first; ask before pushing. Never put API keys or `.env` in commits.
 - Do not assume the user is `pi`; it is `lupin`.
+- Live tests that need the owner to speak or watch: 60 seconds max per window. Run several short ones rather than one long one.
