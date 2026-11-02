@@ -40,8 +40,17 @@ Pi (mech)                         Mac (mind)
 | Local Ollama brain, not Anthropic | Owner's choice. Default `huihui_ai/qwen3-abliterated:8b`. |
 | 8B brain + `qwen2.5vl:3b` vision | 24 GB Mac: the 14B brain plus any decent vision model evicts each other. `gemma4:26b` (19 GB) and 14B were too big; `moondream` fits but its descriptions are garbage. |
 | Pi mic streams to the Mac | whisper `small` runs on the Mac; `hearing.js` reads UDP :5001. |
+| Power: undecided between three layouts | Parts ordered: UBEC 5A, UBEC 3A (5.25V ±0.5V, in 5.5-26V), Mini560 5V Pro x5 (needs about 7V in). Concept A (SHOPPING.md): UBEC 5A servos, Mini560 Pi. B: swapped. C (leaning): both UBECs, Mini560 spare. Decide after measuring outputs with a multimeter. |
 | Deploy by rsync | `scripts/deploy-node.sh`. |
 | Python venv on the Pi at `~/peak/.venv` | Bookworm blocks system pip. |
+
+## Roadmap stages
+
+| Stage | What | When |
+| --- | --- | --- |
+| A, today | One Mac mind, thin Pi body over MQTT | Working in sim |
+| B | Reflex layer on the Pi (obstacle stop, finish gestures if Wi-Fi drops, servo limits) | Once servos are wired |
+| C | Hive: Lupin memory (`../lupin`, MCP) plus more bodies (ESP32 rover, drone later) | After A and B are solid |
 
 ## Commands
 
@@ -85,7 +94,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 | Broker, orchestrator, `servod` in sim | Working, tested end to end Mac <-> Pi. |
 | Hearing | Working from the Pi mic. whisper `small` mishears sometimes. |
 | Vision | Working from an image file. **Not tested** with the Pi camera: no camera module yet. |
-| Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. |
+| Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Still to buy: 18650 cells (local), Pi camera, speaker, HC-SR04 + 1k/2k resistors, jumpers, solder and wire, capacitor, fuse, multimeter. |
 | Pi service | `peak-servod.service` exists but is not installed on the Pi. |
 | Pi power | Unstable (undervoltage). Needs a better supply. |
 | Voice (text-to-speech) | `say` uses placeholder espeak-ng. Piper plan is in `mind/voice/README.md`. |
