@@ -106,7 +106,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 3. Camera module and speaker; test `camd.sh` into `vision.js`.
 4. Makefile `m0` target uses plain `python3` (fails on the Mac without PyYAML); point it at `.venv/bin/python`.
 5. `scripts/pi-firstboot.sh` was run on the Pi on 2 Nov 2026 (I2C, watchdog, apt deps all confirmed). Run it for each new body.
-5b. `adafruit_servokit` does not import on the Pi 3B: Blinka wants `Adafruit-Blinka-Raspberry-Pi-PWM`, which fails to build. `servod.py` only imports it outside sim mode, so real servo output is blocked. Plan: replace ServoKit with a small direct PCA9685 driver over `smbus2` (no Blinka), then test on the bench when the servos arrive.
+5b. Servo output now uses `node/pca9685.py` (direct smbus2 driver) instead of `adafruit_servokit`, whose Blinka dependency does not build on the Pi 3B. Unit tests (`python -m unittest test_pca9685` in `node/`) pass on the Mac and the Pi; the real chip has not been tested yet. With no PCA9685 wired, non-sim `servod` exits with an I/O error on the first I2C write, which is expected.
 6. Add `look_at` back to the brain's reply shape.
 
 ## Working with the owner

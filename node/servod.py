@@ -25,20 +25,21 @@ class Servos:
         if SIM:
             self.kit = None
             return
-        from adafruit_servokit import ServoKit
-        self.kit = ServoKit(channels=16, address=CFG["i2c_address"], frequency=CFG["servo_hz"])
-        lo, hi = CFG["pulse_us"]
-        for name, s in CFG["servos"].items():
-            self.kit.servo[s["ch"]].set_pulse_width_range(lo, hi)
-            self.kit.servo[s["ch"]].actuation_range = CFG["actuation_range"]
+        from pca9685 import PCA9685
+        self.kit = PCA9685(address=CFG["i2c_address"], frequency=CFG["servo_hz"])
         self.write_all()
+
+    def pulse_us(self, deg):
+        """Map an angle to a pulse width across the servo's full actuation range."""
+        lo, hi = CFG["pulse_us"]
+        return lo + (deg / CFG["actuation_range"]) * (hi - lo)
 
     def write(self, name, deg):
         s = CFG["servos"][name]
         deg = max(s["min"], min(s["max"], deg))
         self.pos[name] = deg
         if self.kit:
-            self.kit.servo[s["ch"]].angle = deg
+            self.kit.set_pulse_us(s["ch"], self.pulse_us(deg))
         else:
             print(f"[sim] {name} -> {deg:.0f}")
 

@@ -19,6 +19,6 @@ printf '[Manager]\nRuntimeWatchdogSec=10\n' | sudo tee /etc/systemd/system.conf.
 
 mkdir -p ~/peak/node
 python3 -m venv ~/peak/.venv
-~/peak/.venv/bin/pip install paho-mqtt pyyaml adafruit-circuitpython-servokit gpiozero
+~/peak/.venv/bin/pip install paho-mqtt pyyaml smbus2 gpiozero
 
 echo "done. Run: sudo reboot, then reconnect as lupin@${NODE}.local"
