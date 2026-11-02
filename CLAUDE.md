@@ -89,7 +89,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 - `hearing.js` SIGKILLs its ffmpeg child on exit; with SIGTERM it lingered and kept UDP :5001 bound through a quick restart.
 - Do not `pkill -f` on the Pi over ssh with a pattern that appears in the ssh command line itself; it kills the session.
 - `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell (injection fix). Keep it that way.
-- The Pi shows **undervoltage** (`vcgencmd get_throttled` = `0x50005`) and has hung or rebooted under load. Still present on 2 Nov 2026 after a new supply AND with the USB mic unplugged: dips every 10-30 s at idle, CPU pinned at 600 MHz. So it is the cable or the supply itself, not a peripheral. Next: swap the micro-USB cable for the shortest, thickest one available; if that fails, the supply is not delivering 5.1 V under load. Measure at the GPIO 5V pin with the multimeter.
+- The Pi shows **undervoltage** (`vcgencmd get_throttled` = `0x50005`) and has hung or rebooted under load. Still present on 2 Nov 2026 after a new supply AND with the USB mic unplugged: dips every 10-30 s at idle, CPU pinned at 600 MHz. So it is the cable or the supply itself, not a peripheral. After a cable swap (2 Nov evening): idle is clean (one dip at boot, then none over 30 s), but 25 s of 4-core load still produced a dip and live throttling (`0x50005`, CPU at 600 MHz). So the cable was part of it; the supply is still marginal under load. Next: measure the 5V GPIO pin under load with the multimeter (want 4.9-5.2 V); if it sags below 4.8 V, use an official-grade 5.1 V 2.5 A supply.
 - Mini560 comes in 3.3/5/9/12 V fixed variants; check the SKU says 5V, then measure with a multimeter before connecting the Pi.
 
 ## Status
