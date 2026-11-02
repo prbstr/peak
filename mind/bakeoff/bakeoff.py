@@ -18,7 +18,10 @@ CLIPS = sorted((HERE / 'clips').glob('*.wav'))
 PHRASES = [l.strip() for l in (HERE / 'phrases.txt').read_text().splitlines() if l.strip()]
 WHISPER_URL = os.environ.get('PEAK_WHISPER_URL', 'http://127.0.0.1:8178')
 
-normalize = jiwer.Compose([jiwer.ToLowerCase(), jiwer.RemovePunctuation(), jiwer.RemoveMultipleSpaces(), jiwer.Strip()])
+# The wake-word gate (senses/heardFilter.js) already accepts these spellings of "Peak", so they are not errors here.
+WAKE_VARIANTS = re.compile(r"\b(peek|peake|pete|pique|peke|beak)\b", re.I)
+_norm = jiwer.Compose([jiwer.ToLowerCase(), jiwer.RemovePunctuation(), jiwer.RemoveMultipleSpaces(), jiwer.Strip()])
+normalize = lambda s: _norm(WAKE_VARIANTS.sub('peak', s))
 
 
 def whisper():
@@ -34,9 +37,15 @@ def whisper():
 
 
 def moonshine():
-    from moonshine_voice import Transcriber  # noqa: see README for install
-    t = Transcriber(model_name='medium-streaming', language='en')
-    return lambda path: t.transcribe_file(str(path)).text
+    from moonshine_voice import ModelArch, get_model_for_language, load_wav_file
+    from moonshine_voice.transcriber import Transcriber
+    path, arch = get_model_for_language('en', ModelArch.MEDIUM_STREAMING)  # downloads on first run
+    t = Transcriber(path, arch)
+
+    def run(clip):
+        samples, rate = load_wav_file(clip)
+        return ' '.join(l.text for l in t.transcribe_without_streaming(samples, rate).lines)
+    return run
 
 
 def parakeet():

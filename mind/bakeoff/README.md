@@ -23,4 +23,8 @@ bakeoff/.venv/bin/python bakeoff/bakeoff.py            # all engines
 bakeoff/.venv/bin/python bakeoff/bakeoff.py whisper     # one engine
 ```
 
+Spellings of "Peak" that the wake-word gate accepts (Peek, Pete, ...) are not counted as errors. Names like "Sharad" are, so expect one or two misses per engine from those alone.
+
+Synthetic clips for checking the harness without a mic (the macOS voice is far cleaner than the Pi mic, so do not read anything into its scores): `bakeoff/make-synth.sh`.
+
 Setup once: `python3.13 -m venv bakeoff/.venv && bakeoff/.venv/bin/pip install moonshine-voice parakeet-mlx jiwer`. whisper.cpp is scored through the running `whisper-server`, the other two load in-process (first run downloads their models).
