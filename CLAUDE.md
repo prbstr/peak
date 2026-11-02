@@ -42,6 +42,7 @@ Pi (mech)                         Mac (mind)
 | Local Ollama brain, not Anthropic | Owner's choice. Default `huihui_ai/qwen3-abliterated:8b`. |
 | 8B brain + `qwen2.5vl:3b` vision | 24 GB Mac: the 14B brain plus any decent vision model evicts each other. `gemma4:26b` (19 GB) and 14B were too big; `moondream` fits but its descriptions are garbage. |
 | Pi mic streams to the Mac | whisper `small` runs on the Mac; `hearing.js` reads UDP :5001. |
+| whisper.cpp server, not the openai-whisper CLI | The CLI cold-started per 5 s chunk (torch load, about 15 s speech-to-reaction). `whisper-server` (Homebrew `whisper.cpp`, Metal) stays resident; `hearing.js` cuts utterances at pauses and POSTs them. |
 | Power: undecided between three layouts | Parts ordered: UBEC 5A, UBEC 3A (5.25V ±0.5V, in 5.5-26V), Mini560 5V Pro x5 (needs about 7V in). Concept A (SHOPPING.md): UBEC 5A servos, Mini560 Pi. B: swapped. C (leaning): both UBECs, Mini560 spare. Decide after measuring outputs with a multimeter. |
 | Deploy by rsync | `scripts/deploy-node.sh`. |
 | Python venv on the Pi at `~/peak/.venv` | Bookworm blocks system pip. |
@@ -59,6 +60,7 @@ Pi (mech)                         Mac (mind)
 | Task | Command |
 | --- | --- |
 | Run the mind | `cd mind && npm start` (or `make mind`) |
+| Whisper server (needed by hearing) | `cd mind && npm run whisper` (model: `~/.cache/whisper.cpp/ggml-small.bin`, port 8178) |
 | Hearing, Mac mic | `cd mind && npm run hearing` |
 | Hearing, Pi mic | Pi: `PEAK_MIND=<mac-ip> ./audiod.sh`; Mac: `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing` |
 | Vision, one frame from a file | `PEAK_VISION_ONCE=1 PEAK_VISION_SOURCE=<image> npm run vision` |
@@ -69,7 +71,7 @@ Pi (mech)                         Mac (mind)
 | Fake an event | `mosquitto_pub -t peak/mech/event -m '{"heard":"hey peak, wave at me"}'` |
 | Deploy to the Pi | `scripts/deploy-node.sh [host]` (installs and restarts the systemd unit; for sim testing use plain rsync instead) |
 
-Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BROKER`, `PEAK_MODEL`, `PEAK_VISION_MODEL`, `PEAK_MIN_DB`.
+Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BROKER`, `PEAK_MODEL`, `PEAK_VISION_MODEL`, `PEAK_MIN_DB`, `PEAK_WHISPER_URL`, `PEAK_SILENCE_MS`.
 
 ## Environment facts
 
@@ -77,7 +79,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 - Pi: `lupin@mech.local` (192.168.0.226 at last check), key login works, **`sudo` needs a password** so Claude cannot install packages. Ask the owner to run `sudo` lines.
 - Ollama: Homebrew service, config in `~/Library/LaunchAgents/sh.brew.ollama.plist` (flash attention, q8 KV cache, `OLLAMA_MAX_LOADED_MODELS=2`, `OLLAMA_KEEP_ALIVE=30m`). Reload with `launchctl bootout/bootstrap`, not `brew services restart` (it rewrites the plist). Another program also loads `qwen3:14b` into Ollama at times; do not stop it.
 - The shell tool cannot write to `/tmp` for ffmpeg outputs reliably; use `mktemp -d` dirs.
-- Whisper: openai-whisper CLI, `small` model cached in `~/.cache/whisper`.
+- Whisper: whisper.cpp `whisper-server` on 127.0.0.1:8178, `ggml-small.bin` in `~/.cache/whisper.cpp`. The old openai-whisper CLI (`~/.cache/whisper`) is still installed but unused.
 
 ## Gotchas learned the hard way
 
@@ -87,7 +89,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 - `hearing.js` kills its ffmpeg child on exit; an orphan keeps UDP :5001 bound.
 - Do not `pkill -f` on the Pi over ssh with a pattern that appears in the ssh command line itself; it kills the session.
 - `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell (injection fix). Keep it that way.
-- The Pi shows **undervoltage** (`vcgencmd get_throttled` = `0x50005`) and has hung or rebooted under load. Use a proper 5V 2.5A supply until the UBEC or Mini560 path is verified.
+- The Pi shows **undervoltage** (`vcgencmd get_throttled` = `0x50005`) and has hung or rebooted under load. Still present on 2 Nov 2026 after a new supply AND with the USB mic unplugged: dips every 10-30 s at idle, CPU pinned at 600 MHz. So it is the cable or the supply itself, not a peripheral. Next: swap the micro-USB cable for the shortest, thickest one available; if that fails, the supply is not delivering 5.1 V under load. Measure at the GPIO 5V pin with the multimeter.
 - Mini560 comes in 3.3/5/9/12 V fixed variants; check the SKU says 5V, then measure with a multimeter before connecting the Pi.
 
 ## Status
