@@ -7,22 +7,29 @@
 //   PEAK_MIN_DB         a 100 ms frame louder than this is speech (default -45; the Pi mic idles around -36)
 //   PEAK_SILENCE_MS     this much quiet after speech ends the utterance (default 700)
 //   PEAK_DEBUG          log every utterance whisper returns, including the ones filtered out
+//   PEAK_DUMP_DIR       also save each utterance as a wav here (for mind/bakeoff)
+//   PEAK_WAKE           off = publish every clean utterance; default on = only after "Peak" (heardFilter.js)
+//   PEAK_WAKE_WINDOW_MS how long after the wake word follow-up sentences still pass (default 8000)
 import { spawn } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { connect, publishEvent, run } from './lib.js';
+import { createHeardFilter } from './heardFilter.js';
 
 const DEVICE = process.env.PEAK_AUDIO_DEVICE ?? '0';
 const SOURCE = process.env.PEAK_AUDIO_SOURCE;
 const WHISPER = process.env.PEAK_WHISPER_URL ?? 'http://127.0.0.1:8178';
 const MIN_DB = Number(process.env.PEAK_MIN_DB ?? -45);
 const SILENCE_MS = Number(process.env.PEAK_SILENCE_MS ?? 700);
+const DUMP = process.env.PEAK_DUMP_DIR;
+if (DUMP) mkdirSync(DUMP, { recursive: true });
 const RATE = 16000;
 const FRAME_MS = 100;
 const FRAME_BYTES = (RATE * FRAME_MS) / 1000 * 2; // s16le mono
 const PREROLL_FRAMES = 3; // kept from before speech starts so the first syllable is not clipped
 const MIN_SPEECH_MS = 300; // shorter bursts are clicks and bumps, not words
 const MAX_UTTERANCE_MS = 12000; // flush mid-sentence rather than wait for a pause that never comes
-// Whisper invents these on near-silence
-const HALLUCINATIONS = /^(thanks? for watching|thank you( so much)?|you|bye|\.+|(hey,? peak)+)[\s.!,]*$/i; // includes our own prompt echoed back
+const heard = createHeardFilter(); // wake-word gate and noise filter; see heardFilter.js
 
 process.on('SIGINT', () => process.exit(0));
 process.on('SIGTERM', () => process.exit(0));
@@ -63,11 +70,15 @@ let busy = false, waiting = null;
 const handle = async (client, pcm, endedAt) => {
   if (busy) { waiting = { pcm, endedAt }; return; }
   busy = true;
+  if (DUMP) writeFileSync(join(DUMP, `${new Date(endedAt).toISOString().replace(/[:.]/g, '-')}.wav`), wav(pcm));
   const text = await transcribe(pcm);
   if (process.env.PEAK_DEBUG) console.log(`[hearing] ${(pcm.length / RATE / 2).toFixed(1)}s utterance → "${text}"`);
   const latency = ((Date.now() - endedAt) / 1000).toFixed(1);
-  if (text && !HALLUCINATIONS.test(text)) { console.log(`[hearing] ${latency}s after speech ended`); publishEvent(client, { heard: text }); }
-  else if (text) console.log(`[hearing] dropped "${text}"`);
+  if (text) {
+    const { text: clean, why } = heard.consider(text);
+    if (clean) { console.log(`[hearing] ${latency}s after speech ended (${why})`); publishEvent(client, { heard: clean }); }
+    else console.log(`[hearing] dropped "${text}" (${why})`);
+  }
   busy = false;
   if (waiting) { const w = waiting; waiting = null; handle(client, w.pcm, w.endedAt); }
 };
@@ -112,7 +123,8 @@ client.on('connect', async () => {
   if (process.env.PEAK_AUDIO_FILE) {
     const { stdout } = await run('ffmpeg', ['-loglevel', 'error', '-i', process.env.PEAK_AUDIO_FILE, '-ar', String(RATE), '-ac', '1', '-f', 's16le', 'pipe:1']);
     const text = await transcribe(stdout);
-    if (text && !HALLUCINATIONS.test(text)) publishEvent(client, { heard: text });
+    const { text: clean, why } = heard.consider(text);
+    if (clean) publishEvent(client, { heard: clean }); else console.log(`[hearing] dropped "${text}" (${why})`);
     return client.end();
   }
   console.log(`[hearing] listening on ${SOURCE ?? `Mac audio device ${DEVICE}`}, whisper at ${WHISPER}, speech above ${MIN_DB} dB`);

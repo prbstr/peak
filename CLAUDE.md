@@ -61,7 +61,8 @@ Pi (mech)                         Mac (mind)
 | --- | --- |
 | Run the mind | `cd mind && npm start` (or `make mind`) |
 | Whisper server (needed by hearing) | `cd mind && npm run whisper` (model: `~/.cache/whisper.cpp/ggml-small.bin`, port 8178) |
-| Hearing, Mac mic | `cd mind && npm run hearing` |
+| Hearing, Mac mic | `cd mind && npm run hearing` (needs `npm run whisper` running) |
+| Mind unit tests | `cd mind && npm test` |
 | Hearing, Pi mic | Pi: `PEAK_MIND=<mac-ip> ./audiod.sh`; Mac: `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing` |
 | Vision, one frame from a file | `PEAK_VISION_ONCE=1 PEAK_VISION_SOURCE=<image> npm run vision` |
 | Servo daemon in sim | `PEAK_SIM=1 PEAK_BROKER=<mac-ip> ~/peak/.venv/bin/python -u node/servod.py` (Mac: use `.venv/bin/python`) |
@@ -85,7 +86,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 
 - ffmpeg single-image input breaks with `-fflags nobuffer`; apply it only to `udp://` video. Never on the audio UDP input: it discards what ffmpeg reads while probing and ate the first sentence. `hearing.js` uses `-probesize 32 -analyzeduration 0` instead. The JPEG encoder needs `format=yuvj420p`.
 - The Pi USB mic rejects 16 kHz in ffmpeg: `audiod.sh` captures at 48 kHz and resamples. Select it by name (`plughw:CARD=Device,DEV=0`); USB card numbers change after reboots.
-- Whisper hallucinates "Thanks for watching." on quiet audio and echoes its prompt. Mitigations: `PEAK_MIN_DB=-30` (the Pi mic idles around -36 dB) and a filter regex in `hearing.js`.
+- Whisper hallucinates on quiet audio: "Thanks for watching.", `[BURP]`, bare "Hey.", and whole fluent sentences nobody said. The earlier regex-only filter also dropped the wake phrase itself. Now `heardFilter.js` gates on the wake word; do not add "hey peak" back to a drop list.
 - `hearing.js` SIGKILLs its ffmpeg child on exit; with SIGTERM it lingered and kept UDP :5001 bound through a quick restart.
 - Do not `pkill -f` on the Pi over ssh with a pattern that appears in the ssh command line itself; it kills the session.
 - `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell (injection fix). Keep it that way.
@@ -98,7 +99,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 | --- | --- |
 | Repo | https://github.com/prbstr/peak, branch `main`. |
 | Broker, orchestrator, `servod` in sim | Working, tested end to end Mac <-> Pi. |
-| Hearing | Working from the Pi mic. whisper `small` mishears sometimes. Since 2 Nov 2026: resident `whisper-server` plus pause-based utterance cutting; measured about 0.2 s transcription after the 0.7 s pause (was about 15 s with the CLI). Tested with a synthetic UDP stream on the Mac, not yet re-tested from the Pi mic. |
+| Hearing | Working from the Pi mic via a resident whisper.cpp server (`npm run whisper`, port 8178): about 1 s to transcript, about 4 s to a reply. Transcripts pass through `senses/heardFilter.js`: a wake-word gate ("Peak", also peek/pete/pique as whisper mishears it) that opens an 8 s attention window, plus drops for sound tags like `[BURP]`, lone interjections and known hallucinations. `PEAK_WAKE=off` disables the gate for bench tests. Tests: `cd mind && npm test`. Not yet re-tested live on the mic. |
 | Vision | Working from an image file. **Not tested** with the Pi camera: no camera module yet. |
 | Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Orders seen 2 Nov 2026: AliExpress (servos x10, PCA9685 x2, UBEC 3A, Mini560 PRO 5V x5 plus 2 wrong 9V, BMS, holders, switch, USB iron) and Communica (4x INR18650-30HW cells, Pi Camera Module 3 Wide, HC-SR04+, MPU6050, 0.96in I2C OLED, 16-LED WS2812 ring, PIR sensor, vibration motor, Pi heatsinks and fan, resistors, diodes, transistors, F/F jumpers, heat shrink). Not seen in either order, confirm before relying on them: speaker, multimeter, solder/flux, hookup wire, capacitor, fuse, connectors, Pi power supply, 5A UBEC, 2S Type-C charger. |
 | Pi service | `peak-servod.service` exists but is not installed on the Pi. |

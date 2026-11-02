@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test senses/heardFilter.test.js",
     "start": "node orchestrator/index.js",
     "dev": "node --watch orchestrator/index.js",
     "hearing": "node senses/hearing.js",
