@@ -16,6 +16,19 @@ PEAK_MIND=192.168.0.139 ./audiod.sh
 
 Read `phrases.txt` aloud in order, one line at a time, pausing about a second between lines. Each utterance lands in `bakeoff/clips/` as a timestamped wav. Then `ls bakeoff/clips | wc -l` should equal the line count of `phrases.txt`; delete extras (coughs, false starts) before scoring. `clips/` is gitignored.
 
+If the gate misfires (nothing captured, or one 12 s clip holding several phrases), cut the saved wavs by hand with `ffmpeg -ss/-to` and name them `NN.wav` after the phrase number; `bakeoff.py` then scores each against phrase NN and tolerates gaps. Keep the originals in `bakeoff/raw/` (gitignored).
+
+## Results, 2 Nov 2026, 20 phrases from the Pi USB mic at desk distance
+
+| Engine | WER | Exact | Mean s | Max s |
+| --- | --- | --- | --- | --- |
+| whisper small (whisper.cpp, Metal) | 5.6% | 15/20 | 0.14 | 0.15 |
+| whisper medium.en (whisper.cpp, Metal) | 4.5% | 16/20 | 0.37 | 0.40 |
+| Moonshine medium-streaming | 11.2% | 13/20 | 0.29 | 1.10 |
+| Parakeet TDT 0.6B v3 (parakeet-mlx) | 4.5% | 16/20 | 0.09 | 0.20 |
+
+Every engine got "nod"→"not", "Sharad", and "wave with your"→"wave your" wrong, so those are the speaker and mic, not the model. Moonshine's extra misses were wake words ("pig", "Faye pig") and a dropped "rest". Timings are with one engine loaded at a time; in the all-engines run Parakeet averaged 9 s because two whisper-servers and Moonshine were still resident next to Ollama on 24 GB. Score engines one at a time when timing matters.
+
 ## Score
 
 ```sh

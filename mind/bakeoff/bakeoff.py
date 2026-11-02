@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Score STT engines on the clips in bakeoff/clips against bakeoff/phrases.txt. See README.md.
 
-    bakeoff.py [engine ...]     engines: whisper moonshine parakeet (default: all)
+    bakeoff.py [engine ...]     engines: whisper-small whisper-medium.en moonshine parakeet (default: all)
 """
 import json
 import os
@@ -16,7 +16,6 @@ import jiwer
 HERE = Path(__file__).parent
 CLIPS = sorted((HERE / 'clips').glob('*.wav'))
 PHRASES = [l.strip() for l in (HERE / 'phrases.txt').read_text().splitlines() if l.strip()]
-WHISPER_URL = os.environ.get('PEAK_WHISPER_URL', 'http://127.0.0.1:8178')
 
 # The wake-word gate (senses/heardFilter.js) already accepts these spellings of "Peak", so they are not errors here.
 WAKE_VARIANTS = re.compile(r"\b(peek|peake|pete|pique|peke|beak)\b", re.I)
@@ -24,13 +23,29 @@ _norm = jiwer.Compose([jiwer.ToLowerCase(), jiwer.RemovePunctuation(), jiwer.Rem
 normalize = lambda s: _norm(WAKE_VARIANTS.sub('peak', s))
 
 
-def whisper():
+def whisper(model):
+    """Starts its own whisper-server for ggml-<model>.bin so several whisper sizes can be compared in one run."""
+    import atexit, subprocess
+    port = 8190 + list(ENGINES).index(f'whisper-{model}')
+    ggml = Path.home() / '.cache/whisper.cpp' / f'ggml-{model}.bin'
+    if not ggml.exists():
+        sys.exit(f'{ggml} missing: curl -L -o {ggml} https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{model}.bin')
+    srv = subprocess.Popen(['whisper-server', '-m', str(ggml), '--host', '127.0.0.1', '--port', str(port), '-l', 'en', '--no-timestamps'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    atexit.register(srv.kill)
+    for _ in range(300):
+        try:
+            urllib.request.urlopen(f'http://127.0.0.1:{port}/').close(); break
+        except Exception:
+            time.sleep(0.1)
+    url = f'http://127.0.0.1:{port}'
+
     def run(path):
         boundary = 'peakbakeoff'
         body = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="c.wav"\r\nContent-Type: audio/wav\r\n\r\n').encode()
         body += path.read_bytes()
         body += f'\r\n--{boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\njson\r\n--{boundary}--\r\n'.encode()
-        req = urllib.request.Request(f'{WHISPER_URL}/inference', body, {'Content-Type': f'multipart/form-data; boundary={boundary}'})
+        req = urllib.request.Request(f'{url}/inference', body, {'Content-Type': f'multipart/form-data; boundary={boundary}'})
         with urllib.request.urlopen(req) as r:
             return json.load(r)['text']
     return run
@@ -54,15 +69,24 @@ def parakeet():
     return lambda path: m.transcribe(str(path)).text
 
 
-ENGINES = {'whisper': whisper, 'moonshine': moonshine, 'parakeet': parakeet}
+ENGINES = {
+    'whisper-small': lambda: whisper('small'),
+    'whisper-medium.en': lambda: whisper('medium.en'),
+    'moonshine': moonshine,
+    'parakeet': parakeet,
+}
 
 
 def main(names):
     if not CLIPS:
         sys.exit('no clips in bakeoff/clips; see README.md')
-    if len(CLIPS) != len(PHRASES):
-        print(f'warning: {len(CLIPS)} clips but {len(PHRASES)} phrases; scoring the first {min(len(CLIPS), len(PHRASES))}')
-    pairs = list(zip(CLIPS, PHRASES))
+    # Clips named NN.wav score against phrase NN; anything else pairs up in order.
+    if all(c.stem.isdigit() for c in CLIPS):
+        pairs = [(c, PHRASES[int(c.stem) - 1]) for c in CLIPS]
+    else:
+        if len(CLIPS) != len(PHRASES):
+            print(f'warning: {len(CLIPS)} clips but {len(PHRASES)} phrases; scoring the first {min(len(CLIPS), len(PHRASES))}')
+        pairs = list(zip(CLIPS, PHRASES))
     results = {}
     for name in names:
         t0 = time.time()
