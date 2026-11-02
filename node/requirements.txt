@@ -1,0 +1,4 @@
+adafruit-circuitpython-servokit
+paho-mqtt>=2.0
+pyyaml
+gpiozero

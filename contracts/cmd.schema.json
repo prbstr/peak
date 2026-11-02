@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "peak/<node>/cmd",
+  "oneOf": [
+    { "type": "object", "required": ["gesture"], "properties": { "gesture": { "type": "string" } }, "additionalProperties": false },
+    { "type": "object", "required": ["servo", "deg"], "properties": { "servo": { "type": "string" }, "deg": { "type": "number" }, "ms": { "type": "integer", "minimum": 20 } }, "additionalProperties": false },
+    { "type": "object", "required": ["say"], "properties": { "say": { "type": "string", "maxLength": 200 } }, "additionalProperties": false }
+  ]
+}

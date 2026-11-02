@@ -1,0 +1,26 @@
+# A gesture is a list of keyframes. Each keyframe moves several servos together over `ms`.
+# Keep moves inside the ranges in config.yaml; servod clamps anyway.
+rest:
+  - { ms: 600, head: 90, waist: 90, left_shoulder: 90, left_elbow: 90, right_shoulder: 90, right_elbow: 90 }
+wave:
+  - { ms: 400, right_shoulder: 150, right_elbow: 60 }
+  - { ms: 250, right_elbow: 110 }
+  - { ms: 250, right_elbow: 60 }
+  - { ms: 250, right_elbow: 110 }
+  - { ms: 500, right_shoulder: 90, right_elbow: 90 }
+point:
+  - { ms: 500, right_shoulder: 120, right_elbow: 90, waist: 100 }
+  - { ms: 800 }
+  - { ms: 500, right_shoulder: 90, waist: 90 }
+nod:
+  - { ms: 200, head: 80 }
+  - { ms: 200, head: 100 }
+  - { ms: 200, head: 90 }
+shrug:
+  - { ms: 300, left_shoulder: 70, right_shoulder: 110, left_elbow: 60, right_elbow: 120 }
+  - { ms: 600 }
+  - { ms: 400, left_shoulder: 90, right_shoulder: 90, left_elbow: 90, right_elbow: 90 }
+look_left:
+  - { ms: 400, head: 140 }
+look_right:
+  - { ms: 400, head: 40 }

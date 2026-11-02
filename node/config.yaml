@@ -1,0 +1,17 @@
+node: mech
+broker: ${PEAK_BROKER}
+i2c_address: 0x40
+servo_hz: 50
+# GeekServo 9g 270° — pulse range tuned on the bench; adjust min/max until 0° and 270° are hit cleanly
+pulse_us: [500, 2500]
+actuation_range: 270
+servos:
+  head:           { ch: 0, min: 30, max: 150, rest: 90 }
+  waist:          { ch: 1, min: 45, max: 135, rest: 90 }
+  left_shoulder:  { ch: 2, min: 20, max: 160, rest: 90 }
+  left_elbow:     { ch: 3, min: 40, max: 140, rest: 90 }
+  right_shoulder: { ch: 4, min: 20, max: 160, rest: 90 }
+  right_elbow:    { ch: 5, min: 40, max: 140, rest: 90 }
+sensors:
+  ultrasonic: { trig: 23, echo: 24 }
+sense_interval_s: 5

@@ -1,0 +1,15 @@
+# sudo cp peak-servod.service /etc/systemd/system/ && sudo systemctl enable --now peak-servod
+[Unit]
+Description=peak servo node
+After=network-online.target
+
+[Service]
+Environment=PEAK_BROKER=192.168.1.10
+Environment=PEAK_NODE=mech
+WorkingDirectory=/home/lupin/peak/node
+ExecStart=/home/lupin/peak/.venv/bin/python servod.py
+Restart=always
+User=lupin
+
+[Install]
+WantedBy=multi-user.target
