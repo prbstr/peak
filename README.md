@@ -29,23 +29,24 @@ The Pi 3B runs only `servod` and `camd`. All AI (orchestrator, vision, speech) s
 
 ## Quick start
 
-Mac:
+Mac (broker and mind):
 ```sh
-brew install mosquitto
-brew services start mosquitto
-cd mind && npm install && cp .env.example .env   # PEAK_MODEL is an Ollama model, e.g. huihui_ai/qwen3-abliterated:8b
+brew install mosquitto ollama ffmpeg openai-whisper
+brew services start mosquitto        # add `listener 1883 0.0.0.0` and `allow_anonymous true` to mosquitto.conf, then restart
+ollama pull huihui_ai/qwen3-abliterated:8b && ollama pull qwen2.5vl:3b
+cd mind && npm install && cp .env.example .env
 npm start
 ```
 
-Pi (Raspberry Pi OS Lite 64-bit, I²C enabled via raspi-config):
+Pi (Raspberry Pi OS Lite 64-bit, user `lupin`, hostname = node name):
 ```sh
-sudo apt install -y python3-pip i2c-tools mosquitto-clients rpicam-apps
-pip install -r node/requirements.txt --break-system-packages
-PEAK_BROKER=<mac-ip> PEAK_NODE=mech python3 node/servod.py
+scripts/deploy-node.sh mech.local    # after running scripts/pi-firstboot.sh mech on the Pi
 ```
 
 Bench test from the Mac:
 ```sh
-mosquitto_pub -t peak/mech/cmd -m '{"servo":"head","deg":120,"ms":500}'
 mosquitto_pub -t peak/mech/cmd -m '{"gesture":"wave"}'
+mosquitto_pub -t peak/mech/event -m '{"heard":"hey peak, wave at me"}'
 ```
+
+See CLAUDE.md for architecture decisions, environment facts, gotchas and current status. SHOPPING.md tracks parts.
