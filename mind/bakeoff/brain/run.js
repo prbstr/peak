@@ -4,7 +4,7 @@
 //   --models a,b     comma list (default: models.json)
 //   --runs N         repeats per case (default 3)
 //   --pair TAG       after scoring, load TAG as the eyes and check both stay on the GPU (same TAG = unified check)
-//   --only PREFIX    only case ids starting with PREFIX (e.g. direct)
+//   --only PREFIX    only case ids starting with PREFIX (e.g. direct, or seq for the multi-turn sequences)
 //   --no-pull        fail instead of pulling a missing model
 //   --keep-loaded    do not unload candidates afterwards
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -24,14 +24,19 @@ const { values: args } = parseArgs({
 const models = args.models ? args.models.split(',').map(s => s.trim()).filter(Boolean) : read('./models.json');
 const runs = Number(args.runs);
 const cases = read('./cases.json').filter(c => !args.only || c.id.startsWith(args.only));
+// sequences carry history between steps, the way the orchestrator does, to catch a model that gets stuck on its last answer
+const sequences = read('./sequences.json').filter(q => !args.only || q.id.startsWith(args.only));
 const log = (...a) => console.error(...a);
 
-for (const c of cases) {
-  for (const g of c.expect.gesture) {
-    if (g !== null && !gestureNames.includes(g)) throw new Error(`${c.id}: expected gesture "${g}" is not in gestures.yaml`);
+const checkExpect = (id, expect) => {
+  for (const g of expect.gesture) {
+    if (g !== null && !gestureNames.includes(g)) throw new Error(`${id}: expected gesture "${g}" is not in gestures.yaml`);
   }
-}
-if (!cases.length) throw new Error('no cases selected');
+};
+for (const c of cases) checkExpect(c.id, c.expect);
+for (const q of sequences) q.steps.forEach((st, i) => checkExpect(`${q.id}.${i + 1}`, st.expect));
+const totalSteps = cases.length + sequences.reduce((n, q) => n + q.steps.length, 0);
+if (!totalSteps) throw new Error('no cases selected');
 
 const hive = () => new Map([['mech', { at: Date.now() }]]);
 const probe = readFileSync(new URL('./probe.jpg', here)).toString('base64');
@@ -78,15 +83,22 @@ async function scoreModel(model) {
   log(`[bakeoff] ${model}: warm ${(warm.stats.totalMs / 1000).toFixed(1)}s (load ${warm.stats.loadMs}ms)`);
 
   const calls = [];
+  const score = async (id, run, event, expect, history) => {
+    const messages = buildMessages(history, 'mech', event, hive());
+    const r = await askBrain({ model, messages });
+    history.push(messages.at(-1), { role: 'assistant', content: r.content });
+    const gesture = r.reply?.gesture ?? null;
+    const gestureOk = r.reply !== null && expect.gesture.includes(gesture);
+    const strict = gestureOk && (!expect.sayRequired || Boolean(r.reply.say));
+    const thinkingLeak = Boolean(r.thinking) || /^\s*<think>/.test(r.content);
+    calls.push({ id, run, gesture, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, content: r.valid ? undefined : r.content });
+    log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${(r.stats.totalMs / 1000).toFixed(1)}s ${r.reply?.say ?? ''}`);
+  };
   for (let run = 1; run <= runs; run++) {
-    for (const c of cases) {
-      const r = await askBrain({ model, messages: buildMessages([], 'mech', c.event, hive()) });
-      const gesture = r.reply?.gesture ?? null;
-      const gestureOk = r.reply !== null && c.expect.gesture.includes(gesture);
-      const strict = gestureOk && (!c.expect.sayRequired || Boolean(r.reply.say));
-      const thinkingLeak = Boolean(r.thinking) || /^\s*<think>/.test(r.content);
-      calls.push({ id: c.id, run, gesture, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, content: r.valid ? undefined : r.content });
-      log(`[bakeoff]   ${run}/${runs} ${c.id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${(r.stats.totalMs / 1000).toFixed(1)}s ${r.reply?.say ?? ''}`);
+    for (const c of cases) await score(c.id, run, c.event, c.expect, []);
+    for (const q of sequences) {
+      const history = [];
+      for (let i = 0; i < q.steps.length; i++) await score(`${q.id}.${i + 1}`, run, q.steps[i].event, q.steps[i].expect, history);
     }
   }
   const n = calls.length;
@@ -128,7 +140,7 @@ function toMarkdown(results) {
   });
   const foreign = results.map(r => r.pair?.foreign ?? []).flat();
   const note = foreign.length ? `\nOther models loaded during pair checks (not ours): ${[...new Set(foreign)].join(', ')}\n` : '';
-  return `# Brain bake-off ${new Date().toISOString()}\n\n${cases.length} cases x ${runs} runs${args.only ? `, only ${args.only}` : ''}${args.pair ? `, pair ${args.pair}` : ''}\n\n${head}\n${sep}\n${rows.join('\n')}\n${note}\n## Failures\n\n${failures.join('\n\n')}\n`;
+  return `# Brain bake-off ${new Date().toISOString()}\n\n${cases.length} cases + ${totalSteps - cases.length} sequence steps, x ${runs} runs${args.only ? `, only ${args.only}` : ''}${args.pair ? `, pair ${args.pair}` : ''}\n\n${head}\n${sep}\n${rows.join('\n')}\n${note}\n## Failures\n\n${failures.join('\n\n')}\n`;
 }
 
 const results = [];
@@ -140,7 +152,7 @@ const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const dir = new URL('./results/', here);
 mkdirSync(dir, { recursive: true });
 const md = toMarkdown(results);
-writeFileSync(new URL(`${stamp}.json`, dir), JSON.stringify({ args, cases: cases.map(c => c.id), results }, null, 2));
+writeFileSync(new URL(`${stamp}.json`, dir), JSON.stringify({ args, cases: cases.map(c => c.id), sequences: sequences.map(q => q.id), results }, null, 2));
 writeFileSync(new URL(`${stamp}.md`, dir), md);
 console.log(md);
 log(`[bakeoff] wrote bakeoff/brain/results/${stamp}.{json,md}`);
