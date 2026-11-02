@@ -16,7 +16,7 @@ const MODEL = process.env.PEAK_WHISPER_MODEL ?? 'small';
 const CHUNK_S = Number(process.env.PEAK_CHUNK_S ?? 5);
 const MIN_DB = Number(process.env.PEAK_MIN_DB ?? -45); // mean volume below this counts as silence
 // Whisper invents these on near-silence
-const HALLUCINATIONS = /^(thanks? for watching|thank you\.?|you|bye\.?|\.+|(hey,? peak\.?\s*)+)$/i; // includes our own prompt echoed back
+const HALLUCINATIONS = /^(thanks? for watching|thank you( so much)?|you|bye|\.+|(hey,? peak)+)[\s.!,]*$/i; // includes our own prompt echoed back
 
 const dir = mkdtempSync(join(tmpdir(), 'peak-hearing-'));
 process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
