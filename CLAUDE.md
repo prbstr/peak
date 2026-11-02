@@ -105,7 +105,8 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 2. When parts arrive: measure UBEC and Mini560 outputs, wire PCA9685, tune `node/config.yaml` ranges on the bench, install `peak-servod.service`.
 3. Camera module and speaker; test `camd.sh` into `vision.js`.
 4. Makefile `m0` target uses plain `python3` (fails on the Mac without PyYAML); point it at `.venv/bin/python`.
-5. `scripts/pi-firstboot.sh` has not been run on the current Pi (hardware watchdog, apt deps). Run it before adding the next body.
+5. `scripts/pi-firstboot.sh` was run on the Pi on 2 Nov 2026 (I2C, watchdog, apt deps all confirmed). Run it for each new body.
+5b. `adafruit_servokit` does not import on the Pi 3B: Blinka wants `Adafruit-Blinka-Raspberry-Pi-PWM`, which fails to build. `servod.py` only imports it outside sim mode, so real servo output is blocked. Plan: replace ServoKit with a small direct PCA9685 driver over `smbus2` (no Blinka), then test on the bench when the servos arrive.
 6. Add `look_at` back to the brain's reply shape.
 
 ## Working with the owner
