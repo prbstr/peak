@@ -1,58 +1,107 @@
-// hearing — records short chunks, skips silence, transcribes with whisper, publishes {"heard": "..."}.
+// hearing — listens to a PCM stream, cuts it into utterances at pauses, sends each to a resident
+// whisper.cpp server, publishes {"heard": "..."}.
 //   PEAK_AUDIO_SOURCE   udp://0.0.0.0:5001 for the Pi mic (node/audiod.sh); unset to use the Mac mic
 //   PEAK_AUDIO_DEVICE   avfoundation audio index for the Mac mic (default 0; list: ffmpeg -f avfoundation -list_devices true -i "")
 //   PEAK_AUDIO_FILE     transcribe this file once instead of the mic (for testing)
-//   PEAK_WHISPER_MODEL  default small (cached in ~/.cache/whisper)
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+//   PEAK_WHISPER_URL    whisper-server (default http://127.0.0.1:8178); start it with `npm run whisper`
+//   PEAK_MIN_DB         a 100 ms frame louder than this is speech (default -45; the Pi mic idles around -36)
+//   PEAK_SILENCE_MS     this much quiet after speech ends the utterance (default 700)
+//   PEAK_DEBUG          log every utterance whisper returns, including the ones filtered out
 import { spawn } from 'node:child_process';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { connect, publishEvent, run, sleep } from './lib.js';
+import { connect, publishEvent, run } from './lib.js';
 
 const DEVICE = process.env.PEAK_AUDIO_DEVICE ?? '0';
 const SOURCE = process.env.PEAK_AUDIO_SOURCE;
-const MAX_BACKLOG = 2; // chunks waiting for whisper; older ones are dropped so we stay near real time
-const MODEL = process.env.PEAK_WHISPER_MODEL ?? 'small';
-const CHUNK_S = Number(process.env.PEAK_CHUNK_S ?? 5);
-const MIN_DB = Number(process.env.PEAK_MIN_DB ?? -45); // mean volume below this counts as silence
+const WHISPER = process.env.PEAK_WHISPER_URL ?? 'http://127.0.0.1:8178';
+const MIN_DB = Number(process.env.PEAK_MIN_DB ?? -45);
+const SILENCE_MS = Number(process.env.PEAK_SILENCE_MS ?? 700);
+const RATE = 16000;
+const FRAME_MS = 100;
+const FRAME_BYTES = (RATE * FRAME_MS) / 1000 * 2; // s16le mono
+const PREROLL_FRAMES = 3; // kept from before speech starts so the first syllable is not clipped
+const MIN_SPEECH_MS = 300; // shorter bursts are clicks and bumps, not words
+const MAX_UTTERANCE_MS = 12000; // flush mid-sentence rather than wait for a pause that never comes
 // Whisper invents these on near-silence
 const HALLUCINATIONS = /^(thanks? for watching|thank you( so much)?|you|bye|\.+|(hey,? peak)+)[\s.!,]*$/i; // includes our own prompt echoed back
 
-const dir = mkdtempSync(join(tmpdir(), 'peak-hearing-'));
-process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
 process.on('SIGINT', () => process.exit(0));
 process.on('SIGTERM', () => process.exit(0));
 
-const meanVolume = async file => {
-  const { stderr } = await run('ffmpeg', ['-hide_banner', '-i', file, '-af', 'volumedetect', '-f', 'null', '-']);
-  const m = /mean_volume: (-?[\d.]+) dB/.exec(stderr);
-  return m ? Number(m[1]) : -91;
+const frameDb = frame => {
+  let sum = 0;
+  for (let i = 0; i < frame.length; i += 2) { const s = frame.readInt16LE(i); sum += s * s; }
+  const rms = Math.sqrt(sum / (frame.length / 2));
+  return rms ? 20 * Math.log10(rms / 32768) : -91;
 };
 
-const transcribe = async file => {
-  const { code, stderr } = await run('whisper', [file, '--model', MODEL, '--language', 'en', '--fp16', 'False',
-    '--initial_prompt', 'Hey Peak.', '--output_format', 'txt', '--output_dir', dir, '--verbose', 'False']);
-  if (code !== 0) { console.error('[hearing] whisper failed:', stderr.slice(-300)); return ''; }
-  const base = file.split('/').pop().replace(/\.[^.]+$/, '');
-  return readFileSync(join(dir, `${base}.txt`), 'utf8').trim();
+const wav = pcm => {
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8);
+  h.write('fmt ', 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22);
+  h.writeUInt32LE(RATE, 24); h.writeUInt32LE(RATE * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34);
+  h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([h, pcm]);
 };
 
-const handle = async (client, file) => {
-  const db = await meanVolume(file);
-  if (db < MIN_DB) return;
-  const text = await transcribe(file);
-  if (text && !HALLUCINATIONS.test(text)) publishEvent(client, { heard: text });
+const transcribe = async pcm => {
+  const form = new FormData();
+  form.append('file', new Blob([wav(pcm)], { type: 'audio/wav' }), 'utterance.wav');
+  form.append('response_format', 'json');
+  form.append('temperature', '0');
+  try {
+    const res = await fetch(`${WHISPER}/inference`, { method: 'POST', body: form });
+    if (!res.ok) { console.error(`[hearing] whisper-server ${res.status}: ${(await res.text()).slice(0, 200)}`); return ''; }
+    return (await res.json()).text?.trim() ?? '';
+  } catch (e) {
+    console.error(`[hearing] whisper-server unreachable at ${WHISPER} (${e.cause?.code ?? e.message}); start it with: cd mind && npm run whisper`);
+    return '';
+  }
+};
+
+// One transcription at a time; while one runs at most one utterance waits and a newer one replaces it.
+let busy = false, waiting = null;
+const handle = async (client, pcm, endedAt) => {
+  if (busy) { waiting = { pcm, endedAt }; return; }
+  busy = true;
+  const text = await transcribe(pcm);
+  if (process.env.PEAK_DEBUG) console.log(`[hearing] ${(pcm.length / RATE / 2).toFixed(1)}s utterance → "${text}"`);
+  const latency = ((Date.now() - endedAt) / 1000).toFixed(1);
+  if (text && !HALLUCINATIONS.test(text)) { console.log(`[hearing] ${latency}s after speech ended`); publishEvent(client, { heard: text }); }
+  else if (text) console.log(`[hearing] dropped "${text}"`);
+  busy = false;
+  if (waiting) { const w = waiting; waiting = null; handle(client, w.pcm, w.endedAt); }
+};
+
+/** Feed 100 ms frames; calls onUtterance(pcm) at each pause after speech. */
+const segmenter = onUtterance => {
+  let pending = Buffer.alloc(0), preroll = [], speech = [], speechMs = 0, quietMs = 0;
+  const flush = () => {
+    if (speechMs >= MIN_SPEECH_MS) onUtterance(Buffer.concat([...preroll, ...speech]));
+    preroll = []; speech = []; speechMs = 0; quietMs = 0;
+  };
+  return chunk => {
+    pending = Buffer.concat([pending, chunk]);
+    while (pending.length >= FRAME_BYTES) {
+      const frame = pending.subarray(0, FRAME_BYTES); pending = pending.subarray(FRAME_BYTES);
+      const loud = frameDb(frame) >= MIN_DB;
+      if (speech.length === 0 && !loud) { preroll.push(frame); if (preroll.length > PREROLL_FRAMES) preroll.shift(); continue; }
+      speech.push(frame);
+      if (loud) { speechMs += FRAME_MS; quietMs = 0; } else quietMs += FRAME_MS;
+      if (quietMs >= SILENCE_MS || speech.length * FRAME_MS >= MAX_UTTERANCE_MS) flush();
+    }
+  };
 };
 
 const inputArgs = SOURCE
-  ? ['-f', 's16le', '-ar', '16000', '-ac', '1', '-i', SOURCE]
+  ? ['-f', 's16le', '-ar', String(RATE), '-ac', '1', '-i', SOURCE]
   : ['-f', 'avfoundation', '-i', `:${DEVICE}`];
 
-/** One long-running ffmpeg cuts the stream into CHUNK_S wav files, so no audio is lost between chunks. */
-const startRecorder = () => {
-  const p = spawn('ffmpeg', ['-y', '-loglevel', 'error', ...inputArgs, '-ar', '16000', '-ac', '1',
-    '-f', 'segment', '-segment_time', String(CHUNK_S), '-reset_timestamps', '1', join(dir, 'chunk%05d.wav')]);
-  process.on('exit', () => p.kill()); // otherwise an orphaned ffmpeg keeps the UDP port
+/** One long-running ffmpeg writes 16 kHz mono PCM to stdout. */
+const startRecorder = onData => {
+  // No `-fflags nobuffer` here: it drops the audio ffmpeg reads while probing, which ate the first sentence.
+  const p = spawn('ffmpeg', ['-loglevel', 'error', '-probesize', '32', '-analyzeduration', '0', ...inputArgs, '-ar', String(RATE), '-ac', '1', '-f', 's16le', 'pipe:1']);
+  process.on('exit', () => p.kill('SIGKILL')); // SIGTERM lets ffmpeg linger and keep the UDP port bound past a quick restart
+  p.stdout.on('data', onData);
   p.stderr.on('data', d => console.error('[hearing] ffmpeg:', String(d).trim().slice(-200)));
   p.on('close', code => { console.error(`[hearing] recorder exited (${code}); mic permission or stream?`); process.exit(1); });
   return p;
@@ -61,20 +110,11 @@ const startRecorder = () => {
 const client = connect();
 client.on('connect', async () => {
   if (process.env.PEAK_AUDIO_FILE) {
-    await handle(client, process.env.PEAK_AUDIO_FILE);
+    const { stdout } = await run('ffmpeg', ['-loglevel', 'error', '-i', process.env.PEAK_AUDIO_FILE, '-ar', String(RATE), '-ac', '1', '-f', 's16le', 'pipe:1']);
+    const text = await transcribe(stdout);
+    if (text && !HALLUCINATIONS.test(text)) publishEvent(client, { heard: text });
     return client.end();
   }
-  console.log(`[hearing] listening on ${SOURCE ?? `Mac audio device ${DEVICE}`}, whisper ${MODEL}`);
-  startRecorder();
-  // The newest file is still being written; every older one is complete.
-  for (;;) {
-    await sleep(500);
-    const ready = readdirSync(dir).filter(f => f.startsWith('chunk')).sort().slice(0, -1);
-    for (const stale of ready.slice(0, -MAX_BACKLOG)) rmSync(join(dir, stale), { force: true });
-    for (const name of ready.slice(-MAX_BACKLOG)) {
-      const file = join(dir, name);
-      await handle(client, file);
-      rmSync(file, { force: true });
-    }
-  }
+  console.log(`[hearing] listening on ${SOURCE ?? `Mac audio device ${DEVICE}`}, whisper at ${WHISPER}, speech above ${MIN_DB} dB`);
+  startRecorder(segmenter(pcm => handle(client, pcm, Date.now())));
 });

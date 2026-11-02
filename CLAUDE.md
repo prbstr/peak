@@ -83,10 +83,10 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 
 ## Gotchas learned the hard way
 
-- ffmpeg single-image input breaks with `-fflags nobuffer`; apply it only to `udp://`. The JPEG encoder needs `format=yuvj420p`.
+- ffmpeg single-image input breaks with `-fflags nobuffer`; apply it only to `udp://` video. Never on the audio UDP input: it discards what ffmpeg reads while probing and ate the first sentence. `hearing.js` uses `-probesize 32 -analyzeduration 0` instead. The JPEG encoder needs `format=yuvj420p`.
 - The Pi USB mic rejects 16 kHz in ffmpeg: `audiod.sh` captures at 48 kHz and resamples. Select it by name (`plughw:CARD=Device,DEV=0`); USB card numbers change after reboots.
 - Whisper hallucinates "Thanks for watching." on quiet audio and echoes its prompt. Mitigations: `PEAK_MIN_DB=-30` (the Pi mic idles around -36 dB) and a filter regex in `hearing.js`.
-- `hearing.js` kills its ffmpeg child on exit; an orphan keeps UDP :5001 bound.
+- `hearing.js` SIGKILLs its ffmpeg child on exit; with SIGTERM it lingered and kept UDP :5001 bound through a quick restart.
 - Do not `pkill -f` on the Pi over ssh with a pattern that appears in the ssh command line itself; it kills the session.
 - `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell (injection fix). Keep it that way.
 - The Pi shows **undervoltage** (`vcgencmd get_throttled` = `0x50005`) and has hung or rebooted under load. Still present on 2 Nov 2026 after a new supply AND with the USB mic unplugged: dips every 10-30 s at idle, CPU pinned at 600 MHz. So it is the cable or the supply itself, not a peripheral. Next: swap the micro-USB cable for the shortest, thickest one available; if that fails, the supply is not delivering 5.1 V under load. Measure at the GPIO 5V pin with the multimeter.
@@ -98,7 +98,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 | --- | --- |
 | Repo | https://github.com/prbstr/peak, branch `main`. |
 | Broker, orchestrator, `servod` in sim | Working, tested end to end Mac <-> Pi. |
-| Hearing | Working from the Pi mic. whisper `small` mishears sometimes. |
+| Hearing | Working from the Pi mic. whisper `small` mishears sometimes. Since 2 Nov 2026: resident `whisper-server` plus pause-based utterance cutting; measured about 0.2 s transcription after the 0.7 s pause (was about 15 s with the CLI). Tested with a synthetic UDP stream on the Mac, not yet re-tested from the Pi mic. |
 | Vision | Working from an image file. **Not tested** with the Pi camera: no camera module yet. |
 | Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Orders seen 2 Nov 2026: AliExpress (servos x10, PCA9685 x2, UBEC 3A, Mini560 PRO 5V x5 plus 2 wrong 9V, BMS, holders, switch, USB iron) and Communica (4x INR18650-30HW cells, Pi Camera Module 3 Wide, HC-SR04+, MPU6050, 0.96in I2C OLED, 16-LED WS2812 ring, PIR sensor, vibration motor, Pi heatsinks and fan, resistors, diodes, transistors, F/F jumpers, heat shrink). Not seen in either order, confirm before relying on them: speaker, multimeter, solder/flux, hookup wire, capacitor, fuse, connectors, Pi power supply, 5A UBEC, 2S Type-C charger. |
 | Pi service | `peak-servod.service` exists but is not installed on the Pi. |

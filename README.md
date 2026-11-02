@@ -31,11 +31,12 @@ The Pi 3B runs only `servod` and `camd`. All AI (orchestrator, vision, speech) s
 
 Mac (broker and mind):
 ```sh
-brew install mosquitto ollama ffmpeg openai-whisper
+brew install mosquitto ollama ffmpeg whisper.cpp
 brew services start mosquitto        # add `listener 1883 0.0.0.0` and `allow_anonymous true` to mosquitto.conf, then restart
 ollama pull huihui_ai/qwen3-abliterated:8b && ollama pull qwen2.5vl:3b
+mkdir -p ~/.cache/whisper.cpp && curl -L -o ~/.cache/whisper.cpp/ggml-small.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
 cd mind && npm install && cp .env.example .env
-npm start
+npm start                            # plus `npm run whisper` and `npm run hearing` in their own terminals
 ```
 
 Pi (Raspberry Pi OS Lite 64-bit, user `lupin`, hostname = node name):
