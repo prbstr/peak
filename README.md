@@ -33,7 +33,7 @@ Mac (broker and mind):
 ```sh
 brew install mosquitto ollama ffmpeg whisper.cpp
 brew services start mosquitto        # add `listener 1883 0.0.0.0` and `allow_anonymous true` to mosquitto.conf, then restart
-ollama pull huihui_ai/qwen3-abliterated:8b && ollama pull qwen2.5vl:3b
+ollama pull huihui_ai/qwen3-vl-abliterated:8b-instruct   # brain and eyes in one model
 mkdir -p ~/.cache/whisper.cpp && curl -L -o ~/.cache/whisper.cpp/ggml-small.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
 cd mind && npm install && cp .env.example .env
 npm start                            # plus `npm run whisper` and `npm run hearing` in their own terminals
