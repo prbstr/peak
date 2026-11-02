@@ -94,7 +94,7 @@ Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BRO
 | Broker, orchestrator, `servod` in sim | Working, tested end to end Mac <-> Pi. |
 | Hearing | Working from the Pi mic. whisper `small` mishears sometimes. |
 | Vision | Working from an image file. **Not tested** with the Pi camera: no camera module yet. |
-| Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Still to buy: 18650 cells (local), Pi camera, speaker, HC-SR04 + 1k/2k resistors, jumpers, solder and wire, capacitor, fuse, multimeter. |
+| Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Orders seen 2 Nov 2026: AliExpress (servos x10, PCA9685 x2, UBEC 3A, Mini560 PRO 5V x5 plus 2 wrong 9V, BMS, holders, switch, USB iron) and Communica (4x INR18650-30HW cells, Pi Camera Module 3 Wide, HC-SR04+, MPU6050, 0.96in I2C OLED, 16-LED WS2812 ring, PIR sensor, vibration motor, Pi heatsinks and fan, resistors, diodes, transistors, F/F jumpers, heat shrink). Not seen in either order, confirm before relying on them: speaker, multimeter, solder/flux, hookup wire, capacitor, fuse, connectors, Pi power supply, 5A UBEC, 2S Type-C charger. |
 | Pi service | `peak-servod.service` exists but is not installed on the Pi. |
 | Pi power | Unstable (undervoltage). Needs a better supply. |
 | Voice (text-to-speech) | `say` uses placeholder espeak-ng. Piper plan is in `mind/voice/README.md`. |
