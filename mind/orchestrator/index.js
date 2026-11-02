@@ -29,6 +29,8 @@ const hive = new Map();
 const history = [];
 /** Events are handled one at a time so replies never interleave */
 let queue = Promise.resolve();
+let pending = 0;
+const MAX_PENDING = 2; // senses can outpace a local model; drop events rather than fall minutes behind
 
 const SYSTEM = `You are Peak, a hive mind inhabiting Lego bodies. Right now you have one body: a Technic mech
 with a minifig pilot. You see through its camera and feel through its sensors. Speak briefly, in character,
@@ -50,7 +52,9 @@ client.on('message', (topic, payload) => {
   }
   // events are things worth thinking about: a face seen, a word heard, a bump
   if (kind === 'event') {
-    queue = queue.then(() => think(node, data)).catch(e => console.error('[mind] think failed:', e.message));
+    if (pending >= MAX_PENDING) return console.log('[mind] busy, dropped event');
+    pending++;
+    queue = queue.then(() => think(node, data)).catch(e => console.error('[mind] think failed:', e.message)).finally(() => pending--);
   }
 });
 

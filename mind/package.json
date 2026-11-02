@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node orchestrator/index.js",
     "dev": "node --watch orchestrator/index.js",
+    "hearing": "node senses/hearing.js",
+    "vision": "node senses/vision.js",
     "pub": "node scripts/pub.js",
     "sub": "node scripts/sub.js"
   },
