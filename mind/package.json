@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test senses/heardFilter.test.js",
+    "test": "node --test orchestrator/*.test.js senses/*.test.js",
+    "bakeoff:brain": "node bakeoff/brain/run.js",
     "start": "node orchestrator/index.js",
     "dev": "node --watch orchestrator/index.js",
     "hearing": "node senses/hearing.js",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "mqtt": "^5.10.0"
+    "mqtt": "^5.10.0",
+    "yaml": "^2.9.1"
   }
 }

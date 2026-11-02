@@ -1,4 +1,5 @@
-// Tool surface the model drives (via the JSON reply shape in index.js). Keep it tiny: gesture, say, look_at, snapshot.
+// Tool surface the model drives (via the JSON reply shape in brain.js). Keep it tiny: gesture, say, look_at.
+import { gestureNames } from './gestures.js';
 export const tools = [
   {
     name: 'gesture',
@@ -6,7 +7,7 @@ export const tools = [
     input_schema: {
       type: 'object',
       properties: {
-        name: { type: 'string', enum: ['wave', 'point', 'nod', 'shrug', 'rest', 'look_left', 'look_right'] },
+        name: { type: 'string', enum: gestureNames },
       },
       required: ['name'],
     },

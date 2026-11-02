@@ -4,7 +4,7 @@ import mqtt from 'mqtt';
 import { spawn } from 'node:child_process';
 
 export const NODE = process.env.PEAK_NODE ?? 'mech';
-export const OLLAMA = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
+export { OLLAMA } from '../lib/ollama.js';
 
 export const connect = () => {
   const client = mqtt.connect(process.env.PEAK_BROKER ?? 'mqtt://localhost:1883');

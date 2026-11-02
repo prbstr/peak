@@ -1,15 +1,16 @@
 // vision — watches the node's camera, and only when the scene changes asks a local vision model what it sees,
 // then publishes {"see": "..."}.
 //   PEAK_VISION_SOURCE  ffmpeg input: udp://0.0.0.0:5000 (Pi, default), "avfoundation:<n>" for a Mac camera, or an image/video file
-//   PEAK_VISION_MODEL   Ollama model with vision (default gemma4:26b)
+//   PEAK_VISION_MODEL   Ollama model with vision (default qwen2.5vl:3b)
 //   PEAK_VISION_EVERY_S seconds between looks (default 3)
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { OLLAMA, connect, publishEvent, run, sleep } from './lib.js';
+import { connect, publishEvent, run, sleep } from './lib.js';
+import { chat, loadOptions, thinkFlag } from '../lib/ollama.js';
 
 const SOURCE = process.env.PEAK_VISION_SOURCE ?? 'udp://0.0.0.0:5000';
-const MODEL = process.env.PEAK_VISION_MODEL ?? 'gemma4:26b';
+const MODEL = process.env.PEAK_VISION_MODEL ?? 'qwen2.5vl:3b';
 const EVERY_MS = Number(process.env.PEAK_VISION_EVERY_S ?? 3) * 1000;
 const CHANGE_THRESHOLD = Number(process.env.PEAK_CHANGE ?? 12); // mean 0-255 difference on a 16x16 grayscale thumbnail
 const COOLDOWN_MS = Number(process.env.PEAK_VISION_COOLDOWN_S ?? 10) * 1000;
@@ -45,20 +46,17 @@ const difference = (a, b) => {
 };
 
 const describe = async file => {
-  const res = await fetch(`${OLLAMA}/api/chat`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL, stream: false, think: false, options: { num_predict: 80 },
-      messages: [{
-        role: 'user',
-        content: PROMPT,
-        images: [readFileSync(file).toString('base64')],
-      }],
-    }),
+  // Same load-time options as the brain, so a shared brain-and-eyes model is loaded once, not reloaded per caller.
+  const { message, stats } = await chat({
+    model: MODEL, think: await thinkFlag(MODEL), options: { ...loadOptions(), num_predict: 80 },
+    messages: [{
+      role: 'user',
+      content: PROMPT,
+      images: [readFileSync(file).toString('base64')],
+    }],
   });
-  if (!res.ok) throw new Error(`ollama ${res.status}: ${await res.text()}`);
-  return (await res.json()).message.content.trim();
+  if (stats.loadMs > 1000) console.warn('[vision] model was reloaded (evicted?)');
+  return message.content.trim();
 };
 
 const client = connect();

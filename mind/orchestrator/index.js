@@ -1,27 +1,16 @@
 // peak mind — orchestrator
 // Listens to every node's senses, asks the local model (Ollama) what the hive should do,
 // and publishes commands back. Gestures are named, never raw servo angles.
+// The prompt, schema and Ollama call live in brain.js so tests and the bake-off share them.
 import 'dotenv/config';
 import mqtt from 'mqtt';
-import { tools, runTool } from './tools.js';
+import { runTool } from './tools.js';
+import { MODEL, askBrain, buildMessages, trimHistory } from './brain.js';
+import { formatStats } from '../lib/ollama.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
-const OLLAMA = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
-const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-abliterated:8b';
 
 const client = mqtt.connect(BROKER);
-
-/** This model's template has no native tool calling, so it answers in a JSON shape we enforce
- *  with Ollama structured outputs, and we turn the fields into the same tool calls as before. */
-const gestureNames = tools.find(t => t.name === 'gesture').input_schema.properties.name.enum;
-const REPLY_SCHEMA = {
-  type: 'object',
-  properties: {
-    gesture: { type: ['string', 'null'], enum: [...gestureNames, null] },
-    say: { type: ['string', 'null'] },
-  },
-  required: ['gesture', 'say'],
-};
 
 /** Latest sense reading per node that is online: { mech: {...}, rover: {...} } */
 const hive = new Map();
@@ -31,11 +20,6 @@ const history = [];
  *  latest thing heard or seen is the one worth answering, not a backlog. */
 let thinking = false;
 let waiting = null;
-
-const SYSTEM = `You are Peak, a hive mind inhabiting Lego bodies. Right now you have one body: a Technic mech
-with a minifig pilot. You see through its camera and feel through its sensors. Speak briefly, in character,
-and act through tools. Reply only with JSON: {"gesture": one of ${gestureNames.join(', ')} or null, "say": a short line or null}.
-At most one gesture and one short line per event. Never move a servo directly.`;
 
 client.on('connect', () => {
   console.log(`[mind] connected to ${BROKER}, brain: ${MODEL}`);
@@ -80,40 +64,17 @@ async function drain() {
   }
 }
 
-async function chat() {
-  const res = await fetch(`${OLLAMA}/api/chat`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      stream: false,
-      think: false,
-      options: { num_predict: 400 },
-      format: REPLY_SCHEMA,
-      messages: [{ role: 'system', content: SYSTEM }, ...history],
-    }),
-  });
-  if (!res.ok) throw new Error(`ollama ${res.status}: ${await res.text()}`);
-  return (await res.json()).message;
-}
-
-function trimHistory() {
-  // drop whole turns from the front so a tool call is never separated from its result
-  while (history.length > 20) {
-    const next = history.findIndex((m, i) => i > 0 && m.role === 'user');
-    if (next === -1) break;
-    history.splice(0, next);
-  }
-}
-
 async function think(node, event) {
-  history.push({ role: 'user', content: `[${node}] ${JSON.stringify(event)}\nHive state: ${JSON.stringify(Object.fromEntries(hive))}` });
-  trimHistory();
+  const messages = buildMessages(history, node, event, hive);
+  history.push(messages.at(-1));
+  trimHistory(history);
 
-  const msg = await chat();
-  history.push({ role: 'assistant', content: msg.content });
-  const reply = safeJson(msg.content);
-  if (!reply) return console.error('[mind] unparseable reply:', msg.content);
+  const { reply, content, stats } = await askBrain({ messages });
+  history.push({ role: 'assistant', content });
+  console.log(`[mind] brain ${formatStats(stats)}`);
+  // a load after the first call means Ollama evicted the brain (another model took the slot)
+  if (stats.loadMs > 1000) console.warn('[mind] brain was reloaded (evicted?)');
+  if (!reply) return console.error('[mind] unparseable reply:', content);
 
   if (reply.gesture) await runTool(client, node, 'gesture', { name: reply.gesture });
   if (reply.say) await runTool(client, node, 'say', { text: reply.say });
