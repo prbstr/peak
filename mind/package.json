@@ -6,13 +6,11 @@
   "scripts": {
     "start": "node orchestrator/index.js",
     "dev": "node --watch orchestrator/index.js",
-    "broker": "node broker.js",
     "pub": "node scripts/pub.js",
     "sub": "node scripts/sub.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "mqtt": "^5.10.0",
-    "aedes": "^1.2.0"
+    "mqtt": "^5.10.0"
   }
 }
