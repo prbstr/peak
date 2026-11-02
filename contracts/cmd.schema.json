@@ -4,6 +4,7 @@
   "oneOf": [
     { "type": "object", "required": ["gesture"], "properties": { "gesture": { "type": "string" } }, "additionalProperties": false },
     { "type": "object", "required": ["servo", "deg"], "properties": { "servo": { "type": "string" }, "deg": { "type": "number" }, "ms": { "type": "integer", "minimum": 20 } }, "additionalProperties": false },
-    { "type": "object", "required": ["say"], "properties": { "say": { "type": "string", "maxLength": 200 } }, "additionalProperties": false }
+    { "type": "object", "required": ["say"], "properties": { "say": { "type": "string", "maxLength": 200 } }, "additionalProperties": false },
+    { "type": "object", "required": ["stop"], "properties": { "stop": { "const": true } }, "additionalProperties": false }
   ]
 }

@@ -25,11 +25,13 @@ Pi (mech)                         Mac (mind)
 ```
 
 - One Mosquitto broker on the Mac (brew service, `*:1883`, anonymous). Bodies are clients only.
-- Topics: `peak/<node>/cmd`, `peak/<node>/sense`, `peak/<node>/event`, `peak/brain/intent`. Schemas in `contracts/`.
+- Topics: `peak/<node>/cmd`, `peak/<node>/sense`, `peak/<node>/event`, `peak/<node>/status` (retained online/offline, set by Last Will), `peak/brain/intent`. Schemas in `contracts/`.
 - Senses publish **events only**, never raw frames or audio. The orchestrator thinks on events.
 - The brain never moves servos directly. It replies with `{gesture, say}` JSON (enforced with Ollama structured outputs); gestures are named in `node/gestures.yaml`.
 - The brain model has no native tool calling in its template, hence the JSON reply shape. `look_at` is therefore not exposed right now.
-- The orchestrator handles events one at a time and drops events when 2 are already queued (`MAX_PENDING`).
+- The orchestrator thinks on one event at a time; one more may wait, and a newer event replaces it (latest wins, never a backlog). Bodies that go offline are removed from the hive map.
+- `servod` runs one motion at a time with a one-deep queue (newer replaces waiting). `say` runs independently of motion. `{"stop": true}` aborts the current move and releases all servos. On boot it eases servos to rest one at a time (`BOOT_SETTLE_MS`) to avoid inrush.
+- `peak-servod.service` reaches the Mac by mDNS name (`twentyones-Mac-mini.local`), not a fixed IP.
 
 ## Decisions and why
 
@@ -62,6 +64,8 @@ Pi (mech)                         Mac (mind)
 | Vision, one frame from a file | `PEAK_VISION_ONCE=1 PEAK_VISION_SOURCE=<image> npm run vision` |
 | Servo daemon in sim | `PEAK_SIM=1 PEAK_BROKER=<mac-ip> ~/peak/.venv/bin/python -u node/servod.py` (Mac: use `.venv/bin/python`) |
 | Send a command | `mosquitto_pub -t peak/mech/cmd -m '{"gesture":"wave"}'` |
+| Emergency stop | `mosquitto_pub -t peak/mech/cmd -m '{"stop":true}'` |
+| Is the body up? | `mosquitto_sub -t peak/mech/status -C 1` |
 | Fake an event | `mosquitto_pub -t peak/mech/event -m '{"heard":"hey peak, wave at me"}'` |
 | Deploy to the Pi | `scripts/deploy-node.sh [host]` (installs and restarts the systemd unit; for sim testing use plain rsync instead) |
 

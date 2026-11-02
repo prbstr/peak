@@ -23,14 +23,14 @@ const REPLY_SCHEMA = {
   required: ['gesture', 'say'],
 };
 
-/** Latest sense reading per node: { mech: {...}, rover: {...} } */
+/** Latest sense reading per node that is online: { mech: {...}, rover: {...} } */
 const hive = new Map();
 /** Rolling conversation so the character stays coherent */
 const history = [];
-/** Events are handled one at a time so replies never interleave */
-let queue = Promise.resolve();
-let pending = 0;
-const MAX_PENDING = 2; // senses can outpace a local model; drop events rather than fall minutes behind
+/** One event thinks at a time. One more may wait; a newer event replaces it, because the
+ *  latest thing heard or seen is the one worth answering, not a backlog. */
+let thinking = false;
+let waiting = null;
 
 const SYSTEM = `You are Peak, a hive mind inhabiting Lego bodies. Right now you have one body: a Technic mech
 with a minifig pilot. You see through its camera and feel through its sensors. Speak briefly, in character,
@@ -39,11 +39,18 @@ At most one gesture and one short line per event. Never move a servo directly.`;
 
 client.on('connect', () => {
   console.log(`[mind] connected to ${BROKER}, brain: ${MODEL}`);
-  client.subscribe(['peak/+/sense', 'peak/+/event']);
+  client.subscribe(['peak/+/sense', 'peak/+/event', 'peak/+/status']);
 });
 
 client.on('message', (topic, payload) => {
   const [, node, kind] = topic.split('/');
+  if (kind === 'status') {
+    // retained, and set to offline by the broker's Last Will when a body drops
+    const online = payload.toString() === 'online';
+    console.log(`[mind] ${node} is ${online ? 'online' : 'offline'}`);
+    if (!online) hive.delete(node);
+    return;
+  }
   const data = safeJson(payload);
   if (!data) return;
   if (kind === 'sense') {
@@ -52,11 +59,26 @@ client.on('message', (topic, payload) => {
   }
   // events are things worth thinking about: a face seen, a word heard, a bump
   if (kind === 'event') {
-    if (pending >= MAX_PENDING) return console.log('[mind] busy, dropped event');
-    pending++;
-    queue = queue.then(() => think(node, data)).catch(e => console.error('[mind] think failed:', e.message)).finally(() => pending--);
+    if (waiting) console.log('[mind] busy, replaced the waiting event');
+    waiting = { node, data };
+    drain();
   }
 });
+
+async function drain() {
+  if (thinking || !waiting) return;
+  thinking = true;
+  const { node, data } = waiting;
+  waiting = null;
+  try {
+    await think(node, data);
+  } catch (e) {
+    console.error('[mind] think failed:', e.message);
+  } finally {
+    thinking = false;
+    drain();
+  }
+}
 
 async function chat() {
   const res = await fetch(`${OLLAMA}/api/chat`, {

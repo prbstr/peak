@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "peak/<node>/status",
+  "description": "Retained. Set to offline by the broker's Last Will when a body drops.",
+  "type": "string",
+  "enum": ["online", "offline"]
+}

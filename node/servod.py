@@ -2,11 +2,12 @@
 """peak node — servo daemon.
 
 Subscribes to peak/<node>/cmd and drives a PCA9685 with eased, clamped moves.
-Publishes peak/<node>/sense every few seconds. Runs on a Raspberry Pi 3B.
+Publishes peak/<node>/sense every few seconds and peak/<node>/status (retained,
+with a Last Will) so the mind knows which bodies are alive. Runs on a Raspberry Pi 3B.
 
 Set PEAK_SIM=1 to run without hardware (prints moves instead).
 """
-import json, os, subprocess, time, threading, math
+import json, os, queue, subprocess, time, threading
 from pathlib import Path
 import yaml
 import paho.mqtt.client as mqtt
@@ -17,17 +18,27 @@ GESTURES = yaml.safe_load((HERE / "gestures.yaml").read_text())
 NODE = os.environ.get("PEAK_NODE", CFG["node"])
 BROKER = os.environ.get("PEAK_BROKER", "localhost")
 SIM = os.environ.get("PEAK_SIM") == "1"
+STATUS_TOPIC = f"peak/{NODE}/status"
+BOOT_SETTLE_MS = 1000  # ease to rest on boot: six servos snapping at once browns out the rail
 
 # ---------- hardware ----------
 class Servos:
     def __init__(self):
         self.pos = {name: s["rest"] for name, s in CFG["servos"].items()}
+        self.stop_flag = threading.Event()
+        self.kit = None
         if SIM:
-            self.kit = None
             return
         from pca9685 import PCA9685
         self.kit = PCA9685(address=CFG["i2c_address"], frequency=CFG["servo_hz"])
-        self.write_all()
+        self.settle()
+
+    def settle(self):
+        """Bring every servo to rest gently, one at a time, so startup current stays low."""
+        for name, s in CFG["servos"].items():
+            self.pos[name] = s["rest"]  # unknown real position; easing from rest is the safest assumption
+            self.write(name, s["rest"])
+            time.sleep(BOOT_SETTLE_MS / 1000 / len(CFG["servos"]))
 
     def pulse_us(self, deg):
         """Map an angle to a pulse width across the servo's full actuation range."""
@@ -43,15 +54,13 @@ class Servos:
         else:
             print(f"[sim] {name} -> {deg:.0f}")
 
-    def write_all(self):
-        for name, deg in self.pos.items():
-            self.write(name, deg)
-
     def move(self, targets: dict, ms: int):
-        """Ease all servos in `targets` from current to target over `ms` (smoothstep)."""
+        """Ease all servos in `targets` from current to target over `ms` (smoothstep). Stops early on stop()."""
         start = {n: self.pos[n] for n in targets}
         steps = max(1, int(ms / 20))
         for i in range(1, steps + 1):
+            if self.stop_flag.is_set():
+                return
             t = i / steps
             e = t * t * (3 - 2 * t)
             for n, target in targets.items():
@@ -64,6 +73,8 @@ class Servos:
             print(f"[servod] unknown gesture {name}")
             return
         for f in frames:
+            if self.stop_flag.is_set():
+                return
             ms = f.get("ms", 300)
             targets = {k: v for k, v in f.items() if k != "ms" and k in CFG["servos"]}
             if targets:
@@ -71,8 +82,42 @@ class Servos:
             else:
                 time.sleep(ms / 1000)
 
+    def stop(self):
+        """Abort the current move and let every servo go limp."""
+        self.stop_flag.set()
+        for s in CFG["servos"].values():
+            if self.kit:
+                self.kit.release(s["ch"])
+        if not self.kit:
+            print("[sim] stop: all servos released")
+
 servos = Servos()
-lock = threading.Lock()
+
+# ---------- motion queue ----------
+# One move at a time, at most one waiting. A newer command replaces the waiting one:
+# a robot should do the latest thing it was told, not catch up on a backlog.
+motion = queue.Queue(maxsize=1)
+
+def enqueue_motion(cmd):
+    try:
+        motion.put_nowait(cmd)
+    except queue.Full:
+        try:
+            motion.get_nowait()
+        except queue.Empty:
+            pass
+        motion.put_nowait(cmd)
+
+def motion_worker():
+    while True:
+        cmd = motion.get()
+        servos.stop_flag.clear()
+        if "gesture" in cmd:
+            servos.gesture(cmd["gesture"])
+        elif "servo" in cmd:
+            servos.move({cmd["servo"]: float(cmd["deg"])}, int(cmd.get("ms", 300)))
+
+threading.Thread(target=motion_worker, daemon=True).start()
 
 # ---------- sensors ----------
 def read_sense():
@@ -100,23 +145,29 @@ def speak(text):
 def on_connect(c, u, flags, rc, props=None):
     print(f"[servod] connected to {BROKER} as {NODE}")
     c.subscribe(f"peak/{NODE}/cmd")
+    c.publish(STATUS_TOPIC, "online", retain=True)
 
 def on_message(c, u, msg):
     try:
         cmd = json.loads(msg.payload)
     except Exception:
         return
-    def run():
-        with lock:
-            if "gesture" in cmd:
-                servos.gesture(cmd["gesture"])
-            elif "servo" in cmd:
-                servos.move({cmd["servo"]: float(cmd["deg"])}, int(cmd.get("ms", 300)))
-            elif "say" in cmd:
-                speak(str(cmd["say"]))
-    threading.Thread(target=run, daemon=True).start()
+    if not isinstance(cmd, dict):
+        return
+    if cmd.get("stop"):
+        # Drain anything waiting, then abort what is running. Speech is left alone.
+        try:
+            motion.get_nowait()
+        except queue.Empty:
+            pass
+        servos.stop()
+    elif "say" in cmd:
+        speak(str(cmd["say"]))  # independent of motion, so a line is never held up by a wave
+    elif "gesture" in cmd or "servo" in cmd:
+        enqueue_motion(cmd)
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"peak-{NODE}")
+client.will_set(STATUS_TOPIC, "offline", retain=True)
 client.on_connect = on_connect
 client.on_message = on_message
 client.connect(BROKER, 1883, 60)
@@ -128,3 +179,6 @@ try:
         time.sleep(CFG.get("sense_interval_s", 5))
 except KeyboardInterrupt:
     pass
+finally:
+    client.publish(STATUS_TOPIC, "offline", retain=True)
+    client.disconnect()
