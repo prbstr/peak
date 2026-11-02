@@ -13,6 +13,8 @@ const MODEL = process.env.PEAK_VISION_MODEL ?? 'gemma4:26b';
 const EVERY_MS = Number(process.env.PEAK_VISION_EVERY_S ?? 3) * 1000;
 const CHANGE_THRESHOLD = Number(process.env.PEAK_CHANGE ?? 12); // mean 0-255 difference on a 16x16 grayscale thumbnail
 const COOLDOWN_MS = Number(process.env.PEAK_VISION_COOLDOWN_S ?? 10) * 1000;
+// Kept short on purpose: moondream returns nothing for longer role prompts.
+const PROMPT = process.env.PEAK_VISION_PROMPT ?? 'Describe this image in one short sentence, mentioning any people and what they are doing.';
 const ONCE = process.env.PEAK_VISION_ONCE === '1'; // describe one frame and exit (testing)
 
 const dir = mkdtempSync(join(tmpdir(), 'peak-vision-'));
@@ -50,7 +52,7 @@ const describe = async file => {
       model: MODEL, stream: false, think: false, options: { num_predict: 80 },
       messages: [{
         role: 'user',
-        content: 'You are the eyes of a small robot. In one short sentence, say what is in front of you. Mention people and what they are doing. No preamble.',
+        content: PROMPT,
         images: [readFileSync(file).toString('base64')],
       }],
     }),
@@ -70,7 +72,10 @@ client.on('connect', async () => {
       const changed = difference(last, thumb) >= CHANGE_THRESHOLD;
       if (ONCE || (changed && Date.now() - lastAt >= COOLDOWN_MS)) {
         last = thumb; lastAt = Date.now();
-        try { publishEvent(client, { see: await describe(frame) }); }
+        try {
+          const see = await describe(frame);
+          if (see) publishEvent(client, { see }); else console.error('[vision] model returned nothing');
+        }
         catch (e) { console.error('[vision]', e.message); }
         if (ONCE) return client.end();
       }
