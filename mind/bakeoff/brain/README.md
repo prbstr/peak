@@ -19,6 +19,8 @@ Time: 34 cases x 3 runs = 102 calls per model. About 3-4 minutes for an 8B, 5-7 
 
 ## Results, 2 Nov 2026 (M4 Pro, 24 GB, Ollama 0.24.0)
 
+See the 3 Nov table below for the same models on Ollama 0.40.13, which changed the footprints.
+
 52 cases + 20 sequence steps, 5 runs (pair rows 1-3 runs). Strict = right gesture and a spoken line where required.
 
 | Brain | Eyes | Strict | p50 / p95 s | tok/s | Resident total | Notes |
@@ -30,7 +32,20 @@ Time: 34 cases x 3 runs = 102 calls per model. About 3-4 minutes for an 8B, 5-7 
 | `huihui_ai/qwen3.5-abliterated:9b` | `qwen2.5vl:3b` | 96% | 1.3 / 1.9 | 26 | over budget | evicted during the pair check |
 | `huihui_ai/qwen3-abliterated:8b` | Qwen3-VL 8B | 94% | 0.5 / 0.7 | 44 | 11.6 GB | |
 | `richardyoung/qwen3-14b-abliterated:q4_K_M` | - | 84% | 1.1 / 1.6 | 24 | 8.9 GB | shrugs at everything; no thinking capability |
-| `huihui_ai/gemma-4-abliterated:12b`, `:12b-qat` | - | - | - | - | - | `unknown model architecture: 'gemma4'` on Ollama 0.24.0 |
+
+## Results, 3 Nov 2026 (Ollama 0.40.13, after the upgrade that made Gemma 4 loadable)
+
+Same 72 steps, 5 runs, unified pair check per row. Resident sizes shrank on the new engine, so do not compare GB with the table above.
+
+| Brain | Eyes | Strict | p50 / p95 s | tok/s | Resident | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| **`huihui_ai/qwen3-vl-abliterated:8b-instruct`** | **same model** | **95%** | **0.4 / 0.7** | **42** | **5.3 GB** | still the default |
+| `huihui_ai/qwen3.5-abliterated:9b` | same model | 96% | 1.9 / 2.3 | 39 | 5.1 GB | 98% on 0.24; one reload mid-run |
+| `huihui_ai/gemma-4-abliterated:12b` | same model | 94% | 3.0 / 3.4 | 26 | 7.3 GB | re-evaluates the whole 660-token prompt every call (2.4 s of the 3.0); invented a person in the empty car interior |
+| `huihui_ai/gemma-4-abliterated:12b-qat` | same model | 94% | 3.0 / 3.4 | 26 | 7.7 GB (`/api/ps` says 0.4) | identical answers to the non-qat build |
+| `huihui_ai/gemma-4-abliterated:12b` | Qwen3-VL 8B | 71% (4 cases) | 3.1 | 26 | evicted | 0.40's scheduler refused to hold both with 4 GB of system RAM free |
+
+Gemma 4 misses: "are you there" → words without a nod, "hmm, let me think" → shrug, "don't wave at me" → wave, "did you see me come in" → words only. Its latency is structural: Qwen3-VL reuses the cached system prompt (0.1 s prompt eval), Gemma 4's sliding-window attention makes llama.cpp re-process it (2.4 s), so it misses the 3 s budget on every reply.
 
 Systematic misses (same every run): Qwen3-VL: "don't wave at me" → wave, "where did I leave my keys" → point, "hmm, let me think" → shrug, "did you see me come in" → words only. 9B: "stay still and tell me 2+2" → rest, "how many bodies" → shrug, "person at the left edge of the frame" → look_right. Old 8B: "where did I leave my keys" → look_right, "how many bodies" → rest, greetings sometimes silent.
 
@@ -66,7 +81,10 @@ Use photos with and without people: the prompt asks about people, and the small 
 
 ## Pitfalls seen
 
-- Ollama 0.24.0 cannot load Gemma 4 (`unknown model architecture: 'gemma4'`); the live log is `/opt/homebrew/var/log/ollama.log`, not `~/.ollama/logs`. Homebrew has 0.40.x.
+- The live Ollama log is `/opt/homebrew/var/log/ollama.log`, not `~/.ollama/logs`. Ollama 0.24.0 could not load Gemma 4 (`unknown model architecture: 'gemma4'`); 0.40.13 can.
+- Ollama 0.40 runs Qwen3-VL on llama-server instead of its own engine: the brain got faster and smaller (0.4 s, 5.3 GB) but a fresh photo takes 5.6 s to describe instead of 1.8 s (1103 image tokens at 230 tok/s versus 506 at 320). Frame size does not help (same at 448 px); the encoder is on Metal. A repeated image is cached (0.6 s).
+- Ollama 0.40's scheduler also counts free *system* memory ("predicted to exceed available memory, evicting" with `system_free` in the log). With a few GB free it will not hold a second 7 GB model even when the GPU has room, so split brain/eyes pairs that passed on 0.24 now evict. Unified mode is unaffected.
+- `/api/ps` reports 0.4 GB for `gemma-4-abliterated:12b-qat`; the runner process is really 7.7 GB (`ps -o rss`).
 - `qwen2.5vl:3b` is 3.2 GB on disk but 10.4 GB resident (vision encoder plus image KV), so "brain + 3B eyes" costs about 16 GB of the roughly 17.8 GB the GPU gets. That is what evicts models here, not the brain size.
 - Another program loads `qwen3:14b` (12 GB) into the same server. If it shows up under "Other models loaded during pair checks", the reload counts and p95 of that run are contaminated; rerun.
 - Failures are systematic at temperature 0.3: the same case fails every run. More runs do not change the ranking; more cases do.
