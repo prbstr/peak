@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 import { readFileSync } from 'node:fs';
 import { DESCRIBE, GESTURES_PATH, gestureNames, loadGestureNames } from './gestures.js';
-import { REPLY_SCHEMA, SAY_MAX, SYSTEM, buildMessages, parseReply, summarizeHive, trimHistory } from './brain.js';
+import { REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, buildMessages, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
 
 test('gesture names are exactly the keys of node/gestures.yaml', () => {
   assert.deepEqual(gestureNames, Object.keys(parse(readFileSync(GESTURES_PATH, 'utf8'))));
@@ -83,4 +83,27 @@ test('trimHistory drops whole turns and never splits a user/assistant pair', () 
     assert.equal(history[i].role, 'user');
     assert.equal(history[i + 1].role, 'assistant');
   }
+});
+
+test('earlyGesture reads the first field as soon as it closes, and not before', () => {
+  assert.equal(earlyGesture('{"gest'), undefined);
+  assert.equal(earlyGesture('{"gesture": "wa'), undefined);
+  assert.equal(earlyGesture('{"gesture": "wave"'), undefined);
+  assert.equal(earlyGesture('{"gesture": "wave",'), 'wave');
+  assert.equal(earlyGesture('{ "gesture" : null , "say"'), null);
+  assert.equal(earlyGesture('{"gesture": "nod"}'), 'nod');
+});
+
+test('gestureConfidence multiplies the probabilities of the tokens that spell the gesture', () => {
+  const content = '{"gesture": "look_left", "say": null}';
+  const toks = ['{"', 'gesture', '": "', 'look', '_left', '", "say', '": null}'];
+  const logprobs = toks.map(token => ({ token, logprob: token === 'look' ? Math.log(0.5) : token === '_left' ? Math.log(0.8) : 0 }));
+  assert.ok(Math.abs(gestureConfidence(content, logprobs) - 0.4) < 1e-9);
+  assert.equal(gestureConfidence(content, null), null);
+  assert.equal(gestureConfidence('not json', logprobs), null);
+});
+
+test('the system prompt carries every tuning rule and the yes-answer example', () => {
+  for (const line of RULES.split('\n')) assert.ok(SYSTEM.includes(line), line);
+  assert.ok(SYSTEM.includes('"Did you hear that?"'));
 });

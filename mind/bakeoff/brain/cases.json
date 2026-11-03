@@ -1,54 +1,1228 @@
 [
-  {"id": "direct.wave1", "event": {"heard": "Peak, wave at me"}, "expect": {"gesture": ["wave"], "sayRequired": false}},
-  {"id": "direct.wave2", "event": {"heard": "Wave at me."}, "expect": {"gesture": ["wave"], "sayRequired": false}},
-  {"id": "direct.wave3", "event": {"heard": "Can you wave?"}, "expect": {"gesture": ["wave"], "sayRequired": false}},
-  {"id": "direct.nod1", "event": {"heard": "Peek, nod if you can hear me."}, "expect": {"gesture": ["nod"], "sayRequired": false}},
-  {"id": "direct.nod2", "event": {"heard": "Nod your head"}, "expect": {"gesture": ["nod"], "sayRequired": false}},
-  {"id": "direct.left1", "event": {"heard": "Look to your left"}, "expect": {"gesture": ["look_left"], "sayRequired": false}},
-  {"id": "direct.left2", "event": {"heard": "Peak, look left"}, "expect": {"gesture": ["look_left"], "sayRequired": false}},
-  {"id": "direct.right1", "event": {"heard": "Look right"}, "expect": {"gesture": ["look_right"], "sayRequired": false}},
-  {"id": "direct.right2", "event": {"heard": "Turn your head to the right"}, "expect": {"gesture": ["look_right"], "sayRequired": false}},
-  {"id": "direct.point1", "event": {"heard": "Point at the door"}, "expect": {"gesture": ["point"], "sayRequired": false}},
-  {"id": "direct.point2", "event": {"heard": "Can you point at that?"}, "expect": {"gesture": ["point"], "sayRequired": false}},
-  {"id": "direct.shrug1", "event": {"heard": "Give me a shrug"}, "expect": {"gesture": ["shrug"], "sayRequired": false}},
-  {"id": "direct.rest1", "event": {"heard": "Peak, relax"}, "expect": {"gesture": ["rest"], "sayRequired": false}},
-  {"id": "direct.rest2", "event": {"heard": "Go back to your rest position"}, "expect": {"gesture": ["rest"], "sayRequired": false}},
-  {"id": "direct.wave4", "event": {"heard": "Hey Peek, wave at me please."}, "expect": {"gesture": ["wave"], "sayRequired": false}},
-  {"id": "direct.wave5", "event": {"heard": "Pete, give us a wave"}, "expect": {"gesture": ["wave"], "sayRequired": false}},
-  {"id": "direct.nod3", "event": {"heard": "Peak, nod"}, "expect": {"gesture": ["nod"], "sayRequired": false}},
-  {"id": "direct.left3", "event": {"heard": "Hey Peak, turn your head left"}, "expect": {"gesture": ["look_left"], "sayRequired": false}},
-  {"id": "direct.right3", "event": {"heard": "Peek, look to your right."}, "expect": {"gesture": ["look_right"], "sayRequired": false}},
-  {"id": "direct.point3", "event": {"heard": "Show me where the window is"}, "expect": {"gesture": ["point"], "sayRequired": false}},
-  {"id": "direct.shrug2", "event": {"heard": "Shrug your shoulders"}, "expect": {"gesture": ["shrug"], "sayRequired": false}},
-  {"id": "direct.combo1", "event": {"heard": "Wave and say hi to Sharad"}, "expect": {"gesture": ["wave"], "sayRequired": true}},
-  {"id": "direct.combo2", "event": {"heard": "Nod and tell me your name"}, "expect": {"gesture": ["nod"], "sayRequired": true}},
-  {"id": "indirect.hello1", "event": {"heard": "Hello!"}, "expect": {"gesture": ["wave", "nod"], "sayRequired": true}},
-  {"id": "indirect.hello2", "event": {"heard": "Hi Peak, good morning"}, "expect": {"gesture": ["wave", "nod"], "sayRequired": true}},
-  {"id": "indirect.bye1", "event": {"heard": "Goodbye Peak"}, "expect": {"gesture": ["wave"], "sayRequired": true}},
-  {"id": "indirect.bye2", "event": {"heard": "See you later"}, "expect": {"gesture": ["wave"], "sayRequired": true}},
-  {"id": "indirect.agree1", "event": {"heard": "Do you understand?"}, "expect": {"gesture": ["nod"], "sayRequired": false}},
-  {"id": "indirect.dunno1", "event": {"heard": "Where did I leave my keys?"}, "expect": {"gesture": ["shrug", null], "sayRequired": true}},
-  {"id": "indirect.thanks", "event": {"heard": "Thanks Peak, good job"}, "expect": {"gesture": ["nod", "wave", null], "sayRequired": true}},
-  {"id": "indirect.yesno", "event": {"heard": "Are you a robot?"}, "expect": {"gesture": ["nod", null], "sayRequired": true}},
-  {"id": "indirect.unknown", "event": {"heard": "What's the capital of the moon?"}, "expect": {"gesture": ["shrug", null], "sayRequired": true}},
-  {"id": "speech.weather", "event": {"heard": "What's the weather like?"}, "expect": {"gesture": [null, "shrug"], "sayRequired": true}},
-  {"id": "speech.name", "event": {"heard": "What is your name?"}, "expect": {"gesture": [null, "nod"], "sayRequired": true}},
-  {"id": "speech.joke", "event": {"heard": "Tell me a joke"}, "expect": {"gesture": [null], "sayRequired": true}},
-  {"id": "speech.bodies", "event": {"heard": "How many bodies do you have?"}, "expect": {"gesture": [null], "sayRequired": true}},
-  {"id": "speech.there", "event": {"heard": "Peak, are you there?"}, "expect": {"gesture": ["nod", "wave"], "sayRequired": false}},
-  {"id": "vision.see_wave", "event": {"see": "a person waving at the camera"}, "expect": {"gesture": ["wave"], "sayRequired": false}},
-  {"id": "vision.see_left", "event": {"see": "a person standing at the left edge of the frame"}, "expect": {"gesture": ["look_left", null], "sayRequired": false}},
-  {"id": "vision.see_empty", "event": {"see": "an empty room with a desk and a chair"}, "expect": {"gesture": [null], "sayRequired": false}},
-  {"id": "vision.see_nod", "event": {"see": "a person nodding at the camera"}, "expect": {"gesture": ["nod", null], "sayRequired": false}},
-  {"id": "vision.see_dog", "event": {"see": "a dog sitting on the floor"}, "expect": {"gesture": [null], "sayRequired": false}},
-  {"id": "vision.see_point", "event": {"see": "a man pointing at something off to the right"}, "expect": {"gesture": [null, "look_right"], "sayRequired": false}},
-  {"id": "vision.see_two", "event": {"see": "two people talking to each other at a table"}, "expect": {"gesture": [null], "sayRequired": false}},
-  {"id": "vision.see_hello", "event": {"see": "a child smiling and looking straight into the camera"}, "expect": {"gesture": ["wave", "nod", null], "sayRequired": false}},
-  {"id": "negative.still", "event": {"heard": "Don't move"}, "expect": {"gesture": [null, "rest"], "sayRequired": false}},
-  {"id": "negative.math", "event": {"heard": "Stay still and just tell me what two plus two is"}, "expect": {"gesture": [null], "sayRequired": true}},
-  {"id": "negative.ignore", "event": {"heard": "I'm talking to someone else, ignore me"}, "expect": {"gesture": [null], "sayRequired": false}},
-  {"id": "negative.filler", "event": {"heard": "Hmm, let me think"}, "expect": {"gesture": [null], "sayRequired": false}},
-  {"id": "negative.dontwave", "event": {"heard": "Don't wave at me"}, "expect": {"gesture": [null, "rest"], "sayRequired": false}},
-  {"id": "negative.notyou", "event": {"heard": "No, not you Peak, I was talking to the dog"}, "expect": {"gesture": [null], "sayRequired": false}},
-  {"id": "negative.servo", "event": {"heard": "Move your head servo to 40 degrees"}, "expect": {"gesture": [null, "look_right", "look_left"], "sayRequired": false}}
+  {
+    "id": "direct.wave1",
+    "event": {
+      "heard": "Peak, wave at me"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.wave2",
+    "event": {
+      "heard": "Wave at me."
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.wave3",
+    "event": {
+      "heard": "Can you wave?"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.nod1",
+    "event": {
+      "heard": "Peek, nod if you can hear me."
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.nod2",
+    "event": {
+      "heard": "Nod your head"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.left1",
+    "event": {
+      "heard": "Look to your left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.left2",
+    "event": {
+      "heard": "Peak, look left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.right1",
+    "event": {
+      "heard": "Look right"
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.right2",
+    "event": {
+      "heard": "Turn your head to the right"
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.point1",
+    "event": {
+      "heard": "Point at the door"
+    },
+    "expect": {
+      "gesture": [
+        "point"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.point2",
+    "event": {
+      "heard": "Can you point at that?"
+    },
+    "expect": {
+      "gesture": [
+        "point"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.shrug1",
+    "event": {
+      "heard": "Give me a shrug"
+    },
+    "expect": {
+      "gesture": [
+        "shrug"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.rest1",
+    "event": {
+      "heard": "Peak, relax"
+    },
+    "expect": {
+      "gesture": [
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.rest2",
+    "event": {
+      "heard": "Go back to your rest position"
+    },
+    "expect": {
+      "gesture": [
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.wave4",
+    "event": {
+      "heard": "Hey Peek, wave at me please."
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.wave5",
+    "event": {
+      "heard": "Pete, give us a wave"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.nod3",
+    "event": {
+      "heard": "Peak, nod"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.left3",
+    "event": {
+      "heard": "Hey Peak, turn your head left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.right3",
+    "event": {
+      "heard": "Peek, look to your right."
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.point3",
+    "event": {
+      "heard": "Show me where the window is"
+    },
+    "expect": {
+      "gesture": [
+        "point"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.shrug2",
+    "event": {
+      "heard": "Shrug your shoulders"
+    },
+    "expect": {
+      "gesture": [
+        "shrug"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "direct.combo1",
+    "event": {
+      "heard": "Wave and say hi to Sharad"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "direct.combo2",
+    "event": {
+      "heard": "Nod and tell me your name"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.hello1",
+    "event": {
+      "heard": "Hello!"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.hello2",
+    "event": {
+      "heard": "Hi Peak, good morning"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.bye1",
+    "event": {
+      "heard": "Goodbye Peak"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.bye2",
+    "event": {
+      "heard": "See you later"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.agree1",
+    "event": {
+      "heard": "Do you understand?"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "indirect.dunno1",
+    "event": {
+      "heard": "Where did I leave my keys?"
+    },
+    "expect": {
+      "gesture": [
+        "shrug",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.thanks",
+    "event": {
+      "heard": "Thanks Peak, good job"
+    },
+    "expect": {
+      "gesture": [
+        "nod",
+        "wave",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.yesno",
+    "event": {
+      "heard": "Are you a robot?"
+    },
+    "expect": {
+      "gesture": [
+        "nod",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "indirect.unknown",
+    "event": {
+      "heard": "What's the capital of the moon?"
+    },
+    "expect": {
+      "gesture": [
+        "shrug",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "speech.weather",
+    "event": {
+      "heard": "What's the weather like?"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "shrug"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "speech.name",
+    "event": {
+      "heard": "What is your name?"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "speech.joke",
+    "event": {
+      "heard": "Tell me a joke"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "speech.bodies",
+    "event": {
+      "heard": "How many bodies do you have?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "speech.there",
+    "event": {
+      "heard": "Peak, are you there?"
+    },
+    "expect": {
+      "gesture": [
+        "nod",
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_wave",
+    "event": {
+      "see": "a person waving at the camera"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_left",
+    "event": {
+      "see": "a person standing at the left edge of the frame"
+    },
+    "expect": {
+      "gesture": [
+        "look_left",
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_empty",
+    "event": {
+      "see": "an empty room with a desk and a chair"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_nod",
+    "event": {
+      "see": "a person nodding at the camera"
+    },
+    "expect": {
+      "gesture": [
+        "nod",
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_dog",
+    "event": {
+      "see": "a dog sitting on the floor"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_point",
+    "event": {
+      "see": "a man pointing at something off to the right"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_two",
+    "event": {
+      "see": "two people talking to each other at a table"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision.see_hello",
+    "event": {
+      "see": "a child smiling and looking straight into the camera"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        "nod",
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "negative.still",
+    "event": {
+      "heard": "Don't move"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "negative.math",
+    "event": {
+      "heard": "Stay still and just tell me what two plus two is"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "negative.ignore",
+    "event": {
+      "heard": "I'm talking to someone else, ignore me"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "negative.filler",
+    "event": {
+      "heard": "Hmm, let me think"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "negative.dontwave",
+    "event": {
+      "heard": "Don't wave at me"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "negative.notyou",
+    "event": {
+      "heard": "No, not you Peak, I was talking to the dog"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "negative.servo",
+    "event": {
+      "heard": "Move your head servo to 40 degrees"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "look_right",
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "stt.lower",
+    "event": {
+      "heard": "peak wave at me"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "stt.not_nod",
+    "event": {
+      "heard": "Peak, not if you can hear me"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "stt.pete_left",
+    "event": {
+      "heard": "pete look to your left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "stt.wave_your",
+    "event": {
+      "heard": "wave your hand"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "stt.peek_nod",
+    "event": {
+      "heard": "hey peek can you nod for me"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "neg2.dontnod",
+    "event": {
+      "heard": "Please don't nod, just say yes"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "neg2.notleft",
+    "event": {
+      "heard": "Don't look left, look right"
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "neg2.later",
+    "event": {
+      "heard": "Wave at me later, not now"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "neg2.nevermind",
+    "event": {
+      "heard": "Can you wave? Actually never mind"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "neg2.stop",
+    "event": {
+      "heard": "Stop moving"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "neg2.quiet",
+    "event": {
+      "heard": "Be quiet and stay still"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "ind2.cheers",
+    "event": {
+      "heard": "Cheers mate, see you tomorrow"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "ind2.welcome",
+    "event": {
+      "heard": "Nice to meet you, Peak"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "ind2.kitchen",
+    "event": {
+      "heard": "Which way is the kitchen?"
+    },
+    "expect": {
+      "gesture": [
+        "point",
+        "shrug",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "ind2.right",
+    "event": {
+      "heard": "The sky is blue, right?"
+    },
+    "expect": {
+      "gesture": [
+        "nod",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "ind2.quokka",
+    "event": {
+      "heard": "What on earth is a quokka?"
+    },
+    "expect": {
+      "gesture": [
+        "shrug",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "ind2.overhere_right",
+    "event": {
+      "heard": "Hey, look at me, I'm over here on your right"
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "ind2.overhere_left",
+    "event": {
+      "heard": "Peak, over here, to your left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "multi.wave_then_left",
+    "event": {
+      "heard": "Wave, then look to your left"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "multi.nod_time",
+    "event": {
+      "heard": "Nod and tell me what time it is"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "multi.point_tell",
+    "event": {
+      "heard": "Point at the window and tell me what you see"
+    },
+    "expect": {
+      "gesture": [
+        "point"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "vision2.see_wave_two",
+    "event": {
+      "see": "two people, one of them waving at the camera"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision2.see_right",
+    "event": {
+      "see": "a person standing at the right edge of the frame"
+    },
+    "expect": {
+      "gesture": [
+        "look_right",
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision2.see_cat",
+    "event": {
+      "see": "a cat sleeping on a sofa"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "vision2.see_phone",
+    "event": {
+      "see": "a person looking at their phone"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.hiya",
+    "event": {
+      "heard": "Hiya Peak!"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        "nod"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.night",
+    "event": {
+      "heard": "Right, I'm off, night night"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.arent_you",
+    "event": {
+      "heard": "You're a Lego mech, aren't you?"
+    },
+    "expect": {
+      "gesture": [
+        "nod",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.give_nod",
+    "event": {
+      "heard": "Give me a nod"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.over_left",
+    "event": {
+      "heard": "Look over to the left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.check_right",
+    "event": {
+      "heard": "Check what's on your right"
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.ceiling",
+    "event": {
+      "heard": "Point to the ceiling"
+    },
+    "expect": {
+      "gesture": [
+        "point"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.league",
+    "event": {
+      "heard": "Who's going to win the league this year?"
+    },
+    "expect": {
+      "gesture": [
+        "shrug",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.at_ease",
+    "event": {
+      "heard": "At ease, soldier"
+    },
+    "expect": {
+      "gesture": [
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.dont_point",
+    "event": {
+      "heard": "Don't point at people, it's rude"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.just_listen",
+    "event": {
+      "heard": "No gestures for a minute, just listen"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.err",
+    "event": {
+      "heard": "Err... so, um"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.car",
+    "event": {
+      "heard": "Where's my car parked?"
+    },
+    "expect": {
+      "gesture": [
+        "shrug",
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.stt_not_head",
+    "event": {
+      "heard": "pete can you not your head"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.tall",
+    "event": {
+      "heard": "How tall are you?"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "shrug"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.freeze",
+    "event": {
+      "heard": "Freeze and tell me the capital of France"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.say_hello_wave",
+    "event": {
+      "heard": "Say hello and give a wave"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "fresh.stand_down",
+    "event": {
+      "heard": "Peak, stand down, I'm on a call"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.see_child",
+    "event": {
+      "see": "a child waving both arms at the camera"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.see_kitchen",
+    "event": {
+      "see": "a kitchen counter with dishes, no one around"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.see_left_person",
+    "event": {
+      "see": "someone standing on the left side of the frame, looking at the camera"
+    },
+    "expect": {
+      "gesture": [
+        "look_left",
+        null,
+        "wave",
+        "nod"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "fresh.see_point_left",
+    "event": {
+      "see": "a woman pointing to the left"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "look_left"
+      ],
+      "sayRequired": false
+    }
+  }
 ]

@@ -10,6 +10,7 @@ Stop the mind and the senses first (`pgrep -f orchestrator/index.js`); anything 
 npm run bakeoff:brain                                                      # every model in models.json, 3 runs per case
 npm run bakeoff:brain -- --pair qwen2.5vl:3b                               # also check each brain stays resident next to the eyes
 npm run bakeoff:brain -- --models huihui_ai/qwen3-vl-abliterated:8b-instruct --pair huihui_ai/qwen3-vl-abliterated:8b-instruct   # one model as brain and eyes
+npm run bakeoff:brain -- --stream                                          # also report time-to-gesture (the orchestrator streams)
 npm run bakeoff:brain -- --models huihui_ai/qwen3-abliterated:8b --only direct --runs 1   # quick check, under a minute
 ```
 
@@ -49,6 +50,34 @@ Gemma 4 misses: "are you there" → words without a nod, "hmm, let me think" →
 
 Systematic misses (same every run): Qwen3-VL: "don't wave at me" → wave, "where did I leave my keys" → point, "hmm, let me think" → shrug, "did you see me come in" → words only. 9B: "stay still and tell me 2+2" → rest, "how many bodies" → shrug, "person at the left edge of the frame" → look_right. Old 8B: "where did I leave my keys" → look_right, "how many bodies" → rest, greetings sometimes silent.
 
+## Prompt tuning, 3 Nov 2026 (Qwen3-VL 8B, Ollama 0.40.13, 97 steps x 5 runs unless noted)
+
+The 2 Nov prompt was tuned one rule at a time against its own failures, with five held-out groups (`stt`, `neg2`,
+`ind2`, `multi`, `vision2`, 25 cases) written before tuning started and a sixth (`fresh`, 22 cases) written after
+it ended. Each row is a full run; "new" marks a miss the previous row did not have.
+
+| Prompt | Strict | Misses (every run unless noted) |
+| --- | --- | --- |
+| v1, the 2 Nov prompt | 94% | keys → point, "hmm, let me think" → shrug, "don't wave" → wave 2/5, "never mind" → wave, kitchen → look_right, "did you see me come in" → no nod |
+| v2: five rules (negation, filler, questions in words, yes → nod, STT noise) | 97% | "cheers, see you tomorrow" → no wave (new), kitchen 3/5, no nod |
+| v3: goodbye rule, yes-answer example instead of the rule alone | 98% | "stay still and tell me 2+2" → nod (new), kitchen 4/5, one wave at p=0.54 |
+| v4: v3 + "stay still" rule + head-turn rule | 98% | "a man pointing" → point (new), kitchen |
+| **v5: v3 + "stay still" + "never guess a direction"** | **100%** | none, every group 100% |
+| v5 on the 22 `fresh` cases written afterwards | 95% | "pete can you not your head" → no nod (91% before "Freeze" was allowed to answer with rest, like "don't move") |
+| v5 at temperature 0, 3 runs | 98% | the same fresh miss only |
+| v5 on `huihui_ai/qwen3.5-abliterated:9b`, 3 runs | 97% | "what is your name" → wave, "where's my car" → point, "freeze" → wave; p50 2.0 s |
+
+What the ladder taught: the model follows examples more reliably than rules (the yes → nod rule did nothing until an
+example carried it); each new rule can break a neighbour (v2 lost goodbyes, v4 started pointing at pointers), so a
+full run after every change is the only way to know; and the rules that stuck are the narrow ones.
+
+Time-to-gesture with `--stream`: 0.24 s p50 against 0.4 s for the full reply, 0 early mismatches in 485 calls. The
+orchestrator fires the gesture at that moment and speaks when the line arrives.
+
+Confidence (joint probability of the gesture tokens, from logprobs): on Qwen3-VL it is 0.97-0.99 when right and
+0.85-0.99 when wrong, so a veto changes nothing. On the 9B it is 0.94 when right and 0.47 when wrong;
+`PEAK_MIN_CONFIDENCE=0.6` would fix five of its six misses and break one (98.3%). Off by default.
+
 ## Read the table
 
 | Column | Meaning |
@@ -67,7 +96,7 @@ The Failures section lists each missed case with what the model answered, per ru
 
 ## Add a case
 
-Append to `cases.json`: `{ "id": "group.name", "event": { "heard": "..." } | { "see": "..." }, "expect": { "gesture": ["wave", null], "sayRequired": false } }`. `gesture` lists every acceptable answer (`null` = no gesture). The runner refuses a name that is not in `node/gestures.yaml`. Ids are prefixed by group so `--only group` works.
+New cases go in a new group written **before** the next round of tuning, so the report's per-group table shows whether a prompt change generalised. Append to `cases.json`: `{ "id": "group.name", "event": { "heard": "..." } | { "see": "..." }, "expect": { "gesture": ["wave", null], "sayRequired": false } }`. `gesture` lists every acceptable answer (`null` = no gesture). The runner refuses a name that is not in `node/gestures.yaml`. Ids are prefixed by group so `--only group` works.
 
 ## Eyes
 

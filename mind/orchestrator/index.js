@@ -69,14 +69,25 @@ async function think(node, event) {
   history.push(messages.at(-1));
   trimHistory(history);
 
-  const { reply, content, stats } = await askBrain({ messages });
+  // The gesture is the first field of the reply, so it goes to the body as soon as it is complete, while the
+  // spoken line is still being generated (about half the reply time; see LESSONS.md, lesson 1).
+  let early = null;
+  const { reply, content, stats, confidence, gestureMs } = await askBrain({
+    messages,
+    onGesture: (gesture, ms) => {
+      early = gesture;
+      if (gesture) runTool(client, node, 'gesture', { name: gesture });
+      console.log(`[mind] gesture ${gesture} at ${ms}ms`);
+    },
+  });
   history.push({ role: 'assistant', content });
-  console.log(`[mind] brain ${formatStats(stats)}`);
+  console.log(`[mind] brain ${formatStats(stats)} gesture at ${gestureMs}ms, confidence ${confidence?.toFixed(2) ?? '-'}`);
   // a load after the first call means Ollama evicted the brain (another model took the slot)
   if (stats.loadMs > 1000) console.warn('[mind] brain was reloaded (evicted?)');
   if (!reply) return console.error('[mind] unparseable reply:', content);
 
-  if (reply.gesture) await runTool(client, node, 'gesture', { name: reply.gesture });
+  // the grammar makes the early gesture and the parsed one identical; this is the belt to that brace
+  if (reply.gesture && reply.gesture !== early) await runTool(client, node, 'gesture', { name: reply.gesture });
   if (reply.say) await runTool(client, node, 'say', { text: reply.say });
   const text = [reply.gesture && `*${reply.gesture}*`, reply.say].filter(Boolean).join(' ');
   if (text) client.publish('peak/brain/intent', JSON.stringify({ node, text, at: Date.now() }));

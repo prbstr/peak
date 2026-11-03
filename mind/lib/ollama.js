@@ -44,10 +44,39 @@ async function get(path) {
   return res.json();
 }
 
-/** POST /api/chat without streaming. Returns the message and timing stats. */
+/** POST /api/chat without streaming. Returns the message, timing stats and token logprobs when asked for. */
 export async function chat(body) {
   const r = await (await post('/api/chat', { stream: false, keep_alive: KEEP_ALIVE, ...body })).json();
-  return { message: r.message, stats: statsOf(r) };
+  return { message: r.message, stats: statsOf(r), logprobs: r.logprobs ?? r.message?.logprobs ?? null };
+}
+
+/** POST /api/chat streaming. onChunk(contentSoFar, msSinceStart) runs per NDJSON line so a caller can act on
+ *  the first field of a JSON reply before the rest is generated. Resolves to the same shape as chat(). */
+export async function chatStream(body, onChunk = () => {}) {
+  const t0 = performance.now();
+  const res = await post('/api/chat', { keep_alive: KEEP_ALIVE, ...body, stream: true });
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '', content = '', thinking = '', logprobs = [], last = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const r = JSON.parse(line);
+      if (r.error) throw new Error(`ollama: ${r.error}`);
+      content += r.message?.content ?? '';
+      thinking += r.message?.thinking ?? '';
+      const lp = r.logprobs ?? r.message?.logprobs;
+      if (lp) logprobs = logprobs.concat(lp);
+      last = r;
+      onChunk(content, Math.round(performance.now() - t0));
+    }
+  }
+  return { message: { role: 'assistant', content, thinking }, stats: statsOf(last ?? {}), logprobs: logprobs.length ? logprobs : null };
 }
 
 /** Loaded models: [{ name, size, size_vram, context_length, expires_at }] */

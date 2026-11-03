@@ -7,6 +7,7 @@
 //   --only PREFIX    only case ids starting with PREFIX (e.g. direct, or seq for the multi-turn sequences)
 //   --no-pull        fail instead of pulling a missing model
 //   --keep-loaded    do not unload candidates afterwards
+//   --stream         stream replies and report how soon the gesture field is complete (time-to-gesture)
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { MODEL as PRODUCTION, askBrain, buildMessages } from '../../orchestrator/brain.js';
@@ -19,6 +20,7 @@ const { values: args } = parseArgs({
   options: {
     models: { type: 'string' }, runs: { type: 'string', default: '3' }, pair: { type: 'string' },
     only: { type: 'string' }, 'no-pull': { type: 'boolean', default: false }, 'keep-loaded': { type: 'boolean', default: false },
+    stream: { type: 'boolean', default: false },
   },
 });
 const models = args.models ? args.models.split(',').map(s => s.trim()).filter(Boolean) : read('./models.json');
@@ -42,6 +44,7 @@ const hive = () => new Map([['mech', { at: Date.now() }]]);
 const probe = readFileSync(new URL('./probe.jpg', here)).toString('base64');
 const gb = n => (n / 2 ** 30).toFixed(1);
 const pct = (n, d) => d ? `${Math.round((100 * n) / d)}%` : '-';
+const mean = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 const quantile = (xs, q) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 0; };
 
 async function ensurePulled(model) {
@@ -85,14 +88,16 @@ async function scoreModel(model) {
   const calls = [];
   const score = async (id, run, event, expect, history) => {
     const messages = buildMessages(history, 'mech', event, hive());
-    const r = await askBrain({ model, messages });
+    let early;
+    const r = await askBrain({ model, messages, onGesture: args.stream ? g => { early = g; } : undefined });
     history.push(messages.at(-1), { role: 'assistant', content: r.content });
     const gesture = r.reply?.gesture ?? null;
     const gestureOk = r.reply !== null && expect.gesture.includes(gesture);
     const strict = gestureOk && (!expect.sayRequired || Boolean(r.reply.say));
     const thinkingLeak = Boolean(r.thinking) || /^\s*<think>/.test(r.content);
-    calls.push({ id, run, gesture, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, content: r.valid ? undefined : r.content });
-    log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${(r.stats.totalMs / 1000).toFixed(1)}s ${r.reply?.say ?? ''}`);
+    const earlyMismatch = args.stream && early !== gesture;
+    calls.push({ id, run, gesture, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, confidence: r.confidence, gestureMs: r.gestureMs, earlyMismatch, content: r.valid ? undefined : r.content });
+    log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${(r.stats.totalMs / 1000).toFixed(1)}s${r.gestureMs != null ? ` (gesture ${r.gestureMs}ms)` : ''} p=${r.confidence?.toFixed(2) ?? '-'} ${r.reply?.say ?? ''}`);
   };
   for (let run = 1; run <= runs; run++) {
     for (const c of cases) await score(c.id, run, c.event, c.expect, []);
@@ -117,7 +122,18 @@ async function scoreModel(model) {
     promptTokens: Math.round(calls.reduce((s, c) => s + c.stats.promptTokens, 0) / n),
     resident: await resident(model),
     pair: args.pair ? await pairCheck(model, args.pair) : null,
-    failures: calls.filter(c => !c.strict).map(({ id, run, gesture, say, content }) => ({ id, run, gesture, say, content })),
+    gestureP50Ms: args.stream ? quantile(calls.map(c => c.gestureMs ?? 0), 0.5) : null,
+    earlyMismatches: calls.filter(c => c.earlyMismatch).length,
+    confidence: {
+      ok: mean(calls.filter(c => c.gestureOk && c.confidence != null).map(c => c.confidence)),
+      wrong: mean(calls.filter(c => !c.gestureOk && c.confidence != null).map(c => c.confidence)),
+    },
+    groups: Object.fromEntries([...new Set(calls.map(c => c.id.split('.')[0]))].map(g => {
+      const cs = calls.filter(c => c.id.split('.')[0] === g);
+      return [g, { n: cs.length, strict: cs.filter(c => c.strict).length }];
+    })),
+    failures: calls.filter(c => !c.strict).map(({ id, run, gesture, say, confidence, content }) => ({ id, run, gesture, say, confidence, content })),
+    calls: calls.map(({ id, run, gesture, say, gestureOk, strict, confidence, gestureMs, stats }) => ({ id, run, gesture, say, gestureOk, strict, confidence, gestureMs, totalMs: stats.totalMs })),
   };
   if (!args['keep-loaded'] && model !== PRODUCTION && model !== args.pair) await unload(model);
   return summary;
@@ -135,12 +151,18 @@ function toMarkdown(results) {
     if (!r.failures.length) return `### ${r.model}\n\nNo failures.`;
     const byCase = new Map();
     for (const f of r.failures) byCase.set(f.id, [...(byCase.get(f.id) ?? []), f]);
-    const lines = [...byCase].map(([id, fs]) => `- \`${id}\` (${fs.length}/${runs}): ${fs.map(f => f.content !== undefined ? `invalid ${JSON.stringify(f.content).slice(0, 80)}` : `${f.gesture} ${f.say ? JSON.stringify(f.say) : '(silent)'}`).join(' | ')}`);
+    const lines = [...byCase].map(([id, fs]) => `- \`${id}\` (${fs.length}/${runs}): ${fs.map(f => f.content !== undefined ? `invalid ${JSON.stringify(f.content).slice(0, 80)}` : `${f.gesture}${f.confidence != null ? ` p=${f.confidence.toFixed(2)}` : ''} ${f.say ? JSON.stringify(f.say) : '(silent)'}`).join(' | ')}`);
     return `### ${r.model}\n\n${lines.join('\n')}`;
   });
+  const groupNames = [...new Set(results.flatMap(r => Object.keys(r.groups ?? {})))];
+  const groupHead = `| Model | ${groupNames.join(' | ')} |\n|${' --- |'.repeat(groupNames.length + 1)}`;
+  const groupRows = results.map(r => `| ${r.model} | ${groupNames.map(g => r.groups?.[g] ? pct(r.groups[g].strict, r.groups[g].n) : '-').join(' | ')} |`);
+  const extraHead = '| Model | gesture p50 s | early mismatches | confidence when right | confidence when wrong |\n| --- | --- | --- | --- | --- |';
+  const extraRows = results.map(r => `| ${r.model} | ${r.gestureP50Ms != null ? (r.gestureP50Ms / 1000).toFixed(2) : '-'} | ${r.earlyMismatches ?? 0} | ${r.confidence?.ok?.toFixed(2) ?? '-'} | ${r.confidence?.wrong?.toFixed(2) ?? '-'} |`);
+  const extra = `\n## Per group (strict)\n\n${groupHead}\n${groupRows.join('\n')}\n\n## Timing and confidence\n\n${extraHead}\n${extraRows.join('\n')}\n`;
   const foreign = results.map(r => r.pair?.foreign ?? []).flat();
   const note = foreign.length ? `\nOther models loaded during pair checks (not ours): ${[...new Set(foreign)].join(', ')}\n` : '';
-  return `# Brain bake-off ${new Date().toISOString()}\n\n${cases.length} cases + ${totalSteps - cases.length} sequence steps, x ${runs} runs${args.only ? `, only ${args.only}` : ''}${args.pair ? `, pair ${args.pair}` : ''}\n\n${head}\n${sep}\n${rows.join('\n')}\n${note}\n## Failures\n\n${failures.join('\n\n')}\n`;
+  return `# Brain bake-off ${new Date().toISOString()}\n\n${cases.length} cases + ${totalSteps - cases.length} sequence steps, x ${runs} runs${args.only ? `, only ${args.only}` : ''}${args.pair ? `, pair ${args.pair}` : ''}\n\n${head}\n${sep}\n${rows.join('\n')}\n${note}${extra}\n## Failures\n\n${failures.join('\n\n')}\n`;
 }
 
 const results = [];
