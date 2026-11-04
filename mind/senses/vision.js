@@ -1,7 +1,7 @@
 // vision — watches the node's camera, and only when the scene changes asks a local vision model what it sees,
 // then publishes {"see": "..."}.
 //   PEAK_VISION_SOURCE  ffmpeg input: udp://0.0.0.0:5000 (Pi, default), "avfoundation:<n>" for a Mac camera, or an image/video file
-//   PEAK_VISION_MODEL   Ollama model with vision (default qwen2.5vl:3b)
+//   PEAK_VISION_MODEL   Ollama model with vision (default huihui_ai/qwen3-vl-abliterated:8b-instruct, same as the brain)
 //   PEAK_VISION_EVERY_S seconds between looks (default 3)
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,7 +10,7 @@ import { connect, publishEvent, run, sleep } from './lib.js';
 import { chat, loadOptions, thinkFlag } from '../lib/ollama.js';
 
 const SOURCE = process.env.PEAK_VISION_SOURCE ?? 'udp://0.0.0.0:5000';
-const MODEL = process.env.PEAK_VISION_MODEL ?? 'qwen2.5vl:3b';
+const MODEL = process.env.PEAK_VISION_MODEL ?? 'huihui_ai/qwen3-vl-abliterated:8b-instruct';
 const EVERY_MS = Number(process.env.PEAK_VISION_EVERY_S ?? 3) * 1000;
 const CHANGE_THRESHOLD = Number(process.env.PEAK_CHANGE ?? 12); // mean 0-255 difference on a 16x16 grayscale thumbnail
 const COOLDOWN_MS = Number(process.env.PEAK_VISION_COOLDOWN_S ?? 10) * 1000;

@@ -3,7 +3,7 @@
 import { chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
 import { DESCRIBE, gestureNames } from './gestures.js';
 
-export const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-abliterated:8b';
+export const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-vl-abliterated:8b-instruct';
 export const TEMPERATURE = Number(process.env.PEAK_TEMPERATURE ?? 0.3);
 /** Gestures whose token probability is below this become null. 0 = off. Useless for Qwen3-VL (wrong answers are as
  *  confident as right ones), worth about 0.6 for the 9B, whose misses sit at 0.3-0.5 (bake-off README). */
