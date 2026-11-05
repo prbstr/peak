@@ -7,10 +7,11 @@ with a Last Will) so the mind knows which bodies are alive. Runs on a Raspberry 
 
 Set PEAK_SIM=1 to run without hardware (prints moves instead).
 """
-import json, os, queue, subprocess, textwrap, time, threading
+import json, os, queue, subprocess, time, threading
 from pathlib import Path
 import yaml
 import paho.mqtt.client as mqtt
+from screen import Screen
 
 HERE = Path(__file__).parent
 CFG = yaml.safe_load((HERE / "config.yaml").read_text())
@@ -26,6 +27,7 @@ class Servos:
     def __init__(self):
         self.pos = {name: s["rest"] for name, s in CFG["servos"].items()}
         self.stop_flag = threading.Event()
+        self.moving = threading.Event()
         self.kit = None
         if SIM:
             return
@@ -112,10 +114,14 @@ def motion_worker():
     while True:
         cmd = motion.get()
         servos.stop_flag.clear()
-        if "gesture" in cmd:
-            servos.gesture(cmd["gesture"])
-        elif "servo" in cmd:
-            servos.move({cmd["servo"]: float(cmd["deg"])}, int(cmd.get("ms", 300)))
+        servos.moving.set()
+        try:
+            if "gesture" in cmd:
+                servos.gesture(cmd["gesture"])
+            elif "servo" in cmd:
+                servos.move({cmd["servo"]: float(cmd["deg"])}, int(cmd.get("ms", 300)))
+        finally:
+            servos.moving.clear()
 
 threading.Thread(target=motion_worker, daemon=True).start()
 
@@ -179,38 +185,31 @@ def read_sense():
     return out
 
 # ---------- display ----------
-REPLY_WINDOW_S = 2  # the mind sends one reply as two commands, gesture then line; farther apart is a new reply
 HEAL_EVERY_S = 5
+FACE_TICK_S = 0.25  # a frame is about 0.1 s of I2C at the Pi's default 100 kHz, so this is as fast as it gets
 
 class Display:
-    """SSD1306 OLED from config.yaml `display`: shows what the mind last did and said. Real whenever it answers
-    on I2C, like the sensors. A display that is missing or unplugged mid-run (on the bench it shares its pins
-    with the MPU6050) never stops servod."""
-    COLS, ROWS, LINE_PX = 21, 4, 12  # the default font on 128x64, under a one-line header
-
+    """SSD1306 OLED from config.yaml `display`: draws screen.py's picture, a face and what the mind last did
+    and said. Real whenever it answers on I2C, like the sensors. A display that is missing or unplugged
+    mid-run (on the bench it shares its pins with the MPU6050) never stops servod."""
     def __init__(self):
         self.address = (CFG.get("display") or {}).get("i2c_address")
         self.dev = None
-        self.gesture = self.say = None
-        self.at = self.checked = float("-inf")
+        self.screen = Screen(NODE)
+        self.drawn = None
+        self.checked = float("-inf")
         self.problem = None
-        self.lock = threading.Lock()  # the mqtt thread draws replies, the sense loop heals
+        self.lock = threading.Lock()  # the mqtt thread draws replies, the face thread animates, the sense loop heals
         self.draw()
 
     def show(self, gesture=None, say=None):
-        now = time.monotonic()
-        if now - self.at > REPLY_WINDOW_S:
-            self.gesture = self.say = None
-            self.at = now
-        self.gesture = gesture or self.gesture
-        self.say = say or self.say
+        self.screen.reply(time.monotonic(), gesture, say)
         self.draw()
 
-    def paint(self, d):
-        """Draw the current reply with a PIL ImageDraw: the gesture as a header, the line wrapped under it."""
-        d.text((0, 0), f"*{self.gesture}*" if self.gesture else f"peak / {NODE}", fill="white")
-        for i, line in enumerate(textwrap.wrap(self.say or "", self.COLS)[:self.ROWS]):
-            d.text((0, 16 + i * self.LINE_PX), line, fill="white")
+    def tick(self):
+        """From the face thread: redraw only when the picture would change. A lost panel is left to heal()."""
+        if self.dev is not None and self.screen.scene(time.monotonic()) != self.drawn:
+            self.draw()
 
     def dark(self):
         """True when the panel is switched off. It forgets its setup on a power dip, and any other program that
@@ -231,8 +230,10 @@ class Display:
                 if self.dev is None or self.dark():
                     self.dev = ssd1306(i2c(port=1, address=self.address))  # the full setup, which switches it on
                     print("[servod] display on")
+                scene = self.screen.scene(time.monotonic())
                 with canvas(self.dev) as d:
-                    self.paint(d)
+                    self.screen.paint(d, scene)
+                self.drawn = scene
                 self.problem = None
             except Exception as e:
                 if str(e) != self.problem:  # once per problem, not once per frame
@@ -254,6 +255,15 @@ class Display:
 
 display = Display()
 
+def face_worker():
+    while True:
+        time.sleep(FACE_TICK_S)
+        # A frame holds the I2C bus for longer than a servo step lasts, so the face keeps still during a move.
+        if not (servos.kit and servos.moving.is_set()):
+            display.tick()
+
+threading.Thread(target=face_worker, daemon=True).start()
+
 # ---------- speech ----------
 MAX_SAY_CHARS = 200  # matches contracts/cmd.schema.json
 
@@ -272,6 +282,10 @@ def on_connect(c, u, flags, rc, props=None):
     print(f"[servod] connected to {BROKER} as {NODE}")
     c.subscribe(f"peak/{NODE}/cmd")
     c.publish(STATUS_TOPIC, "online", retain=True)
+    display.screen.online = True
+
+def on_disconnect(c, u, flags, rc, props=None):
+    display.screen.online = False
 
 def on_message(c, u, msg):
     try:
@@ -298,13 +312,16 @@ def on_message(c, u, msg):
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"peak-{NODE}")
 client.will_set(STATUS_TOPIC, "offline", retain=True)
 client.on_connect = on_connect
+client.on_disconnect = on_disconnect
 client.on_message = on_message
 client.connect(BROKER, 1883, 60)
 client.loop_start()
 
 try:
     while True:
-        client.publish(f"peak/{NODE}/sense", json.dumps(read_sense()))
+        sense = read_sense()
+        display.screen.sense = sense
+        client.publish(f"peak/{NODE}/sense", json.dumps(sense))
         display.heal()
         time.sleep(CFG.get("sense_interval_s", 5))
 except KeyboardInterrupt:

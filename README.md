@@ -9,7 +9,8 @@ peak/
     senses/        camera frames → local vision; mic → speech-to-text; PIR and distance → presence
     voice/         text-to-speech → node speaker
   node/            Python — runs on the Pi
-    servod.py      subscribes peak/<node>/cmd, drives PCA9685 with eased moves; reads PIR and ultrasonic, draws replies on the OLED
+    servod.py      subscribes peak/<node>/cmd, drives PCA9685 with eased moves; reads PIR and ultrasonic, draws the OLED
+    screen.py      what the OLED shows: a Doom-style face that reacts to the body's readings, and the mind's replies
     config.yaml    channel map, ranges, rest angles
     gestures.yaml  named keyframe sequences (wave, point, nod, shrug)
     camd.sh        rpicam-vid → UDP stream to the mind
