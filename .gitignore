@@ -5,6 +5,7 @@ __pycache__/
 .DS_Store
 .venv/
 mind/bakeoff/clips/
-node/screen_preview.png
+node/eyes_preview.png
+node/eyes_preview.gif
 mind/bakeoff/raw/
 mind/bakeoff/brain/results/

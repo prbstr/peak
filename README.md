@@ -10,7 +10,9 @@ peak/
     voice/         text-to-speech → node speaker
   node/            Python — runs on the Pi
     servod.py      subscribes peak/<node>/cmd, drives PCA9685 with eased moves; reads PIR and ultrasonic, draws the OLED
-    screen.py      what the OLED shows: a Doom-style face that reacts to the body's readings, and the mind's replies
+    eyes.py        the OLED's eyes: a Python port of FluxGarage RoboEyes
+    screen.py      the reflexes that move the eyes: asleep, startled, looking, talking, strained, wandering
+    oled.py        packs a frame for the SSD1306 and sends only the bytes that changed
     config.yaml    channel map, ranges, rest angles
     gestures.yaml  named keyframe sequences (wave, point, nod, shrug)
     camd.sh        rpicam-vid → UDP stream to the mind
@@ -52,3 +54,10 @@ mosquitto_pub -t peak/mech/event -m '{"heard":"hey rho, wave at me"}'
 ```
 
 See CLAUDE.md for architecture decisions, environment facts, gotchas and current status. SHOPPING.md tracks parts.
+
+## Licence and credit
+
+peak is free software under the GNU General Public License, version 3 or later (see `LICENSE`).
+
+The eyes on the OLED (`node/eyes.py`) are a Python port of [FluxGarage RoboEyes](https://github.com/FluxGarage/RoboEyes)
+V 1.1.1, Copyright (C) 2024-2025 Dennis Hoelscher, also GPL-3-or-later. The file's header says what was changed.

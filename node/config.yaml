@@ -16,6 +16,8 @@ servos:
 sensors:
   ultrasonic: { trig: 23, echo: 24 }
   pir: { out: 17 }
-# 0.96 inch SSD1306 OLED; shows a face (screen.py) and the mind's last gesture and line
-display: { i2c_address: 0x3C }
+# 0.96 inch SSD1306 OLED; shows the eyes (eyes.py) and their reflexes (screen.py). eye_* are pixels, RoboEyes'
+# defaults. strain: false stops bad power showing as tired eyes and sweat. talk_delay_s: how long after a line
+# arrives the voice starts, so the eyes pulse with it (the HomePod takes about 2.5 s).
+display: { i2c_address: 0x3C, eye_width: 36, eye_height: 36, eye_radius: 8, eye_space: 10, strain: true, talk_delay_s: 2.5 }
 sense_interval_s: 0.5

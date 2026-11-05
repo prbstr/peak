@@ -186,30 +186,43 @@ def read_sense():
 
 # ---------- display ----------
 HEAL_EVERY_S = 5
-FACE_TICK_S = 0.25  # a frame is about 0.1 s of I2C at the Pi's default 100 kHz, so this is as fast as it gets
+FULL_EVERY_S = 60   # the panel cannot be read back, so now and then it is sent everything
+FPS_CAP = 15
+SWEAT_FPS = 8       # with nothing else moving, falling drops get by on fewer frames
+STATS = os.environ.get("PEAK_FACE_STATS")  # "1" logs the cost of drawing; "full" also sends whole frames, to compare
+STATS_EVERY_S = 10
 
 class Display:
-    """SSD1306 OLED from config.yaml `display`: draws screen.py's picture, a face and what the mind last did
-    and said. Real whenever it answers on I2C, like the sensors. A display that is missing or unplugged
-    mid-run (on the bench it shares its pins with the MPU6050) never stops servod."""
+    """SSD1306 OLED from config.yaml `display`: shows screen.py's eyes. One thread does all the drawing; the
+    mqtt thread and the sense loop only tell the screen what happened and wake it. Real whenever it answers
+    on I2C, like the sensors. A display that is missing or unplugged mid-run (on the bench it shares its
+    pins with the MPU6050) never stops servod."""
     def __init__(self):
-        self.address = (CFG.get("display") or {}).get("i2c_address")
+        cfg = CFG.get("display") or {}
+        self.address = cfg.get("i2c_address")
+        self.screen = Screen(cfg)
         self.dev = None
-        self.screen = Screen(NODE)
-        self.drawn = None
-        self.checked = float("-inf")
+        self.shadow = None  # the panel's memory as we last wrote it; None when we cannot know
+        self.full_at = self.checked = float("-inf")
         self.problem = None
-        self.lock = threading.Lock()  # the mqtt thread draws replies, the face thread animates, the sense loop heals
-        self.draw()
+        self.held = False
+        self.lock = threading.Lock()  # guards the screen
+        self.wake = threading.Event()
+        self.tally = {"at": time.monotonic(), "frames": 0, "bytes": 0, "send_s": 0.0, "cpu_s": 0.0}
+        if self.address is not None:
+            threading.Thread(target=self.run, daemon=True).start()
 
-    def show(self, gesture=None, say=None):
-        self.screen.reply(time.monotonic(), gesture, say)
-        self.draw()
+    def tell(self, what, *args):
+        """From the other threads: on_gesture, on_say or on_sense, which answers False when nothing changed."""
+        with self.lock:
+            changed = getattr(self.screen, what)(time.monotonic(), *args)
+        if changed is not False:
+            self.wake.set()
 
-    def tick(self):
-        """From the face thread: redraw only when the picture would change. A lost panel is left to heal()."""
-        if self.dev is not None and self.screen.scene(time.monotonic()) != self.drawn:
-            self.draw()
+    def online(self, online):
+        with self.lock:
+            self.screen.online = online
+        self.wake.set()
 
     def dark(self):
         """True when the panel is switched off. It forgets its setup on a power dip, and any other program that
@@ -219,50 +232,74 @@ class Display:
         with SMBus(1) as bus:
             return bool(bus.read_byte(self.address) & 0x40)
 
-    def draw(self):
-        if self.address is None:
-            return
-        with self.lock:
+    def run(self):
+        while True:
+            wait = HEAL_EVERY_S
             try:
-                from luma.core.interface.serial import i2c
-                from luma.core.render import canvas
-                from luma.oled.device import ssd1306
-                if self.dev is None or self.dark():
-                    self.dev = ssd1306(i2c(port=1, address=self.address))  # the full setup, which switches it on
-                    print("[servod] display on")
-                scene = self.screen.scene(time.monotonic())
-                with canvas(self.dev) as d:
-                    self.screen.paint(d, scene)
-                self.drawn = scene
+                wait = self.frame(time.monotonic())
                 self.problem = None
             except Exception as e:
                 if str(e) != self.problem:  # once per problem, not once per frame
                     print(f"[servod] display: {e}")
                 self.problem = str(e)
                 self.dev = None
+            self.wake.wait(wait)
+            self.wake.clear()
 
-    def heal(self):
-        """From the sense loop: bring a dark or replugged panel back without waiting for the next reply."""
-        if self.address is None or time.monotonic() - self.checked < HEAL_EVERY_S:
-            return
-        self.checked = time.monotonic()
-        try:
-            lost = self.dev is None or self.dark()
-        except Exception:
-            lost = True
-        if lost:
-            self.draw()
+    def frame(self, now):
+        """Draw what changed. Returns how long the picture will keep without being asked again."""
+        from luma.core.interface.serial import i2c
+        from luma.oled.device import ssd1306
+        from PIL import Image, ImageDraw
+        import oled
+        cpu = time.thread_time()
+        check = now - self.checked >= HEAL_EVERY_S
+        if check:
+            self.checked = now
+        if self.dev is None or (check and self.dark()):
+            self.dev = ssd1306(i2c(port=1, address=self.address))  # the full setup, which switches it on
+            self.shadow = None
+            print("[servod] display on")
+        # A frame can hold the I2C bus for longer than a servo step lasts, so during a move on real servos
+        # the eyes jump to where they were heading and keep still.
+        moving = bool(servos.kit) and servos.moving.is_set()
+        if moving and self.held:
+            return 0.25
+        self.held = moving
+        img = Image.new("1", (128, 64))
+        with self.lock:
+            (self.screen.settle if moving else self.screen.update)(now)
+            self.screen.draw(ImageDraw.Draw(img))
+            fps = FPS_CAP if self.screen.animating(now, sweat=False) else SWEAT_FPS if self.screen.animating(now) else 0
+            due = self.screen.next_event(now)
+        pages = oled.pack(img)
+        if self.shadow is None or now - self.full_at >= FULL_EVERY_S or STATS == "full":
+            self.shadow, self.full_at = None, now
+        started = time.monotonic()
+        sent = oled.send(self.dev, pages, oled.diff(self.shadow, pages))
+        send_s = time.monotonic() - started
+        self.shadow = pages
+        if STATS:
+            self.count(now, sent, send_s, time.thread_time() - cpu)
+        if moving:
+            return 0.25
+        if fps:  # leave the bus free a third of the time, whatever its speed
+            wait = max(0.005, max(1 / fps, 1.5 * send_s) - (time.monotonic() - now))
+            return wait if due is None else min(wait, max(0.0, due - now))
+        return HEAL_EVERY_S if due is None else min(HEAL_EVERY_S, max(0.0, due - now))
+
+    def count(self, now, sent, send_s, cpu_s):
+        t = self.tally
+        t["frames"] += 1
+        t["bytes"] += sent
+        t["send_s"] += send_s
+        t["cpu_s"] += cpu_s
+        if now - t["at"] >= STATS_EVERY_S:
+            print(f"[servod] face: {t['frames']} frames, {t['bytes']} bytes, {t['send_s']:.2f} s sending, "
+                  f"{t['cpu_s']:.2f} s cpu in {now - t['at']:.0f} s")
+            self.tally = {"at": now, "frames": 0, "bytes": 0, "send_s": 0.0, "cpu_s": 0.0}
 
 display = Display()
-
-def face_worker():
-    while True:
-        time.sleep(FACE_TICK_S)
-        # A frame holds the I2C bus for longer than a servo step lasts, so the face keeps still during a move.
-        if not (servos.kit and servos.moving.is_set()):
-            display.tick()
-
-threading.Thread(target=face_worker, daemon=True).start()
 
 # ---------- speech ----------
 MAX_SAY_CHARS = 200  # matches contracts/cmd.schema.json
@@ -282,10 +319,10 @@ def on_connect(c, u, flags, rc, props=None):
     print(f"[servod] connected to {BROKER} as {NODE}")
     c.subscribe(f"peak/{NODE}/cmd")
     c.publish(STATUS_TOPIC, "online", retain=True)
-    display.screen.online = True
+    display.online(True)
 
 def on_disconnect(c, u, flags, rc, props=None):
-    display.screen.online = False
+    display.online(False)
 
 def on_message(c, u, msg):
     try:
@@ -303,11 +340,11 @@ def on_message(c, u, msg):
         servos.stop()
     elif "say" in cmd:
         speak(str(cmd["say"]))  # independent of motion, so a line is never held up by a wave
-        display.show(say=str(cmd["say"])[:MAX_SAY_CHARS])
+        display.tell("on_say", str(cmd["say"])[:MAX_SAY_CHARS])
     elif "gesture" in cmd or "servo" in cmd:
         enqueue_motion(cmd)
         if "gesture" in cmd:
-            display.show(gesture=str(cmd["gesture"]))
+            display.tell("on_gesture", str(cmd["gesture"]))
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"peak-{NODE}")
 client.will_set(STATUS_TOPIC, "offline", retain=True)
@@ -320,9 +357,8 @@ client.loop_start()
 try:
     while True:
         sense = read_sense()
-        display.screen.sense = sense
+        display.tell("on_sense", sense)
         client.publish(f"peak/{NODE}/sense", json.dumps(sense))
-        display.heal()
         time.sleep(CFG.get("sense_interval_s", 5))
 except KeyboardInterrupt:
     pass
