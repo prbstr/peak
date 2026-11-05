@@ -1,0 +1,4 @@
+pyatv
+# pyatv 0.18 calls SRPClientSession with a positional argument that srptools 2 made keyword-only
+srptools<2
+paho-mqtt>=2.0
