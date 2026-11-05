@@ -7,7 +7,7 @@ with a Last Will) so the mind knows which bodies are alive. Runs on a Raspberry 
 
 Set PEAK_SIM=1 to run without hardware (prints moves instead).
 """
-import json, os, queue, subprocess, time, threading
+import json, os, queue, subprocess, textwrap, time, threading
 from pathlib import Path
 import yaml
 import paho.mqtt.client as mqtt
@@ -152,13 +152,20 @@ class Sensors:
 
 sensors = Sensors()
 
+THROTTLED_EVERY_S = 5  # it costs a subprocess, and power does not change as fast as distance does
+throttled = {"at": float("-inf"), "value": None}
+
 def read_throttled():
     """Pi firmware power flags as hex, e.g. 0x50005. Bit 0 set means undervoltage right now."""
+    if time.monotonic() - throttled["at"] < THROTTLED_EVERY_S:
+        return throttled["value"]
+    throttled["at"] = time.monotonic()
     try:
         r = subprocess.run(["vcgencmd", "get_throttled"], capture_output=True, text=True, timeout=2)
-        return r.stdout.strip().split("=")[1]
+        throttled["value"] = r.stdout.strip().split("=")[1]
     except Exception:
-        return None
+        throttled["value"] = None
+    return throttled["value"]
 
 def read_sense():
     out = {"uptime": time.monotonic(), "pos": servos.pos, **sensors.read()}
@@ -166,10 +173,61 @@ def read_sense():
         out["temp"] = float(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000
     except Exception:
         pass
-    throttled = read_throttled()
-    if throttled:
-        out["throttled"] = throttled
+    flags = read_throttled()
+    if flags:
+        out["throttled"] = flags
     return out
+
+# ---------- display ----------
+REPLY_WINDOW_S = 2  # the mind sends one reply as two commands, gesture then line; farther apart is a new reply
+
+class Display:
+    """SSD1306 OLED from config.yaml `display`: shows what the mind last did and said. Real whenever it answers
+    on I2C, like the sensors. A display that is missing or unplugged mid-run (on the bench it shares its pins
+    with the MPU6050) never stops servod."""
+    COLS, ROWS, LINE_PX = 21, 4, 12  # the default font on 128x64, under a one-line header
+
+    def __init__(self):
+        self.dev = None
+        self.gesture = self.say = None
+        self.at = float("-inf")
+        cfg = CFG.get("display")
+        if not cfg:
+            return
+        try:
+            from luma.core.interface.serial import i2c
+            from luma.oled.device import ssd1306
+            self.dev = ssd1306(i2c(port=1, address=cfg["i2c_address"]))
+            self.draw()
+        except Exception as e:
+            print(f"[servod] no display: {e}")
+
+    def show(self, gesture=None, say=None):
+        now = time.monotonic()
+        if now - self.at > REPLY_WINDOW_S:
+            self.gesture = self.say = None
+            self.at = now
+        self.gesture = gesture or self.gesture
+        self.say = say or self.say
+        self.draw()
+
+    def paint(self, d):
+        """Draw the current reply with a PIL ImageDraw: the gesture as a header, the line wrapped under it."""
+        d.text((0, 0), f"*{self.gesture}*" if self.gesture else f"peak / {NODE}", fill="white")
+        for i, line in enumerate(textwrap.wrap(self.say or "", self.COLS)[:self.ROWS]):
+            d.text((0, 16 + i * self.LINE_PX), line, fill="white")
+
+    def draw(self):
+        if not self.dev:
+            return
+        try:
+            from luma.core.render import canvas
+            with canvas(self.dev) as d:
+                self.paint(d)
+        except Exception as e:
+            print(f"[servod] display: {e}")
+
+display = Display()
 
 # ---------- speech ----------
 MAX_SAY_CHARS = 200  # matches contracts/cmd.schema.json
@@ -206,8 +264,11 @@ def on_message(c, u, msg):
         servos.stop()
     elif "say" in cmd:
         speak(str(cmd["say"]))  # independent of motion, so a line is never held up by a wave
+        display.show(say=str(cmd["say"])[:MAX_SAY_CHARS])
     elif "gesture" in cmd or "servo" in cmd:
         enqueue_motion(cmd)
+        if "gesture" in cmd:
+            display.show(gesture=str(cmd["gesture"]))
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"peak-{NODE}")
 client.will_set(STATUS_TOPIC, "offline", retain=True)

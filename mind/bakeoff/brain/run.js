@@ -93,7 +93,7 @@ async function scoreModel(model) {
     history.push(messages.at(-1), { role: 'assistant', content: r.content });
     const gesture = r.reply?.gesture ?? null;
     const gestureOk = r.reply !== null && expect.gesture.includes(gesture);
-    const strict = gestureOk && (!expect.sayRequired || Boolean(r.reply.say));
+    const strict = gestureOk && (!expect.sayRequired || Boolean(r.reply.say)) && (!expect.silent || !r.reply.say);
     const thinkingLeak = Boolean(r.thinking) || /^\s*<think>/.test(r.content);
     const earlyMismatch = args.stream && early !== gesture;
     calls.push({ id, run, gesture, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, confidence: r.confidence, gestureMs: r.gestureMs, earlyMismatch, content: r.valid ? undefined : r.content });

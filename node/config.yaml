@@ -16,4 +16,6 @@ servos:
 sensors:
   ultrasonic: { trig: 23, echo: 24 }
   pir: { out: 17 }
-sense_interval_s: 1
+# 0.96 inch SSD1306 OLED; shows the mind's last gesture and line
+display: { i2c_address: 0x3C }
+sense_interval_s: 0.5

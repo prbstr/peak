@@ -11,6 +11,7 @@
     "hearing": "node senses/hearing.js",
     "whisper": "whisper-server -m ${PEAK_WHISPER_GGML:-$HOME/.cache/whisper.cpp/ggml-medium.en.bin} --host 127.0.0.1 --port 8178 -l en --no-timestamps",
     "vision": "node senses/vision.js",
+    "presence": "node senses/presence.js",
     "record": "node scripts/record.js",
     "pub": "node scripts/pub.js",
     "sub": "node scripts/sub.js"

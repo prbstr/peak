@@ -487,7 +487,8 @@
       "gesture": [
         null
       ],
-      "sayRequired": false
+      "sayRequired": false,
+      "silent": true
     }
   },
   {
@@ -512,7 +513,8 @@
       "gesture": [
         null
       ],
-      "sayRequired": false
+      "sayRequired": false,
+      "silent": true
     }
   },
   {
@@ -537,7 +539,8 @@
       "gesture": [
         null
       ],
-      "sayRequired": false
+      "sayRequired": false,
+      "silent": true
     }
   },
   {
@@ -935,7 +938,8 @@
       "gesture": [
         null
       ],
-      "sayRequired": false
+      "sayRequired": false,
+      "silent": true
     }
   },
   {
@@ -947,7 +951,8 @@
       "gesture": [
         null
       ],
-      "sayRequired": false
+      "sayRequired": false,
+      "silent": true
     }
   },
   {
@@ -1194,7 +1199,8 @@
       "gesture": [
         null
       ],
-      "sayRequired": false
+      "sayRequired": false,
+      "silent": true
     }
   },
   {
@@ -1223,6 +1229,182 @@
         "look_left"
       ],
       "sayRequired": false
+    }
+  },
+  {
+    "id": "sense.motion",
+    "event": {
+      "sensed": "movement nearby after a quiet spell"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "sense.near",
+    "event": {
+      "sensed": "something came close, 6 cm in front of you"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "sense.near_far",
+    "event": {
+      "sensed": "something came close, 24 cm in front of you"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "sense.near_touch",
+    "event": {
+      "sensed": "something came close, 3 cm in front of you"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "sense2.motion_someone",
+    "event": {
+      "sensed": "someone is moving nearby"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "sense2.motion_room",
+    "event": {
+      "sensed": "movement detected in the room"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "wave"
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "sense2.near_object",
+    "event": {
+      "sensed": "an object is 4 cm from your front sensor"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "sense2.near_blocked",
+    "event": {
+      "sensed": "something is blocking the way, 10 cm ahead"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "sense2.near_gone",
+    "event": {
+      "sensed": "the thing in front of you moved away"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false
+    }
+  },
+  {
+    "id": "quiet.see_dark",
+    "event": {
+      "see": "The image is a solid black screen with no visible people or activity."
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "silent": true
+    }
+  },
+  {
+    "id": "quiet.see_ceiling",
+    "event": {
+      "see": "A bright fluorescent light fixture illuminates a room with a brick ceiling and a partially visible shelf, but no people are present in the image."
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "silent": true
+    }
+  },
+  {
+    "id": "quiet.see_monitor",
+    "event": {
+      "see": "The image shows a close-up, tilted view of a glossy black surface, likely a TV or monitor, with a purple cable running across it and a red brick wall visible in the background."
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "silent": true
+    }
+  },
+  {
+    "id": "quiet.see_box",
+    "event": {
+      "see": "someone in the background carrying a box across the room"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "silent": true
+    }
+  },
+  {
+    "id": "quiet.see_blur",
+    "event": {
+      "see": "A person is captured in motion, creating a blurred effect as they move within an indoor space."
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "silent": true
     }
   }
 ]

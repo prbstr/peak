@@ -6,10 +6,10 @@ A hive-mind robot. One mind (Mac mini M5 Pro), many bodies. First body: **Mech S
 peak/
   mind/            Node.js — runs on the Mac
     orchestrator/  MQTT in → local model via Ollama → MQTT out
-    senses/        camera frames → local vision; mic → speech-to-text
+    senses/        camera frames → local vision; mic → speech-to-text; PIR and distance → presence
     voice/         text-to-speech → node speaker
   node/            Python — runs on the Pi
-    servod.py      subscribes peak/<node>/cmd, drives PCA9685 with eased moves
+    servod.py      subscribes peak/<node>/cmd, drives PCA9685 with eased moves; reads PIR and ultrasonic, draws replies on the OLED
     config.yaml    channel map, ranges, rest angles
     gestures.yaml  named keyframe sequences (wave, point, nod, shrug)
     camd.sh        rpicam-vid → UDP stream to the mind
@@ -23,7 +23,7 @@ The Pi 3B runs only `servod` and `camd`. All AI (orchestrator, vision, speech) s
 | Topic | Direction | Payload |
 | --- | --- | --- |
 | `peak/<node>/cmd` | mind → node | `{"servo":"head","deg":120,"ms":500}` or `{"gesture":"wave"}` or `{"say":"hello"}` |
-| `peak/<node>/sense` | node → mind | `{"uptime":123,"temp":48.2,"distance_cm":42,"motion":false,"throttled":"0x0"}` every second |
+| `peak/<node>/sense` | node → mind | `{"uptime":123,"temp":48.2,"distance_cm":42,"motion":false,"throttled":"0x0"}` twice a second |
 | `peak/<node>/frame` | node → mind | JPEG snapshot (binary) on request |
 | `peak/brain/intent` | mind → all | what the mind decided, for coherence across bodies |
 

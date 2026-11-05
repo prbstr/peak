@@ -2,3 +2,4 @@ smbus2
 paho-mqtt>=2.0
 pyyaml
 gpiozero
+luma.oled

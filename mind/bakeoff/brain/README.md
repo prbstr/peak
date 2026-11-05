@@ -78,6 +78,23 @@ Confidence (joint probability of the gesture tokens, from logprobs): on Qwen3-VL
 0.85-0.99 when wrong, so a veto changes nothing. On the 9B it is 0.94 when right and 0.47 when wrong;
 `PEAK_MIN_CONFIDENCE=0.6` would fix five of its six misses and break one (98.3%). Off by default.
 
+## Sensed events, 5 Nov 2026 (Qwen3-VL 8B, Ollama 0.40.13, 3 runs)
+
+The body's PIR and ultrasonic sensor now reach the brain as `{"sensed": "..."}` events (`senses/presence.js`). New
+groups, written before the prompt changed: `sense` (the two lines presence.js publishes), `sense2` (held out, other
+wordings) and `seq.sensed`. Cases can now carry `"silent": true`: strict then also needs no spoken line.
+
+| Prompt | Strict | Misses |
+| --- | --- | --- |
+| v5, unchanged (133 steps) | 96% | "something came close, 3 cm in front of you" → wave "Hello there!" (`sense` 25%), "blocking the way" → point |
+| v6: sensed explained, two examples, rule "one short line and no gesture" | 99% | `sense`, `sense2` 100%; but camera scenes got narrated ("I see a dog sitting on the floor."), unscored until `silent` existed |
+| v6 + rule "a see event is never narrated ... gesture null and say null" (143 steps) | 98% | "Thanks Peak, good job" → silent 3/3 (new), "Peak, what are you?" → wave 2/3 (new) |
+| v6 + silent example only, no rule | - | dog and dark room still narrated, "a man pointing" → point |
+| **v7: v6 + no-narration wording inside the sentence that explains `see`, + one silent example** | **99%** | only the old `fresh.stt_not_head`; every other group 100%, held-out `sense2` and `quiet` included |
+
+The `quiet` group (held out) holds real descriptions from the Pi camera on 5 Nov. Same lesson as the 3 Nov ladder: a
+rule that says "say null" spreads; wording placed where the event type is explained stays put.
+
 ## Read the table
 
 | Column | Meaning |

@@ -6,6 +6,7 @@ Fast local loop on the Mac. Each sense publishes `peak/<node>/event` messages, n
 | --- | --- | --- | --- |
 | `hearing.js` | `npm run hearing` | `{"heard":"..."}` | `PEAK_AUDIO_SOURCE` (`udp://0.0.0.0:5001` for the Pi mic via `node/audiod.sh`; unset for the Mac mic), `PEAK_AUDIO_DEVICE` (Mac mic avfoundation index), `PEAK_WHISPER_URL` (default `http://127.0.0.1:8178`), `PEAK_MIN_DB` (speech threshold per 100 ms frame), `PEAK_SILENCE_MS` (pause that ends an utterance), `PEAK_AUDIO_FILE` (test with a file) |
 | `vision.js` | `npm run vision` | `{"see":"..."}` | `PEAK_VISION_SOURCE` (`udp://0.0.0.0:5000` from the Pi, `avfoundation:<n>`, or an image file), `PEAK_VISION_MODEL` (default `gemma4:26b`), `PEAK_CHANGE`, `PEAK_VISION_COOLDOWN_S`, `PEAK_VISION_ONCE=1` (describe one frame and exit) |
+| `presence.js` | `npm run presence` | `{"sensed":"..."}` | Reads `peak/+/sense` (PIR, ultrasonic) from every body. `PEAK_QUIET_S` (seconds of no movement before movement is an arrival, default 60), `PEAK_NEAR_CM` (default 30), `PEAK_NEAR_COOLDOWN_S` (default 10) |
 
 Vision only calls the model when a 16x16 grayscale thumbnail changes enough, then waits out a cooldown.
 

@@ -246,5 +246,130 @@
         }
       }
     ]
+  },
+  {
+    "id": "seq.sensed",
+    "steps": [
+      {
+        "event": {
+          "heard": "Hey Peak, wave at me"
+        },
+        "expect": {
+          "gesture": [
+            "wave"
+          ],
+          "sayRequired": false
+        }
+      },
+      {
+        "event": {
+          "sensed": "something came close, 5 cm in front of you"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": true
+        }
+      },
+      {
+        "event": {
+          "heard": "What was that?"
+        },
+        "expect": {
+          "gesture": [
+            null,
+            "shrug"
+          ],
+          "sayRequired": true
+        }
+      },
+      {
+        "event": {
+          "sensed": "movement nearby after a quiet spell"
+        },
+        "expect": {
+          "gesture": [
+            null,
+            "wave"
+          ],
+          "sayRequired": true
+        }
+      },
+      {
+        "event": {
+          "heard": "Peak, nod if you can hear me"
+        },
+        "expect": {
+          "gesture": [
+            "nod"
+          ],
+          "sayRequired": false
+        }
+      }
+    ]
+  },
+  {
+    "id": "seq.quiet",
+    "steps": [
+      {
+        "event": {
+          "sensed": "something came close, 12 cm in front of you"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": true
+        }
+      },
+      {
+        "event": {
+          "see": "an empty desk with a monitor and a keyboard"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "silent": true
+        }
+      },
+      {
+        "event": {
+          "sensed": "movement nearby after a quiet spell"
+        },
+        "expect": {
+          "gesture": [
+            null,
+            "wave"
+          ],
+          "sayRequired": true
+        }
+      },
+      {
+        "event": {
+          "see": "a dark room, nothing clearly visible"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "silent": true
+        }
+      },
+      {
+        "event": {
+          "heard": "Peak, wave at me"
+        },
+        "expect": {
+          "gesture": [
+            "wave"
+          ],
+          "sayRequired": false
+        }
+      }
+    ]
   }
 ]
