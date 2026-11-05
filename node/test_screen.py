@@ -168,5 +168,103 @@ class ReflexTest(unittest.TestCase):
         self.assertEqual(s.eyes.right.x - s.eyes.left.x, 44)
 
 
+class EyesCommandTest(unittest.TestCase):
+    def test_the_mind_holds_the_eyes_then_the_reflexes_have_them_back(self):
+        s = make(sense=WORN)
+        self.assertTrue(s.on_eyes(10, {"mood": "happy", "look": "ne", "ms": 2000}))
+        pose = s.pose(11)
+        self.assertEqual((pose.mood, pose.look, pose.sweat), ("happy", "ne", 2))
+        self.assertEqual(s.override_until, 12)
+        self.assertLessEqual(s.next_event(11), 12)
+        self.assertEqual(s.pose(12).mood, "tired")
+
+    def test_no_ms_is_four_seconds_and_ms_is_clamped(self):
+        s = make()
+        s.on_eyes(10, {"mood": "angry"})
+        self.assertEqual(s.override_until, 14)
+        s.on_eyes(10, {"mood": "angry", "ms": 5})
+        self.assertEqual(s.override_until, 10.1)
+        s.on_eyes(10, {"mood": "angry", "ms": 10 ** 9})
+        self.assertEqual(s.override_until, 70)
+
+    def test_a_new_command_replaces_the_old_one_whole(self):
+        s = make()
+        s.on_eyes(10, {"mood": "happy", "look": "n"})
+        s.on_eyes(11, {"open": False})
+        pose = s.pose(11.5)
+        self.assertEqual((pose.open, pose.mood, pose.look), (False, "default", None))
+
+    def test_an_animation_alone_keeps_the_mood_it_found(self):
+        s = make()
+        s.on_eyes(10, {"mood": "happy", "ms": 3000})
+        self.assertTrue(s.on_eyes(10.5, {"anim": "laugh"}))
+        self.assertEqual(s.pose(11).mood, "happy")
+        self.assertTrue(s.eyes.animating(10.6))
+
+    def test_winks_name_the_bodys_own_eyes(self):
+        s = make()
+        s.on_eyes(10, {"anim": "wink_left"})
+        self.assertEqual((s.eyes.left.h_next, s.eyes.right.h_next), (36, 1))
+        s = make()
+        s.on_eyes(10, {"anim": "wink_right"})
+        self.assertEqual((s.eyes.left.h_next, s.eyes.right.h_next), (1, 36))
+
+    def test_shut_eyes_stay_shut_through_a_blink(self):
+        s = make()
+        s.on_eyes(10, {"open": False, "ms": 5000})
+        s.settle(10.1)
+        s.on_eyes(10.2, {"anim": "blink"})
+        s.settle(10.3)
+        self.assertEqual(s.eyes.left.h, 1)
+        self.assertFalse(s.eyes.autoblinker)
+
+    def test_shape_is_laid_over_the_configured_one_and_kept_on_the_screen(self):
+        s = make()
+        s.on_eyes(10, {"shape": {"height": 46}})
+        self.assertEqual(s.pose(10.1).shape, (36, 46, 8, 10))
+        s.on_eyes(10, {"shape": {"width": 500, "space": 40, "radius": -3, "height": "tall"}})
+        self.assertEqual(s.pose(10.1).shape, (60, 36, 0, 8))
+
+    def test_rubbish_is_ignored_not_raised(self):
+        s = make()
+        before = s.pose(10)
+        for cmd in (None, "happy", [], {}, {"mood": "ecstatic"}, {"look": 7}, {"open": "yes"}, {"anim": "moonwalk"},
+                    {"shape": [1, 2]}, {"ms": 500}):
+            self.assertFalse(s.on_eyes(10, cmd), cmd)
+        self.assertEqual(s.pose(10), before)
+        s.on_eyes(10, {"mood": "happy", "ms": True, "banana": 1})
+        self.assertEqual((s.pose(10.1).mood, s.override_until), ("happy", 14))
+
+    def test_release_and_stop_hand_them_back(self):
+        s = make()
+        s.on_eyes(10, {"mood": "angry", "ms": 60000})
+        s.on_eyes(11, {"release": True})
+        self.assertEqual(s.pose(11.1).mood, "default")
+
+    def test_asleep_and_startled_beat_the_mind(self):
+        s = make(sense={**FINE, "distance_cm": 80})
+        s.on_eyes(10, {"mood": "happy", "look": "s", "ms": 9000})
+        s.on_sense(11, {**FINE, "distance_cm": 9})
+        self.assertEqual((s.pose(11.5).mood, s.pose(11.5).look), ("default", "center"))
+        self.assertEqual(s.pose(13).mood, "happy")
+        s.online = False
+        self.assertFalse(s.pose(13).open)
+
+    def test_the_vocabulary_is_the_contracts(self):
+        import json
+        from pathlib import Path
+        contract = Path(__file__).parent.parent / "contracts" / "cmd.schema.json"
+        if not contract.exists():
+            self.skipTest("contracts/ is not deployed to the Pi")
+        props = json.loads(contract.read_text())["$defs"]["eyes"]["properties"]
+        self.assertEqual(tuple(props["mood"]["enum"]), screen.MOODS)
+        self.assertEqual(set(props["look"]["enum"]), set(screen.POSITIONS))
+        self.assertEqual(tuple(props["anim"]["enum"]), screen.ANIMS)
+        self.assertEqual([(k, props["shape"]["properties"][k]["minimum"], props["shape"]["properties"][k]["maximum"])
+                          for k in props["shape"]["properties"]], list(screen.SHAPE_LIMITS))
+        self.assertEqual((props["ms"]["minimum"], props["ms"]["default"], props["ms"]["maximum"]), screen.EYES_MS)
+        self.assertEqual(set(props), {"mood", "look", "anim", "open", "curious", "shape", "release", "ms"})
+
+
 if __name__ == "__main__":
     unittest.main()

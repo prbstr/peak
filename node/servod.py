@@ -7,7 +7,7 @@ with a Last Will) so the mind knows which bodies are alive. Runs on a Raspberry 
 
 Set PEAK_SIM=1 to run without hardware (prints moves instead).
 """
-import json, os, queue, subprocess, time, threading
+import json, os, queue, signal, subprocess, time, threading
 from pathlib import Path
 import yaml
 import paho.mqtt.client as mqtt
@@ -213,7 +213,8 @@ class Display:
             threading.Thread(target=self.run, daemon=True).start()
 
     def tell(self, what, *args):
-        """From the other threads: on_gesture, on_say or on_sense, which answers False when nothing changed."""
+        """From the other threads: something the screen should know (on_gesture, on_say, on_eyes, on_sense,
+        release). It answers False when nothing changed."""
         with self.lock:
             changed = getattr(self.screen, what)(time.monotonic(), *args)
         if changed is not False:
@@ -288,6 +289,15 @@ class Display:
             return wait if due is None else min(wait, max(0.0, due - now))
         return HEAL_EVERY_S if due is None else min(HEAL_EVERY_S, max(0.0, due - now))
 
+    def snapshot(self, *_):
+        """On SIGUSR1: save what the panel was last sent as ~/peak/oled.png. The panel cannot be read back,
+        so this is the nearest thing to seeing the glass from another machine."""
+        try:
+            import oled
+            oled.unpack(self.shadow).save(HERE.parent / "oled.png")
+        except Exception as e:
+            print(f"[servod] snapshot: {e}")
+
     def count(self, now, sent, send_s, cpu_s):
         t = self.tally
         t["frames"] += 1
@@ -300,6 +310,7 @@ class Display:
             self.tally = {"at": now, "frames": 0, "bytes": 0, "send_s": 0.0, "cpu_s": 0.0}
 
 display = Display()
+signal.signal(signal.SIGUSR1, display.snapshot)
 
 # ---------- speech ----------
 MAX_SAY_CHARS = 200  # matches contracts/cmd.schema.json
@@ -338,9 +349,12 @@ def on_message(c, u, msg):
         except queue.Empty:
             pass
         servos.stop()
+        display.tell("release")
     elif "say" in cmd:
         speak(str(cmd["say"]))  # independent of motion, so a line is never held up by a wave
         display.tell("on_say", str(cmd["say"])[:MAX_SAY_CHARS])
+    elif "eyes" in cmd:
+        display.tell("on_eyes", cmd["eyes"])
     elif "gesture" in cmd or "servo" in cmd:
         enqueue_motion(cmd)
         if "gesture" in cmd:

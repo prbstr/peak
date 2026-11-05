@@ -5,6 +5,35 @@
     { "type": "object", "required": ["gesture"], "properties": { "gesture": { "type": "string" } }, "additionalProperties": false },
     { "type": "object", "required": ["servo", "deg"], "properties": { "servo": { "type": "string" }, "deg": { "type": "number" }, "ms": { "type": "integer", "minimum": 20 } }, "additionalProperties": false },
     { "type": "object", "required": ["say"], "properties": { "say": { "type": "string", "maxLength": 200 } }, "additionalProperties": false },
-    { "type": "object", "required": ["stop"], "properties": { "stop": { "const": true } }, "additionalProperties": false }
-  ]
+    { "type": "object", "required": ["stop"], "properties": { "stop": { "const": true } }, "additionalProperties": false },
+    { "type": "object", "required": ["eyes"], "properties": { "eyes": { "$ref": "#/$defs/eyes" } }, "additionalProperties": false }
+  ],
+  "$defs": {
+    "eyes": {
+      "description": "Take over the OLED eyes for `ms`; then the body's reflexes have them back. `look` is in screen terms (e is the viewer's right, the body's left); the winks name the body's own left and right. `anim` alone leaves an earlier command in place.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "mood": { "enum": ["default", "tired", "angry", "happy"] },
+        "look": { "enum": ["center", "n", "ne", "e", "se", "s", "sw", "w", "nw"] },
+        "anim": { "enum": ["blink", "wink_left", "wink_right", "confused", "laugh"] },
+        "open": { "type": "boolean" },
+        "curious": { "type": "boolean" },
+        "shape": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "width": { "type": "integer", "minimum": 8, "maximum": 60 },
+            "height": { "type": "integer", "minimum": 8, "maximum": 64 },
+            "radius": { "type": "integer", "minimum": 0, "maximum": 32 },
+            "space": { "type": "integer", "minimum": -20, "maximum": 40 }
+          }
+        },
+        "release": { "const": true },
+        "ms": { "type": "integer", "minimum": 100, "maximum": 60000, "default": 4000 }
+      }
+    }
+  }
 }

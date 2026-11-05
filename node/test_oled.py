@@ -50,6 +50,11 @@ class OledTest(unittest.TestCase):
             img = scribble(rng)
             self.assertEqual(oled.pack(img), luma_pack(img))
 
+    def test_unpack_gives_the_picture_back(self):
+        img = scribble(random.Random(4))
+        again = oled.unpack(oled.pack(img))
+        self.assertEqual((again.size, again.tobytes()), (img.size, img.tobytes()))
+
     def test_one_pixel_is_bit_and_byte_exact(self):
         img = Image.new("1", (128, 64))
         img.putpixel((5, 19), 1)

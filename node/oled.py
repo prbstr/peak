@@ -18,6 +18,14 @@ def pack(img):
     columns = img.transpose(Image.Transpose.TRANSPOSE).tobytes().translate(BIT_REVERSED)
     return [columns[p::PAGES] for p in range(PAGES)]
 
+def unpack(pages):
+    """The picture a set of pages makes: pack() backwards."""
+    columns = bytearray(len(pages[0]) * PAGES)
+    for p, row in enumerate(pages):
+        columns[p::PAGES] = row
+    size = (PAGES * 8, len(pages[0]))
+    return Image.frombytes("1", size, bytes(columns).translate(BIT_REVERSED)).transpose(Image.Transpose.TRANSPOSE)
+
 def diff(shadow, pages):
     """The windows to send, as (page, first column, last column). With no shadow, everything."""
     if shadow is None:

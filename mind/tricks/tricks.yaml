@@ -1,0 +1,50 @@
+# Tricks: named things the hive can do with a body. Each is a short sequence of steps:
+#   eyes: an eyes command for the body's OLED (contracts/cmd.schema.json, $defs.eyes)
+#   gesture: a named servo gesture from node/gestures.yaml
+#   say: a line to speak
+#   wait: milliseconds before the next step
+# `describe` is what the brain is told the trick is for. A new trick is a new entry here; nothing else changes.
+# Tricks learned at runtime go in learned.yaml beside this file, in the same shape.
+happy:
+  describe: 'smiling eyes. For thanks, praise, good news, or when asked to smile or look happy.'
+  steps:
+    - eyes: { mood: happy, look: center, ms: 4000 }
+angry:
+  describe: 'narrowed, slanting eyes. When asked to look angry, cross or fierce.'
+  steps:
+    - eyes: { mood: angry, look: center, ms: 4000 }
+sleepy:
+  describe: 'drooping eyes that sink and shut. For goodnight, bedtime, or when asked to look sleepy or tired.'
+  steps:
+    - eyes: { mood: tired, look: s, ms: 6000 }
+    - wait: 2500
+    - eyes: { open: false, ms: 3000 }
+confused:
+  describe: 'eyes shaking from side to side. When asked to look confused or puzzled.'
+  steps:
+    - eyes: { anim: confused }
+    - wait: 700
+    - eyes: { anim: confused }
+laugh:
+  describe: 'happy eyes bouncing up and down. For a joke, something funny, or when asked to laugh.'
+  steps:
+    - eyes: { mood: happy, anim: laugh, ms: 2500 }
+    - wait: 600
+    - eyes: { anim: laugh }
+    - wait: 600
+    - eyes: { anim: laugh }
+surprised:
+  describe: 'eyes suddenly wide. For surprising news, or when asked to look surprised or shocked.'
+  steps:
+    - eyes: { mood: default, shape: { width: 40, height: 50 }, look: center, ms: 2000 }
+wink:
+  describe: 'shut one eye for a moment. For a shared joke or a secret, or when asked to wink.'
+  steps:
+    - eyes: { anim: wink_left }
+peekaboo:
+  describe: 'hide the eyes, then pop them wide open. When asked to play peekaboo.'
+  steps:
+    - eyes: { open: false, ms: 5000 }
+    - wait: 1200
+    - eyes: { open: true, mood: default, shape: { height: 46 }, ms: 1500 }
+    - say: 'Boo!'
