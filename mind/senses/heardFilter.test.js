@@ -9,14 +9,26 @@ const fresh = (opts = {}) => { const c = clock(); return { f: createHeardFilter(
 
 test('the wake phrase itself passes, even alone', () => {
   const { f } = fresh();
-  assert.equal(f.consider('Hey Peak.').text, 'Hey Peak.');
+  assert.equal(f.consider('Hey Rho.').text, 'Hey Rho.');
 });
 
-test('whisper mishearings of Peak still wake it', () => {
+test('the homophones whisper writes for Rho wake it where a name stands', () => {
   const { f } = fresh();
-  for (const t of ['Hey Peek, wave at me please.', 'Hey Pete, can you wave at me?', 'hey peak where are we', "Hey Pig, what's the weather like?", 'Hey Pea, nod.']) {
+  for (const t of ['Hey Row, wave at me please.', 'Hey, Roe, can you wave at me?', "Ro, what's the weather like?", 'Roll.', 'hey rho where are we', 'Can you hear me, Row?']) {
     assert.equal(f.consider(t).text, t, t);
   }
+});
+
+test('the same words inside ordinary speech do not wake it', () => {
+  const { f } = fresh();
+  for (const t of ['That is three wins in a row.', 'Roll the dice and see.', 'Row the boat to the shore.', 'He ate the fish roe.']) {
+    assert.equal(f.consider(t).why, 'no wake word', t);
+  }
+});
+
+test('the old name no longer wakes it', () => {
+  const { f } = fresh();
+  assert.equal(f.consider('Hey Peak, wave at me.').why, 'no wake word');
 });
 
 test('sound tags are dropped whether bracketed or starred', () => {
@@ -46,7 +58,7 @@ test('fluent sentences without the wake word are dropped when nobody woke it', (
 
 test('after the wake word, a follow-up sentence passes inside the window', () => {
   const { f, c } = fresh();
-  f.consider('Hey Peak.');
+  f.consider('Hey Rho.');
   c.tick(3000);
   assert.equal(f.consider('wave at me').text, 'wave at me');
   c.tick(6000); // 9 s after the wake word
@@ -55,14 +67,14 @@ test('after the wake word, a follow-up sentence passes inside the window', () =>
 
 test('a wake word inside a sentence also opens the window', () => {
   const { f, c } = fresh();
-  assert.equal(f.consider('Can you hear me, Peak?').why, 'wake word');
+  assert.equal(f.consider('Can you hear me, Rho?').why, 'wake word');
   c.tick(1000);
   assert.equal(f.consider('nod if you can').text, 'nod if you can');
 });
 
 test('a tag mixed into real words is stripped, not fatal', () => {
   const { f } = fresh();
-  assert.equal(f.consider('[cough] Hey Peak, [sigh] wave.').text, 'Hey Peak, wave.');
+  assert.equal(f.consider('[cough] Hey Rho, [sigh] wave.').text, 'Hey Rho, wave.');
 });
 
 test('with the gate off every clean utterance passes', () => {

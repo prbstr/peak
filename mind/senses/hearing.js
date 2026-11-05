@@ -8,7 +8,7 @@
 //   PEAK_SILENCE_MS     this much quiet after speech ends the utterance (default 700)
 //   PEAK_DEBUG          log every utterance whisper returns, including the ones filtered out
 //   PEAK_DUMP_DIR       also save each utterance as a wav here (for mind/bakeoff)
-//   PEAK_WAKE           off = publish every clean utterance; default on = only after "Peak" (heardFilter.js)
+//   PEAK_WAKE           off = publish every clean utterance; default on = only after "Rho" (heardFilter.js)
 //   PEAK_WAKE_WINDOW_MS how long after the wake word follow-up sentences still pass (default 8000)
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';

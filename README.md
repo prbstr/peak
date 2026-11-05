@@ -1,6 +1,6 @@
 # peak
 
-A hive-mind robot. One mind (Mac mini M5 Pro), many bodies. First body: **Mech Suit** — a Lego Technic mech with a minifig pilot, six GeekServos, and a Raspberry Pi 3B in the backpack.
+A hive-mind robot whose character is called Rho. One mind (Mac mini M5 Pro), many bodies. First body: **Mech Suit** — a Lego Technic mech with a minifig pilot, six GeekServos, and a Raspberry Pi 3B in the backpack.
 
 ```
 peak/
@@ -47,7 +47,7 @@ scripts/deploy-node.sh mech.local    # after running scripts/pi-firstboot.sh mec
 Bench test from the Mac:
 ```sh
 mosquitto_pub -t peak/mech/cmd -m '{"gesture":"wave"}'
-mosquitto_pub -t peak/mech/event -m '{"heard":"hey peak, wave at me"}'
+mosquitto_pub -t peak/mech/event -m '{"heard":"hey rho, wave at me"}'
 ```
 
 See CLAUDE.md for architecture decisions, environment facts, gotchas and current status. SHOPPING.md tracks parts.

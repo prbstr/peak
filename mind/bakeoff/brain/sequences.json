@@ -4,7 +4,7 @@
     "steps": [
       {
         "event": {
-          "heard": "Hey Peak, hello!"
+          "heard": "Hey Rho, hello!"
         },
         "expect": {
           "gesture": [
@@ -65,7 +65,7 @@
     "steps": [
       {
         "event": {
-          "heard": "Peak, what are you?"
+          "heard": "Rho, what are you?"
         },
         "expect": {
           "gesture": [
@@ -152,7 +152,7 @@
       },
       {
         "event": {
-          "heard": "Hi Peak, did you see me come in?"
+          "heard": "Hi Rho, did you see me come in?"
         },
         "expect": {
           "gesture": [
@@ -252,7 +252,7 @@
     "steps": [
       {
         "event": {
-          "heard": "Hey Peak, wave at me"
+          "heard": "Hey Rho, wave at me"
         },
         "expect": {
           "gesture": [
@@ -298,7 +298,7 @@
       },
       {
         "event": {
-          "heard": "Peak, nod if you can hear me"
+          "heard": "Rho, nod if you can hear me"
         },
         "expect": {
           "gesture": [
@@ -361,7 +361,7 @@
       },
       {
         "event": {
-          "heard": "Peak, wave at me"
+          "heard": "Rho, wave at me"
         },
         "expect": {
           "gesture": [
