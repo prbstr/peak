@@ -120,12 +120,55 @@ def motion_worker():
 threading.Thread(target=motion_worker, daemon=True).start()
 
 # ---------- sensors ----------
+class Sensors:
+    """GPIO sensors from config.yaml `sensors`. Real whenever the pins exist, even with PEAK_SIM=1:
+    a body with no servos wired yet can still sense. On a machine without GPIO (the Mac) each stays None."""
+    def __init__(self):
+        cfg = CFG.get("sensors") or {}
+        self.ultrasonic = self.open("ultrasonic", cfg, lambda g, c: g.DistanceSensor(
+            echo=c["echo"], trigger=c["trig"], max_distance=c.get("max_cm", 400) / 100))
+        self.pir = self.open("pir", cfg, lambda g, c: g.MotionSensor(c["out"]))
+
+    @staticmethod
+    def open(name, cfg, make):
+        if name not in cfg:
+            return None
+        try:
+            import gpiozero, warnings
+            # no echo is normal with nothing in range; it would fill the log
+            warnings.simplefilter("ignore", gpiozero.DistanceSensorNoEcho)
+            return make(gpiozero, cfg[name])
+        except Exception as e:
+            print(f"[servod] no {name} sensor: {e}")
+            return None
+
+    def read(self):
+        out = {}
+        if self.ultrasonic and self.ultrasonic.value < 1:  # 1.0 is "no echo", not a distance
+            out["distance_cm"] = round(self.ultrasonic.distance * 100, 1)
+        if self.pir:
+            out["motion"] = bool(self.pir.motion_detected)
+        return out
+
+sensors = Sensors()
+
+def read_throttled():
+    """Pi firmware power flags as hex, e.g. 0x50005. Bit 0 set means undervoltage right now."""
+    try:
+        r = subprocess.run(["vcgencmd", "get_throttled"], capture_output=True, text=True, timeout=2)
+        return r.stdout.strip().split("=")[1]
+    except Exception:
+        return None
+
 def read_sense():
-    out = {"uptime": time.monotonic(), "pos": servos.pos}
+    out = {"uptime": time.monotonic(), "pos": servos.pos, **sensors.read()}
     try:
         out["temp"] = float(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000
     except Exception:
         pass
+    throttled = read_throttled()
+    if throttled:
+        out["throttled"] = throttled
     return out
 
 # ---------- speech ----------

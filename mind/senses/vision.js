@@ -25,7 +25,10 @@ process.on('SIGTERM', () => process.exit(0));
 
 const inputArgs = SOURCE.startsWith('avfoundation:')
   ? ['-f', 'avfoundation', '-framerate', '30', '-i', SOURCE.split(':')[1]]
-  : SOURCE.startsWith('udp://') ? ['-fflags', 'nobuffer', '-i', SOURCE] : ['-i', SOURCE]; // nobuffer yields no frame from still images
+  // The Pi sends bare H264 (camd.sh). Left to probe it, ffmpeg spends its full 5 s on every look; told the format
+  // and given a short probe, a look takes 2 s. nobuffer yields no frame from still images, so only here.
+  : SOURCE.startsWith('udp://') ? ['-fflags', 'nobuffer', '-f', 'h264', '-probesize', '200000', '-analyzeduration', '500000', '-i', SOURCE]
+    : ['-i', SOURCE];
 
 const grabFrame = async n => {
   const file = join(dir, `frame${n}.jpg`);

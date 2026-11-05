@@ -23,7 +23,7 @@ The Pi 3B runs only `servod` and `camd`. All AI (orchestrator, vision, speech) s
 | Topic | Direction | Payload |
 | --- | --- | --- |
 | `peak/<node>/cmd` | mind → node | `{"servo":"head","deg":120,"ms":500}` or `{"gesture":"wave"}` or `{"say":"hello"}` |
-| `peak/<node>/sense` | node → mind | `{"uptime":123,"temp":48.2,"battery":4.9,"distance_cm":42}` |
+| `peak/<node>/sense` | node → mind | `{"uptime":123,"temp":48.2,"distance_cm":42,"motion":false,"throttled":"0x0"}` every second |
 | `peak/<node>/frame` | node → mind | JPEG snapshot (binary) on request |
 | `peak/brain/intent` | mind → all | what the mind decided, for coherence across bodies |
 
