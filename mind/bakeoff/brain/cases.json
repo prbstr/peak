@@ -1406,5 +1406,677 @@
       "sayRequired": false,
       "silent": true
     }
+  },
+  {
+    "id": "eyes.happy",
+    "event": {
+      "heard": "Rho, look happy"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyes.smile",
+    "event": {
+      "heard": "Give me a smile"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyes.angry",
+    "event": {
+      "heard": "Rho, look angry"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "angry"
+      ]
+    }
+  },
+  {
+    "id": "eyes.sleepy",
+    "event": {
+      "heard": "Show me your sleepy face"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "sleepy"
+      ]
+    }
+  },
+  {
+    "id": "eyes.confused",
+    "event": {
+      "heard": "Look confused"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "shrug"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "confused"
+      ]
+    }
+  },
+  {
+    "id": "eyes.laugh",
+    "event": {
+      "heard": "Rho, laugh for me"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "laugh"
+      ]
+    }
+  },
+  {
+    "id": "eyes.surprised",
+    "event": {
+      "heard": "Look surprised"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "surprised"
+      ]
+    }
+  },
+  {
+    "id": "eyes.praise",
+    "event": {
+      "heard": "Good job Rho, well done"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "nod"
+      ],
+      "sayRequired": true,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyes.fact",
+    "event": {
+      "heard": "What's two plus two?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "eyes.nod_only",
+    "event": {
+      "heard": "Nod if you can hear me"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "trick.peekaboo",
+    "event": {
+      "heard": "Rho, play peekaboo"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "peekaboo"
+      ]
+    }
+  },
+  {
+    "id": "trick.wink",
+    "event": {
+      "heard": "Give me a wink"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "wink"
+      ]
+    }
+  },
+  {
+    "id": "trick.wink_at",
+    "event": {
+      "heard": "Rho, wink at me"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "wink"
+      ]
+    }
+  },
+  {
+    "id": "trick.joke",
+    "event": {
+      "heard": "Here's a joke: why did the robot cross the road? Because it was programmed to."
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "laugh",
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "trick.goodnight",
+    "event": {
+      "heard": "Goodnight Rho"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        null
+      ],
+      "sayRequired": true,
+      "eyes": [
+        "sleepy"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.cheer",
+    "event": {
+      "heard": "Cheer up, Rho, show me a happy face"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.camera",
+    "event": {
+      "heard": "Can you smile for the camera?"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "nod"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.angry_face",
+    "event": {
+      "heard": "Make an angry face"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "angry"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.fierce",
+    "event": {
+      "heard": "Be fierce, Rho"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "angry"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.tired",
+    "event": {
+      "heard": "Pretend you're really tired"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "sleepy"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.puzzled",
+    "event": {
+      "heard": "Act puzzled"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "shrug"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "confused"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.hilarious",
+    "event": {
+      "heard": "That's hilarious, Rho, have a laugh"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "laugh"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.shocked",
+    "event": {
+      "heard": "Act shocked"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "surprised"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.thanks",
+    "event": {
+      "heard": "Thanks Rho, you're the best"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "nod"
+      ],
+      "sayRequired": true,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyes2.arms",
+    "event": {
+      "heard": "How many arms do you have?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "trick2.lets_play",
+    "event": {
+      "heard": "Let's play peekaboo"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "peekaboo"
+      ]
+    }
+  },
+  {
+    "id": "trick2.the_thing",
+    "event": {
+      "heard": "Do the peekaboo thing"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "peekaboo"
+      ]
+    }
+  },
+  {
+    "id": "trick2.wink",
+    "event": {
+      "heard": "Wink, Rho"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "wink"
+      ]
+    }
+  },
+  {
+    "id": "trick2.bedtime",
+    "event": {
+      "heard": "It's bedtime, Rho"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "wave"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "sleepy"
+      ]
+    }
+  },
+  {
+    "id": "trick2.funny",
+    "event": {
+      "heard": "I've got a funny one for you: a robot walks into a bar and says, ouch."
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "laugh",
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "eyesneg.angry",
+    "event": {
+      "heard": "Don't look angry"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "eyesneg.laughing",
+    "event": {
+      "heard": "Stop laughing, Rho"
+    },
+    "expect": {
+      "gesture": [
+        null,
+        "rest"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "eyesneg.smile",
+    "event": {
+      "heard": "No need to smile"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "eyesneg.think",
+    "event": {
+      "heard": "Hmm, let me think"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "eyesneg.wink",
+    "event": {
+      "heard": "Don't wink at me"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "eyesneg.peekaboo",
+    "event": {
+      "heard": "Never mind the peekaboo"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "cross.nod_happy",
+    "event": {
+      "heard": "Nod and look happy"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "happy"
+      ]
+    }
+  },
+  {
+    "id": "cross.left",
+    "event": {
+      "heard": "Look to your left"
+    },
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "cross.right",
+    "event": {
+      "heard": "Look right, Rho"
+    },
+    "expect": {
+      "gesture": [
+        "look_right"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "cross.wave_wink",
+    "event": {
+      "heard": "Wave and give me a wink"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "wink"
+      ]
+    }
+  },
+  {
+    "id": "cross.sensed_near",
+    "event": {
+      "sensed": "something came close, 6 cm in front of you"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "eyes": [
+        null,
+        "surprised"
+      ]
+    }
+  },
+  {
+    "id": "cross.see_empty",
+    "event": {
+      "see": "an empty room with a desk and a lamp"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "silent": true,
+      "eyes": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "cross.shrug_confused",
+    "event": {
+      "heard": "Shrug and look confused"
+    },
+    "expect": {
+      "gesture": [
+        "shrug"
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "confused"
+      ]
+    }
+  },
+  {
+    "id": "cross.still_angry",
+    "event": {
+      "heard": "Stay still and look angry"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "angry"
+      ]
+    }
   }
 ]

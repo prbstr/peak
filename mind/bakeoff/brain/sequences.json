@@ -371,5 +371,84 @@
         }
       }
     ]
+  },
+  {
+    "id": "seq.eyes",
+    "steps": [
+      {
+        "event": {
+          "heard": "Rho, look angry"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "eyes": [
+            "angry"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "Okay, calm down now"
+        },
+        "expect": {
+          "gesture": [
+            null,
+            "rest",
+            "nod"
+          ],
+          "sayRequired": false,
+          "eyes": [
+            null,
+            "happy"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "Wave at me"
+        },
+        "expect": {
+          "gesture": [
+            "wave"
+          ],
+          "sayRequired": false,
+          "eyes": [
+            null,
+            "happy"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "Now give me a wink"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "eyes": [
+            "wink"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "What colour is the sky?"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": true,
+          "eyes": [
+            null
+          ]
+        }
+      }
+    ]
   }
 ]
