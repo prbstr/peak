@@ -2,7 +2,7 @@
 // for each model. Scores gesture accuracy, JSON validity, latency, tokens/s and whether the model stays
 // resident next to the vision model. A case may also say which tricks the eyes may show ("eyes": [names or
 // null]); cases that do not are counted when the brain moves the eyes anyway. Run from mind/:
-// npm run bakeoff:brain -- [flags]
+// npm run bakeoff:brain -- [flags]   (PEAK_BRAIN_EYES=1 in front to score the prompt with the eyes field)
 //   --models a,b     comma list (default: models.json)
 //   --runs N         repeats per case (default 3)
 //   --pair TAG       after scoring, load TAG as the eyes and check both stay on the GPU (same TAG = unified check)

@@ -2,6 +2,7 @@
 // tests can drive it exactly the way the orchestrator does.
 import { chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
 import { DESCRIBE, gestureNames } from './gestures.js';
+import { loadTricks } from './tricks.js';
 
 export const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-vl-abliterated:8b-instruct';
 export const TEMPERATURE = Number(process.env.PEAK_TEMPERATURE ?? 0.3);
@@ -11,16 +12,27 @@ export const MIN_CONFIDENCE = Number(process.env.PEAK_MIN_CONFIDENCE ?? 0);
 /** Matches contracts/cmd.schema.json and MAX_SAY_CHARS in servod. */
 export const SAY_MAX = 200;
 export const HISTORY_MAX = 20;
+/** With PEAK_BRAIN_EYES=1 the brain may also pick a trick for the eyes (tricks/tricks.yaml). Off by default: two
+ *  versions of the eyes prompt each cost an old bake-off case (bakeoff/brain/README.md, 5 Nov 2026). Without it
+ *  the prompt and the reply shape are exactly what they were before the eyes existed. */
+export const TRICKS = process.env.PEAK_BRAIN_EYES === '1' ? loadTricks() : {};
+export const trickNames = Object.keys(TRICKS);
 
-/** The model answers in this shape, enforced with Ollama structured outputs. */
-export const REPLY_SCHEMA = {
-  type: 'object',
-  properties: {
-    gesture: { type: ['string', 'null'], enum: [...gestureNames, null] },
-    say: { type: ['string', 'null'], maxLength: SAY_MAX },
-  },
-  required: ['gesture', 'say'],
-};
+/** The model answers in this shape, enforced with Ollama structured outputs. gesture stays the first field:
+ *  the orchestrator sends it to the body the moment it is complete. */
+export function buildSchema(tricks = trickNames) {
+  const eyes = tricks.length ? { eyes: { type: ['string', 'null'], enum: [...tricks, null] } } : {};
+  return {
+    type: 'object',
+    properties: {
+      gesture: { type: ['string', 'null'], enum: [...gestureNames, null] },
+      ...eyes,
+      say: { type: ['string', 'null'], maxLength: SAY_MAX },
+    },
+    required: ['gesture', ...Object.keys(eyes), 'say'],
+  };
+}
+export const REPLY_SCHEMA = buildSchema();
 
 const EXAMPLES = [
   [{ heard: 'Rho, wave at me' }, { gesture: 'wave', say: 'Hello there!' }],
@@ -33,6 +45,11 @@ const EXAMPLES = [
   [{ see: 'a person walking past, not looking at the camera' }, { gesture: null, say: null }],
   [{ sensed: 'movement nearby after a quiet spell' }, { gesture: null, say: 'Is someone there?' }],
   [{ sensed: 'something came close, 8 cm in front of you' }, { gesture: null, say: 'Careful, that is close.' }],
+  // shown only when the brain has eyes to move
+  [{ heard: 'Look happy' }, { gesture: null, eyes: 'happy', say: null }],
+  [{ heard: 'Thank you, that was great' }, { gesture: null, eyes: 'happy', say: 'Glad to help.' }],
+  [{ heard: 'Nod and give me a wink' }, { gesture: 'nod', eyes: 'wink', say: null }],
+  [{ heard: "Don't laugh" }, { gesture: null, eyes: null, say: 'Straight face.' }],
 ];
 
 /** Narrow decisions the model got wrong when left to the one wide one. Each line fixed a systematic miss in the
@@ -47,18 +64,27 @@ export const RULES = `- A negated or cancelled request ("don't wave", "not now",
 - Speech-to-text noise: "not" where "nod" makes sense means nod; Row, Roe or Roll where a name would stand mean Rho.
 - A "sensed" event gets one short line and no gesture: with something close in front of you, an arm must not swing.`;
 
-export function buildSystem(describe = DESCRIBE, examples = EXAMPLES, rules = RULES) {
+/** Narrow decisions about the eyes, kept apart so the prompt without eyes is untouched. */
+export const EYES_RULES = `- eyes is null in most replies. Choose a name only when that look or trick is asked for, or for thanks, praise, a joke, or goodnight.
+- A look or trick that is negated or cancelled ("don't look angry", "stop laughing") gets eyes null.
+- Looking left or right is a gesture, never eyes. A "see" or "sensed" event gets eyes null.`;
+
+export function buildSystem(describe = DESCRIBE, examples = EXAMPLES, rules = RULES, tricks = TRICKS) {
+  const eyes = Object.keys(tricks).length > 0;
   const gestureLines = Object.entries(describe).map(([name, what]) => `- ${name}: ${what}`).join('\n');
-  const exampleLines = examples.map(([ev, reply]) => `${JSON.stringify(ev)} -> ${JSON.stringify(reply)}`).join('\n');
+  const trickLines = Object.entries(tricks).map(([name, trick]) => `- ${name}: ${trick.describe}`).join('\n');
+  const shown = ({ gesture, eyes: look = null, say }) => (eyes ? { gesture, eyes: look, say } : { gesture, say });
+  const exampleLines = examples.filter(([, reply]) => eyes || !('eyes' in reply))
+    .map(([ev, reply]) => `${JSON.stringify(ev)} -> ${JSON.stringify(shown(reply))}`).join('\n');
   return `You are Rho, a hive mind living in Lego bodies. Today you have one body, "mech": a Technic mech with a minifig pilot, six servos (head, waist, two shoulders, two elbows), a camera, a microphone, a speaker, a motion sensor and a distance sensor facing forward. People talk to you after saying your name; speech-to-text sometimes writes it as Row, Roe or Roll.
 
 Each message is one event from a body. {"heard": "..."} is speech aimed at you. {"see": "..."} is what the camera noticed; it is not a request, so react only when a person is clearly addressing you, and never describe the scene back; a scene with nobody addressing you gets null and null. {"sensed": "..."} is what the body's own sensors felt: movement nearby, or something close in front of it. Nobody said it, so it is not a request either.
 
-Reply with exactly one JSON object: {"gesture": <name or null>, "say": <one short sentence or null>}.
+Reply with exactly one JSON object: {"gesture": <name or null>, ${eyes ? '"eyes": <name or null>, ' : ''}"say": <one short sentence or null>}.
 
 Gestures (choose the one the request names or clearly implies, else null):
 ${gestureLines}
-
+${eyes ? `\nEyes (your face is two eyes on a small screen; a look or a trick for them, else null):\n${trickLines}\n` : ''}
 Rules:
 - A direct request for a gesture is obeyed with exactly that gesture.
 - "Your left" means look_left and "your right" means look_right.
@@ -66,7 +92,7 @@ Rules:
 - say is at most one sentence under ${SAY_MAX} characters, in character, no emoji. null when nothing needs saying.
 - Never mention servos or angles. Never invent a gesture name.
 - The examples show the shape only; write your own words, never repeat their lines.
-${rules}
+${rules}${eyes ? `\n${EYES_RULES}` : ''}
 
 Examples:
 ${exampleLines}`;
@@ -97,9 +123,10 @@ export function trimHistory(history, max = HISTORY_MAX) {
   return history;
 }
 
-/** Parse the model's JSON. Unknown gestures become null and long lines are clamped, each counted as a violation. */
-export function parseReply(content, names = gestureNames) {
-  const violations = { invalidJson: false, unknownGesture: false, sayTooLong: false };
+/** Parse the model's JSON. Unknown gestures and tricks become null and long lines are clamped, each counted as a
+ *  violation. */
+export function parseReply(content, names = gestureNames, tricks = trickNames) {
+  const violations = { invalidJson: false, unknownGesture: false, unknownEyes: false, sayTooLong: false };
   let raw;
   try { raw = JSON.parse(content); } catch { raw = null; }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -107,10 +134,12 @@ export function parseReply(content, names = gestureNames) {
   }
   let gesture = raw.gesture ?? null;
   if (gesture !== null && !names.includes(gesture)) { violations.unknownGesture = true; gesture = null; }
+  let eyes = raw.eyes ?? null;
+  if (eyes !== null && !tricks.includes(eyes)) { violations.unknownEyes = true; eyes = null; }
   let say = typeof raw.say === 'string' && raw.say.trim() ? raw.say.trim() : null;
   if (say && say.length > SAY_MAX) { violations.sayTooLong = true; say = say.slice(0, SAY_MAX); }
   const valid = !Object.values(violations).some(Boolean);
-  return { reply: { gesture, say }, valid, violations };
+  return { reply: { gesture, eyes, say }, valid, violations };
 }
 
 /** The first field of the reply, as soon as it is complete in a partial JSON string: {"gesture": "wave" or null.

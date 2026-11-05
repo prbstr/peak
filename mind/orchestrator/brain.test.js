@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 import { readFileSync } from 'node:fs';
 import { DESCRIBE, GESTURES_PATH, gestureNames, loadGestureNames } from './gestures.js';
-import { REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, buildMessages, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
+import { EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, buildMessages, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
+import { loadTricks } from './tricks.js';
 
 test('gesture names are exactly the keys of node/gestures.yaml', () => {
   assert.deepEqual(gestureNames, Object.keys(parse(readFileSync(GESTURES_PATH, 'utf8'))));
@@ -55,13 +56,13 @@ test('parseReply rejects bad JSON', () => {
 
 test('parseReply accepts a good reply', () => {
   const r = parseReply('{"gesture":"nod","say":"Yes."}');
-  assert.deepEqual(r.reply, { gesture: 'nod', say: 'Yes.' });
+  assert.deepEqual(r.reply, { gesture: 'nod', eyes: null, say: 'Yes.' });
   assert.equal(r.valid, true);
 });
 
 test('parseReply nulls an unknown gesture and counts it', () => {
   const r = parseReply('{"gesture":"moonwalk","say":null}');
-  assert.deepEqual(r.reply, { gesture: null, say: null });
+  assert.deepEqual(r.reply, { gesture: null, eyes: null, say: null });
   assert.equal(r.valid, false);
   assert.equal(r.violations.unknownGesture, true);
 });
@@ -106,4 +107,57 @@ test('gestureConfidence multiplies the probabilities of the tokens that spell th
 test('the system prompt carries every tuning rule and the yes-answer example', () => {
   for (const line of RULES.split('\n')) assert.ok(SYSTEM.includes(line), line);
   assert.ok(SYSTEM.includes('"Did you hear that?"'));
+});
+
+// The eyes field is off unless PEAK_BRAIN_EYES=1, so these build the prompt and schema with the tricks handed in.
+const tricks = loadTricks();
+const names = Object.keys(tricks);
+const withEyes = buildSystem(undefined, undefined, undefined, tricks);
+
+test('with tricks the brain can pick one for the eyes, after the gesture and before the words', () => {
+  const schema = buildSchema(names);
+  assert.deepEqual(Object.keys(schema.properties), ['gesture', 'eyes', 'say']);
+  assert.deepEqual(schema.properties.eyes.enum, [...names, null]);
+  assert.deepEqual(schema.required, ['gesture', 'eyes', 'say']);
+  assert.ok(names.includes('peekaboo'));
+});
+
+test('with tricks the system prompt explains each one, carries the eyes rules and shows eyes in every example', () => {
+  for (const [name, trick] of Object.entries(tricks)) assert.ok(withEyes.includes(`- ${name}: ${trick.describe}`), name);
+  for (const line of EYES_RULES.split('\n')) assert.ok(withEyes.includes(line), line);
+  assert.match(withEyes, /\{"gesture": <name or null>, "eyes": <name or null>, "say": <one short sentence or null>\}/);
+  const examples = withEyes.split('Examples:\n')[1].split('\n');
+  assert.ok(examples.length >= 12);
+  for (const line of examples) assert.match(line, /-> \{"gesture":("[a-z_]+"|null),"eyes":("[a-z_]+"|null),"say":/, line);
+  assert.ok(examples.filter(line => line.includes('"eyes":null')).length > examples.length / 2, 'eyes is null in most examples');
+});
+
+test('without tricks, the default, the prompt and the reply shape have no eyes in them', () => {
+  if (process.env.PEAK_BRAIN_EYES !== '1') {
+    assert.deepEqual(TRICKS, {});
+    assert.equal(SYSTEM, buildSystem(undefined, undefined, undefined, {}));
+    assert.deepEqual(REPLY_SCHEMA, buildSchema([]));
+  }
+  const plain = buildSystem(undefined, undefined, undefined, {});
+  assert.doesNotMatch(plain, /eyes|Eyes|wink|peekaboo/);
+  assert.match(plain, /\{"gesture": <name or null>, "say": <one short sentence or null>\}/);
+  assert.deepEqual(Object.keys(buildSchema([]).properties), ['gesture', 'say']);
+  assert.deepEqual(buildSchema([]).required, ['gesture', 'say']);
+});
+
+test('parseReply keeps a known trick and nulls an unknown one, counted', () => {
+  const good = parseReply('{"gesture":"nod","eyes":"wink","say":null}', undefined, names);
+  assert.deepEqual(good.reply, { gesture: 'nod', eyes: 'wink', say: null });
+  assert.equal(good.valid, true);
+  const bad = parseReply('{"gesture":null,"eyes":"moonwalk","say":"Hi."}', undefined, names);
+  assert.deepEqual(bad.reply, { gesture: null, eyes: null, say: 'Hi.' });
+  assert.equal(bad.violations.unknownEyes, true);
+  assert.equal(bad.valid, false);
+  assert.equal(parseReply('{"gesture":"wave","say":"Hi."}', undefined, names).reply.eyes, null);
+});
+
+test('the gesture is still read early with eyes after it', () => {
+  assert.equal(earlyGesture('{"gesture":"wave","eyes":'), 'wave');
+  assert.equal(earlyGesture('{"gesture": null, "eyes": "happy"'), null);
+  assert.equal(earlyGesture('{"gesture":"wa'), undefined);
 });

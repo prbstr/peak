@@ -1,16 +1,18 @@
 // peak mind — orchestrator
 // Listens to every node's senses, asks the local model (Ollama) what the hive should do,
-// and publishes commands back. Gestures are named, never raw servo angles.
+// and publishes commands back. Gestures are named, never raw servo angles; the eyes are moved by named tricks.
 // The prompt, schema and Ollama call live in brain.js so tests and the bake-off share them.
 import 'dotenv/config';
 import mqtt from 'mqtt';
 import { runTool } from './tools.js';
-import { MODEL, askBrain, buildMessages, trimHistory } from './brain.js';
+import { MODEL, TRICKS, askBrain, buildMessages, trimHistory } from './brain.js';
+import { createTrickPlayer } from './tricks.js';
 import { formatStats } from '../lib/ollama.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
 
 const client = mqtt.connect(BROKER);
+const player = createTrickPlayer(client, { tricks: TRICKS });
 
 /** Latest sense reading per node that is online: { mech: {...}, rover: {...} } */
 const hive = new Map();
@@ -23,7 +25,7 @@ let waiting = null;
 
 client.on('connect', () => {
   console.log(`[mind] connected to ${BROKER}, brain: ${MODEL}`);
-  client.subscribe(['peak/+/sense', 'peak/+/event', 'peak/+/status']);
+  client.subscribe(['peak/+/sense', 'peak/+/event', 'peak/+/status', 'peak/+/cmd']);
 });
 
 client.on('message', (topic, payload) => {
@@ -37,6 +39,11 @@ client.on('message', (topic, payload) => {
   }
   const data = safeJson(payload);
   if (!data) return;
+  if (kind === 'cmd') {
+    // commands are ours, except an emergency stop from anyone: the trick in flight must not carry on over it
+    if (data.stop) player.stop(node);
+    return;
+  }
   if (kind === 'sense') {
     hive.set(node, { ...data, at: Date.now() });
     return;
@@ -89,7 +96,13 @@ async function think(node, event) {
   // the grammar makes the early gesture and the parsed one identical; this is the belt to that brace
   if (reply.gesture && reply.gesture !== early) await runTool(client, node, 'gesture', { name: reply.gesture });
   if (reply.say) await runTool(client, node, 'say', { text: reply.say });
-  const text = [reply.gesture && `*${reply.gesture}*`, reply.say].filter(Boolean).join(' ');
+  // A trick may bring its own gesture and line. The reply's win, and with something close in front of the body
+  // (a sensed event) no arm swings at all. It plays on its own time; the next event does not wait for it.
+  if (reply.eyes) {
+    const skip = [(reply.gesture || 'sensed' in event) && 'gesture', reply.say && 'say'].filter(Boolean);
+    player.play(node, reply.eyes, { skip }).catch(e => console.error('[mind] trick failed:', e.message));
+  }
+  const text = [reply.gesture && `*${reply.gesture}*`, reply.eyes && `(${reply.eyes})`, reply.say].filter(Boolean).join(' ');
   if (text) client.publish('peak/brain/intent', JSON.stringify({ node, text, at: Date.now() }));
 }
 

@@ -138,3 +138,29 @@ Use photos with and without people: the prompt asks about people, and the small 
 ## Ceiling test
 
 `huihui_ai/qwen3.5-abliterated:27b` (17 GB) exceeds the roughly 16 GB the GPU gets on this 24 GB Mac and partly offloads to the CPU. Run it alone, without `--pair`, only to see how much the size class costs: `npm run bakeoff:brain -- --models huihui_ai/qwen3.5-abliterated:27b --runs 1`.
+
+## Eyes field, 5 Nov 2026 (Qwen3-VL 8B, 157 cases + 35 sequence steps x 3 runs)
+
+The reply shape grows to `{gesture, eyes, say}`, where `eyes` names a trick from `tricks/tricks.yaml` or is null.
+44 cases and the `seq.eyes` sequence were written and committed before the prompt changed: tuning groups `eyes`
+and `trick`, held-out `eyes2`, `trick2`, `eyesneg` and `cross`. A case's `"eyes"` list counts toward strict; the
+"eyes unasked" column counts eyes moved in cases that say nothing about them. Run with `PEAK_BRAIN_EYES=1` in front,
+or the prompt has no eyes in it.
+
+The mind and vision were left running during all three runs, so the timings are noisier than the tables above
+(the 3.4 s p95 is calls queued behind a camera description). Accuracy is not affected.
+
+| Prompt | Strict | Old 143 steps | Eyes right | p50 / p95 ms | Gesture p50 ms | What changed |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline, no eyes field | 474/576 | 426/429 | 48/147 | 457 / 821 | 251 | only the old `fresh.stt_not_head`; the new cases fail for having no eyes |
+| v1: an Eyes section listing the tricks, three rules, four examples | 564/576 (98%) | 424/429 | 147/147 | 565 / 1070 | 249 | old: `fresh.night` ("night night") loses its wave 2/3, with sleepy eyes and "Sweet dreams!". New cases: `eyes.fact` nods while answering 2+2 (3/3), `cross.still_angry` look_left (3/3, as in the baseline), `trick.goodnight` rest 1/3 |
+| v2: v1 with "Nod and give me a wink" swapped for "Point at the door and look surprised", plus a goodnight example | 561/576 (97%) | 423/429 | 147/147 | 577 / 3388 | 254 | `fresh.night` fixed; new: `seq.chat.1` waves 3/3 (an old sequence), `eyes.surprised` look_left 3/3 (the new example's doing) |
+
+The eyes themselves were never wrong: 147 of 147 in both versions, held-out groups included, 0 early-gesture
+mismatches, and the gesture still fires at 0.25 s. The extra 430 prompt tokens cost about 110 ms per reply. Eyes
+moved unasked 10 to 13 times in 429 old calls, all of them thanks (happy), a joke (laugh) or goodnight (sleepy).
+
+The gate was "every old group equals the baseline". Both versions missed it by one old case each, the second by
+fixing the first one's miss and breaking another, the pattern this file has recorded twice before. So the field
+is **off by default** and the code carries v1, the better of the two. `PEAK_BRAIN_EYES=1` turns it on. A third try
+worth making: v1 unchanged plus only the goodnight example.
