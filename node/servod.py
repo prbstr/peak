@@ -180,6 +180,7 @@ def read_sense():
 
 # ---------- display ----------
 REPLY_WINDOW_S = 2  # the mind sends one reply as two commands, gesture then line; farther apart is a new reply
+HEAL_EVERY_S = 5
 
 class Display:
     """SSD1306 OLED from config.yaml `display`: shows what the mind last did and said. Real whenever it answers
@@ -188,19 +189,13 @@ class Display:
     COLS, ROWS, LINE_PX = 21, 4, 12  # the default font on 128x64, under a one-line header
 
     def __init__(self):
+        self.address = (CFG.get("display") or {}).get("i2c_address")
         self.dev = None
         self.gesture = self.say = None
-        self.at = float("-inf")
-        cfg = CFG.get("display")
-        if not cfg:
-            return
-        try:
-            from luma.core.interface.serial import i2c
-            from luma.oled.device import ssd1306
-            self.dev = ssd1306(i2c(port=1, address=cfg["i2c_address"]))
-            self.draw()
-        except Exception as e:
-            print(f"[servod] no display: {e}")
+        self.at = self.checked = float("-inf")
+        self.problem = None
+        self.lock = threading.Lock()  # the mqtt thread draws replies, the sense loop heals
+        self.draw()
 
     def show(self, gesture=None, say=None):
         now = time.monotonic()
@@ -217,15 +212,45 @@ class Display:
         for i, line in enumerate(textwrap.wrap(self.say or "", self.COLS)[:self.ROWS]):
             d.text((0, 16 + i * self.LINE_PX), line, fill="white")
 
+    def dark(self):
+        """True when the panel is switched off. It forgets its setup on a power dip, and any other program that
+        drew on it switches it off on the way out, while our frames keep landing in its memory unseen. Bit 6 of
+        the SSD1306 status byte is "display off"."""
+        from smbus2 import SMBus
+        with SMBus(1) as bus:
+            return bool(bus.read_byte(self.address) & 0x40)
+
     def draw(self):
-        if not self.dev:
+        if self.address is None:
             return
+        with self.lock:
+            try:
+                from luma.core.interface.serial import i2c
+                from luma.core.render import canvas
+                from luma.oled.device import ssd1306
+                if self.dev is None or self.dark():
+                    self.dev = ssd1306(i2c(port=1, address=self.address))  # the full setup, which switches it on
+                    print("[servod] display on")
+                with canvas(self.dev) as d:
+                    self.paint(d)
+                self.problem = None
+            except Exception as e:
+                if str(e) != self.problem:  # once per problem, not once per frame
+                    print(f"[servod] display: {e}")
+                self.problem = str(e)
+                self.dev = None
+
+    def heal(self):
+        """From the sense loop: bring a dark or replugged panel back without waiting for the next reply."""
+        if self.address is None or time.monotonic() - self.checked < HEAL_EVERY_S:
+            return
+        self.checked = time.monotonic()
         try:
-            from luma.core.render import canvas
-            with canvas(self.dev) as d:
-                self.paint(d)
-        except Exception as e:
-            print(f"[servod] display: {e}")
+            lost = self.dev is None or self.dark()
+        except Exception:
+            lost = True
+        if lost:
+            self.draw()
 
 display = Display()
 
@@ -280,6 +305,7 @@ client.loop_start()
 try:
     while True:
         client.publish(f"peak/{NODE}/sense", json.dumps(read_sense()))
+        display.heal()
         time.sleep(CFG.get("sense_interval_s", 5))
 except KeyboardInterrupt:
     pass
