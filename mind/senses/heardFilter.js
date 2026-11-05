@@ -11,8 +11,8 @@
 const WAKE_WINDOW_MS = Number(process.env.PEAK_WAKE_WINDOW_MS ?? 8000);
 const WAKE_GATE = (process.env.PEAK_WAKE ?? 'on') !== 'off';
 
-// whisper small hears "Peak" as all of these on this mic
-const WAKE = /\b(peak|peek|pete|pique|peke|beak)\b/i;
+// whisper hears "Peak" as all of these on this mic ("Hey Pig, what's the weather like?", 5 Nov 2026)
+const WAKE = /\b(peak|peek|pete|pique|peke|beak|pig|pea)\b/i;
 // stage directions and sound tags, with or without the words around them
 const TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*/g;
 // invented on near-silence, or echoes of the server's own prompt hint

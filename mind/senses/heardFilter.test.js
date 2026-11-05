@@ -14,7 +14,7 @@ test('the wake phrase itself passes, even alone', () => {
 
 test('whisper mishearings of Peak still wake it', () => {
   const { f } = fresh();
-  for (const t of ['Hey Peek, wave at me please.', 'Hey Pete, can you wave at me?', 'hey peak where are we']) {
+  for (const t of ['Hey Peek, wave at me please.', 'Hey Pete, can you wave at me?', 'hey peak where are we', "Hey Pig, what's the weather like?", 'Hey Pea, nod.']) {
     assert.equal(f.consider(t).text, t, t);
   }
 });
