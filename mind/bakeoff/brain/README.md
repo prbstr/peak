@@ -147,7 +147,7 @@ and `trick`, held-out `eyes2`, `trick2`, `eyesneg` and `cross`. A case's `"eyes"
 "eyes unasked" column counts eyes moved in cases that say nothing about them. Run with `PEAK_BRAIN_EYES=1` in front,
 or the prompt has no eyes in it.
 
-The mind and vision were left running during all three runs, so the timings are noisier than the tables above
+The mind and vision were left running during all four runs, so the timings are noisier than the tables above
 (the 3.4 s p95 is calls queued behind a camera description). Accuracy is not affected.
 
 | Prompt | Strict | Old 143 steps | Eyes right | p50 / p95 ms | Gesture p50 ms | What changed |
@@ -155,12 +155,15 @@ The mind and vision were left running during all three runs, so the timings are 
 | Baseline, no eyes field | 474/576 | 426/429 | 48/147 | 457 / 821 | 251 | only the old `fresh.stt_not_head`; the new cases fail for having no eyes |
 | v1: an Eyes section listing the tricks, three rules, four examples | 564/576 (98%) | 424/429 | 147/147 | 565 / 1070 | 249 | old: `fresh.night` ("night night") loses its wave 2/3, with sleepy eyes and "Sweet dreams!". New cases: `eyes.fact` nods while answering 2+2 (3/3), `cross.still_angry` look_left (3/3, as in the baseline), `trick.goodnight` rest 1/3 |
 | v2: v1 with "Nod and give me a wink" swapped for "Point at the door and look surprised", plus a goodnight example | 561/576 (97%) | 423/429 | 147/147 | 577 / 3388 | 254 | `fresh.night` fixed; new: `seq.chat.1` waves 3/3 (an old sequence), `eyes.surprised` look_left 3/3 (the new example's doing) |
+| v3: v1 plus only the goodnight example | 564/576 (98%) | 423/429 | 147/147 | 575 / 1274 | 251 | `fresh.night` fixed and `eyes.surprised` right again, so that miss was the point-and-surprised example; but `seq.chat.1` ("Rho, what are you?") still waves 3/3, so that one is the goodnight example, whose gesture is a wave |
 
-The eyes themselves were never wrong: 147 of 147 in both versions, held-out groups included, 0 early-gesture
+The eyes themselves were never wrong: 147 of 147 in all three versions, held-out groups included, 0 early-gesture
 mismatches, and the gesture still fires at 0.25 s. The extra 430 prompt tokens cost about 110 ms per reply. Eyes
 moved unasked 10 to 13 times in 429 old calls, all of them thanks (happy), a joke (laugh) or goodnight (sleepy).
 
-The gate was "every old group equals the baseline". Both versions missed it by one old case each, the second by
-fixing the first one's miss and breaking another, the pattern this file has recorded twice before. So the field
-is **off by default** and the code carries v1, the better of the two. `PEAK_BRAIN_EYES=1` turns it on. A third try
-worth making: v1 unchanged plus only the goodnight example.
+The gate was "every old group equals the baseline". All three versions missed it by one old case each: v1 loses a
+wave ("night night", 2 of 3), and the example that brings it back (v2, v3) adds one ("what are you", 3 of 3), the
+pattern this file has recorded twice before. Both misses are a wave more or a wave less, with the right words and
+the right eyes. So the field is **off by default** and the code carries v1, which loses the fewest calls.
+`PEAK_BRAIN_EYES=1` turns it on. Not tried: a goodnight example whose gesture is null, or a rule instead of an
+example.
