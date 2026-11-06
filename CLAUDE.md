@@ -274,5 +274,5 @@ The detail is in `CLAUDE.local.md`. What peak itself needs to know:
 
 | Name | Where | What it is to peak |
 | --- | --- | --- |
-| lupin | `../lupin` | A context engine over MCP: the planned Stage C memory for the hive. Paused, and nothing in peak uses it yet. Has its own `CLAUDE.md`. |
+| lupin | `../lupin` | A context engine over MCP: the planned Stage C memory for the hive. Nothing in peak uses it yet. Its instructions do not load in a peak chat: read `../lupin/CLAUDE.md` before working on the link. |
 | OpenClaw | `~/.openclaw` | Another program on this Mac that shares Ollama with peak. Do not touch its config or models, and never print `openclaw.json`: it holds tokens. |
