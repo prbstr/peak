@@ -1,19 +1,69 @@
 # peak
 
-Hobby project: an AI-guided robot with a hive-mind design. One mind on Sharad's Mac mini (24 GB), many Lego bodies talking over MQTT. First body: **mech**, a Lego Technic mech with a minifig pilot, 6 GeekServos and a Raspberry Pi 3B in the backpack. Later bodies: rover, drone. See README.md for layout and quick start, SHOPPING.md for parts and orders.
+Hobby project: an AI-guided robot with a hive-mind design. One mind on the owner's Mac mini, many Lego bodies talking over MQTT. The character is called **Rho**. First body: **mech**, a Lego Technic mech suit with a minifig pilot, six GeekServos and a Raspberry Pi 3B in the backpack. Later bodies: rover, drone.
 
-Keep this file current. When state, a decision or a gotcha changes, update the matching section before ending the session.
+This file is what every new chat starts from: how to work here and what is true now. The history lives in other files; read the one you need, not all of them.
+
+| File | Holds |
+| --- | --- |
+| `docs/log.md` | Dated record of every test and measurement, by area |
+| `docs/gotchas.md` | Each trap in full: what happened and what was measured. Also the wiring advice for parts not yet arrived |
+| `docs/decisions.md` | Each decision with its evidence and what was ruled out, and the method for changing a model or prompt |
+| `docs/architecture.md` | Exact behaviour: thresholds, timings, the order the eyes' reflexes win |
+| `docs/environment.md` | Versions, dates and what was checked when, on the Mac, the Pi and the HomePod |
+| `mind/bakeoff/README.md`, `mind/bakeoff/brain/README.md` | Speech-to-text and brain bake-off tables |
+| `mind/orchestrator/LESSONS.md` | Prompt-design lessons taken from TypeSafe's Jev |
+| `README.md`, `SHOPPING.md` | Layout and quick start; parts, orders, power wiring |
+| `CLAUDE.local.md` (gitignored, owner's Mac only) | Private notes about the owner: how he likes to work on this project, shops, his other projects |
+| `~/.claude/CLAUDE.md` (owner's Mac only) | His general working rules, for every project |
+
+## Working here
+
+This repo is public. Nothing personal about the owner goes in a tracked file: it goes in `CLAUDE.local.md`. The two private files above load beside this one on his Mac. These are the project's own rules.
+
+| Rule | Why |
+| --- | --- |
+| The brain is a local, abliterated Ollama model. No cloud model in the mind. | Owner's choice |
+| Research and measure before changing a model, a prompt or a speech engine. The eleven steps are at the end of `docs/decisions.md`. | A session that went straight to code had to be redone |
+| A fix is done after a live test on the real body, never after unit tests or a stand-in. | A result was once reported with the mic not connected |
+| A live test that needs the owner to speak or watch: 60 seconds at most, several short windows rather than one long one. Get everything ready first, then tell him what to do before the window opens. | Two windows passed before he spoke |
+| Commit locally. Push only on the owner's word; each push needs its own. Never commit `.env` or keys; he types keys into `mind/.env` himself. | Public repo |
+| Log placed orders in `SHOPPING.md` from the order page, not from memory. Keep addresses, phone numbers and email out. | Ticks made from memory were wrong |
+| Wiring help: drawings and photos with physical pin numbers, limited to parts on hand. | A wrong pin costs a part |
+| The Pi user is `lupin`, never `pi`. | |
+
+## Starting and ending a session
+
+Several Claude sessions work in this checkout, sometimes at the same moment, and the robot is usually left running between them.
+
+Start:
+
+1. `git status` and `git log -5`. Another session may have committed since this file was loaded into your context; re-read a file before you edit it, and commit only your own files.
+2. See what is running before you start anything: `pgrep -fl "orchestrator/index.js|senses/|voice/homepod|whisper-server"` on the Mac, `mosquitto_sub -t peak/mech/status -C 1 -W 3` for the body. Two minds answer every event twice.
+3. The Mac processes are background tasks of whichever session started them and stop when that session closes. Do not stop a process another session started unless the owner says so in this chat.
+4. A faked `heard` event is spoken aloud on the HomePod in the bedroom while the voice process runs. Mind the hour.
+
+End, when anything changed:
+
+1. Update the tables in this file: "Where things stand", "Next steps", and one line for any new rule or decision. Anything about the owner himself goes in `CLAUDE.local.md` instead.
+2. Put the dated detail (what was tested, the numbers) in `docs/log.md`, and the full story of a new trap in `docs/gotchas.md`.
+3. Ask whether to leave the robot running. On 2 Nov the answer was "kill all the services"; on 5 Nov it was left up. Stop only what you started, by pid, never by a pattern that also matches another session's processes, and say what is still running.
+4. Commit locally and ask before pushing.
 
 ## Vocabulary
 
 | Term | Meaning |
 | --- | --- |
-| mind | Mac side, `mind/`: Node.js. Orchestrator plus senses. |
+| mind | Mac side, `mind/`: Node.js. Orchestrator plus senses, tricks and voice. |
 | node / body | A robot. Pi code lives in `node/`. |
 | mech | First body. Pi hostname **and** MQTT node name (`peak/mech/...`). |
-| lupin | Login user on the Pi. Not `pi`. (Also a separate project, `../lupin`, a context engine; unrelated to this repo.) |
 | hive | All bodies share one mind and one broker. |
-| Rho | The character's name and wake word since 5 Nov 2026 (it was Peak). Only the character was renamed: the project, repo, MQTT topics and `PEAK_` settings are still peak. |
+| Rho | The character's name and wake word since 5 Nov 2026 (it was Peak; the owner asked for the change). Only the character was renamed: the project, repo, MQTT topics and `PEAK_` settings are still peak. |
+| sense / event | A body publishes raw readings on `sense`. A sense program on the Mac turns readings, audio or frames into an `event` worth a thought: `{"heard"}`, `{"see"}`, `{"sensed"}`. |
+| gesture | A named servo move from `node/gestures.yaml`: wave, point, nod, shrug, rest, look_left, look_right. |
+| trick | A named sequence of eye moves, gestures, words and waits, kept as data in `mind/tricks/tricks.yaml`. |
+| bake-off | Scoring candidates (models, prompts, speech engines) on fixed cases. Held-out groups are cases written after tuning stops. |
+| lupin | Three things: the login user on the Pi; a separate project in `../lupin`, a personal context engine over MCP; and the name of the owner's sidebar group and claude.ai Project that hold these chats. |
 
 ## Architecture
 
@@ -28,163 +78,201 @@ Pi (mech)                         Mac (mind)
                                   voice/homepod.py -- AirPlay --> HomePod mini (speaks every {"say"} on peak/+/cmd)
 ```
 
-- One Mosquitto broker on the Mac (brew service, `*:1883`, anonymous). Bodies are clients only.
-- Topics: `peak/<node>/cmd`, `peak/<node>/sense`, `peak/<node>/event`, `peak/<node>/status` (retained online/offline, set by Last Will), `peak/brain/intent`. Schemas in `contracts/`.
-- Senses publish **events only**, never raw frames or audio. The orchestrator thinks on events.
-- The brain never moves servos or eyes directly. It replies with `{gesture, say}` JSON (enforced with Ollama structured outputs); gestures are named in `node/gestures.yaml`. **With `PEAK_BRAIN_EYES=1` in `mind/.env` the shape is `{gesture, eyes, say}`**, where `eyes` is the name of a trick from `mind/tricks/tricks.yaml` or null. The orchestrator plays the trick after the reply is parsed, on its own time; the reply's own gesture and line win over the trick's, and on a `sensed` event a trick's gesture is dropped. This is **off by default** (5 Nov 2026): the eyes prompt missed the bake-off gate twice by one old case (see the Brain row in Status). Without the switch the prompt and schema are byte for byte what they were before tricks (checked).
-- The brain answers in a JSON shape (`{gesture, say}`, or `{gesture, eyes, say}` with the eyes switch; gesture first so it can fire early) enforced with Ollama structured outputs, built in `mind/orchestrator/brain.js`. The models do carry the `tools` capability (an earlier note said otherwise); native tool calling for `look_at` is a follow-up, not a blocker.
-- The orchestrator thinks on one event at a time; one more may wait, and a newer event replaces it (latest wins, never a backlog). Bodies that go offline are removed from the hive map.
-- `servod` runs one motion at a time with a one-deep queue (newer replaces waiting). `say` runs independently of motion. `{"stop": true}` aborts the current move and releases all servos. On boot it eases servos to rest one at a time (`BOOT_SETTLE_MS`) to avoid inrush.
-- `servod` also owns the GPIO sensors listed under `sensors:` in `node/config.yaml` (HC-SR04+ ultrasonic, PIR) and adds `distance_cm`, `motion` and `throttled` to `peak/<node>/sense` every second. `PEAK_SIM=1` simulates the servos only: sensors are real whenever the pins exist, so a body with no PCA9685 wired still senses. Readings go out twice a second and fill the hive map. They are not events: `mind/senses/presence.js` turns them into `{"sensed": "..."}` events on the two moments worth a thought, movement after a quiet minute and something coming close in front (thresholds and the reasons for them are in `presenceFilter.js`). The brain answers a sensed event with one line and no gesture, so no arm swings at something 5 cm away.
-- `servod` draws the OLED (`display:` in `node/config.yaml`): two eyes filling the panel, no text and no numbers. `node/eyes.py` is a Python port of FluxGarage RoboEyes (rounded-rectangle eyes with moods, nine positions, blinking, wandering, laughing, confusion, sweat); `node/screen.py` decides what they do from what the body itself knows, with no help from the mind; `node/oled.py` packs the picture and sends only the bytes that changed. One thread in `servod` does all the drawing; the MQTT thread and the sense loop only report what happened and wake it. Like the sensors, the display is real under `PEAK_SIM=1`, and a missing display never stops `servod`.
-- The eyes' reflexes, highest claim first: broker offline = shut (asleep); something coming closer than 30 cm = wide eyes for 1.5 s, once, until it backs off past 36 cm; `look_left` / `look_right` = eyes held to that side for 3 s (the body's left is the viewer's right, position `e`); a spoken line = eyes centred and pulsing in height for 0.07 s per character, starting `talk_delay_s` after the command (2.5 s, the HomePod's lag); strain = tired lids from damage level 2 and one sweat drop more per level, where the level counts undervoltage now, CPU throttled now, undervoltage since boot, and 70 °C or hotter (`0x50005` is level 3: tired, two drops); otherwise they wander and blink. `strain: false` in `config.yaml` switches the strain look off.
-- The mind can take the eyes over with an `eyes` command on `peak/<node>/cmd` (`contracts/cmd.schema.json`, `$defs.eyes`): `mood` (default, tired, angry, happy), `look` (center or a compass point, screen terms), `anim` (blink, wink_left, wink_right, confused, laugh; winks name the body's own eyes), `open`, `curious`, `shape`, and `ms` (100-60000, default 4000). A command with any state in it replaces the one before; `anim` alone leaves it in place. When `ms` runs out, or on `{"eyes":{"release":true}}` or `{"stop":true}`, the reflexes have the eyes back, so a mind that dies never leaves them stuck. Asleep and startled still win over the mind. The mood the mind sends replaces the tired look only while it holds; sweat keeps falling. Anything the body does not understand is ignored, never an error.
-- **Tricks** are named sequences the hive can play on a body, kept as data on the mind in `mind/tricks/tricks.yaml`: steps of `eyes`, `gesture`, `say` and `wait`, plus a `describe` line for the brain. `mind/orchestrator/tricks.js` checks every trick against the body's command contract and `gestures.yaml` (at most 16 steps and 30 s), and `createTrickPlayer` sends the steps over MQTT; a newer trick or a stop takes the body from the one playing. First set: happy, angry, sleepy, confused, laugh, surprised, wink, peekaboo. A second file, `mind/tricks/learned.yaml`, is merged in at load through the same check (a bad entry is skipped with a warning, a built-in wins a name clash) and `appendTrick()` writes to it: nothing calls that yet. It is the door for teaching by voice and for Lupin.
-- `peak-servod.service` reaches the Mac by mDNS name (`twentyones-Mac-mini.local`), not a fixed IP.
+- **Broker.** One Mosquitto on the Mac (brew service, `*:1883`, anonymous). Bodies are clients only.
+- **Topics.** `peak/<node>/cmd`, `/sense`, `/event`, `/status` (retained online/offline, set by Last Will), and `peak/brain/intent`. Schemas in `contracts/`.
+- **Senses publish events only**, never raw frames or audio. The orchestrator thinks on one event at a time; one more may wait and a newer one replaces it. Bodies that go offline leave the hive map.
+- **Brain.** Replies in JSON enforced by Ollama structured outputs, built in `mind/orchestrator/brain.js`: `{gesture, say}`, or `{gesture, eyes, say}` when `PEAK_BRAIN_EYES=1` (on in `mind/.env`, off in code). `eyes` names a trick or is null. The gesture is the first field and is sent the moment it streams in, before the spoken line. The brain never moves servos or eyes directly. A `sensed` event gets one line and no gesture, so no arm swings at something 5 cm away.
+- **`servod`** runs one motion at a time with a one-deep queue; `say` runs beside it; `{"stop": true}` aborts the move and releases the servos. It also owns the GPIO sensors and adds `distance_cm`, `motion`, `temp` and `throttled` to `sense` twice a second. `PEAK_SIM=1` simulates the servos only: sensors and the OLED stay real.
+- **Eyes.** `servod` draws them with no help from the mind. Reflexes, highest claim first: broker offline = shut; something closer than 30 cm = wide eyes once; `look_left` / `look_right` = eyes held to that side; a spoken line = eyes pulsing, starting `talk_delay_s` after the command; bad power or heat = tired lids and sweat (`strain: false` in `node/config.yaml` switches that off); otherwise wander and blink.
+- **`eyes` command.** The mind can take the eyes over on `peak/<node>/cmd` (`contracts/cmd.schema.json`, `$defs.eyes`): `mood`, `look`, `anim`, `open`, `curious`, `shape`, `ms`. When `ms` runs out, or on `{"eyes":{"release":true}}` or a stop, the reflexes have them back. Unknown fields are ignored, never an error.
+- **Tricks.** `mind/orchestrator/tricks.js` checks every trick against the command contract and `gestures.yaml` (at most 16 steps and 30 s) and plays the steps over MQTT; a newer trick or a stop takes over. Built in: happy, angry, sleepy, confused, laugh, surprised, wink, peekaboo. `mind/tricks/learned.yaml` is merged in at load and `appendTrick()` writes to it; nothing calls that yet. It is the door for teaching by voice and for Lupin.
+- **Voice.** `mind/voice/homepod.py` speaks each `say` with macOS `say`, streamed to the HomePod mini over AirPlay, about 2.5 s after the command.
 
-## Decisions and why
+The aim for the eyes and tricks is a set that grows over time: the robot can be taught new tricks and skills, and later learns new things on its own.
 
-| Decision | Why |
-| --- | --- |
-| Mosquitto, not RabbitMQ or embedded aedes | Retained messages and Last Will give body presence for free; ESP32 bodies speak MQTT natively. aedes was removed. |
-| All AI on the Mac, Pi stays thin | Pi 3B is too slow for whisper or vision. It runs only servod, camd, audiod. |
-| Local Ollama brain, not Anthropic | Owner's choice. Abliterated only. |
-| One model for brain and eyes: `huihui_ai/qwen3-vl-abliterated:8b-instruct` (since 2 Nov 2026 evening) | Bake-off (`mind/bakeoff/brain`, 52 cases + 20 sequence steps, 5 runs; table in its README): the old split "8B brain + `qwen2.5vl:3b`" was 93% strict at 0.5 s but **16 GB resident** (the 3B eyes are 10.4 GB loaded), so the other program's `qwen3:14b` evicted it constantly. Qwen3-VL unified: 94-96% strict, 0.5 s p50, 7 GB for everything, and the only model of three that did not invent a person in an empty street photo. `huihui_ai/qwen3.5-abliterated:9b` scored highest as a brain (98% unified) but takes 1.3 s per reply, 8.5 GB, and hallucinated a person; it stays installed as the accuracy option (`PEAK_MODEL`, one line). 14B abliterated: 84%, shrugs at everything. Gemma 4 12B: cannot load on Ollama 0.24.0. `gemma4:26b` (19 GB) and `moondream` (garbage descriptions) were ruled out earlier. |
-| Ollama 0.40.13 kept (owner decision, 3 Nov 2026) | Needed to load Gemma 4, which then lost the bake-off (94% strict at 3.0 s). The new engine gives the brain 0.4 s and 5.3 GB instead of 0.5 s and 7 GB, at the cost of photo descriptions taking 5.6 s instead of 1.8 s. Accepted: the eyes loop is change-triggered with a 10 s cooldown, so a slower description only delays the `{see}` event. Downgrading would need `brew extract` of the 0.24.0 formula. |
-| Prompt carries gesture meanings and examples, temperature 0.3, no sense noise | The first prompt listed bare gesture names and appended uptime/servo angles/temperature every turn; the 8B answered "wave at me" with look_right. With `brain.js`'s prompt the same 8B went to 93% strict. Descriptions live in `mind/orchestrator/gestures.js` because `servod` iterates the YAML values as keyframes. |
-| Nine narrow rules in the prompt, tuned one failure at a time, with held-out case groups | Lesson from TypeSafe's System One models (`mind/orchestrator/LESSONS.md`): small models fail on narrow decisions hidden inside the wide one. v1 → v5 took Qwen3-VL from 94% to 100% strict; two intermediate versions each fixed a case and broke another, so every prompt change gets a full bake-off run and a held-out group written before tuning. Examples carry a rule better than the rule alone. |
-| Gesture fires from the streamed reply, before the spoken line | The gesture is the first JSON field; `askBrain({ onGesture })` fires at 0.24 s instead of 0.4 s, 0 mismatches with the parsed reply in 485 calls. Confidence from logprobs is logged but not acted on: Qwen3-VL is as sure when wrong as when right; `PEAK_MIN_CONFIDENCE` exists for the 9B. |
-| Voice: macOS `say` on the Mac, streamed to the HomePod mini over AirPlay (5 Nov 2026) | The body has no speaker yet and the owner asked for the HomePod. `mind/voice/homepod.py` (Python, own venv, `pyatv`) synthesises each line to a WAV and streams it; the Mac's sound output is never changed. Costs about 2.5 s from reply to first sound, 2 s of it AirPlay's own buffer. Piper and a speaker on the body stay the plan for a voice that travels with the mech. |
-| Pi mic streams to the Mac | whisper `small` runs on the Mac; `hearing.js` reads UDP :5001. |
-| whisper.cpp server, not the openai-whisper CLI | The CLI cold-started per 5 s chunk (torch load, about 15 s speech-to-reaction). `whisper-server` (Homebrew `whisper.cpp`, Metal) stays resident; `hearing.js` cuts utterances at pauses and POSTs them. |
-| Power: undecided between three layouts | Parts ordered: UBEC 5A, UBEC 3A (5.25V ±0.5V, in 5.5-26V), Mini560 5V Pro x5 (needs about 7V in). Concept A (SHOPPING.md): UBEC 5A servos, Mini560 Pi. B: swapped. C (leaning): both UBECs, Mini560 spare. Decide after measuring outputs with a multimeter. |
-| OLED face: a Python port of FluxGarage RoboEyes, and the repo is GPL-3 (owner decision, 5 Nov 2026) | The owner chose the RoboEyes look over a Doom-style head and a helmet tried the same evening. RoboEyes is Arduino C++ and cannot run on the Pi, so `node/eyes.py` is a port; it is GPL-3-or-later (C) Dennis Hoelscher, `servod` imports it, and the repo is public, so the whole repo carries `LICENSE` (GPL-3) and the port keeps his copyright line plus a dated note of what changed. Eyes fill the screen with no text: spoken lines go to the HomePod, power shows as tired eyes and sweat. |
-| Deploy by rsync | `scripts/deploy-node.sh`. |
-| Python venv on the Pi at `~/peak/.venv` | Bookworm blocks system pip. |
+## Where things stand (5 Nov 2026, 23:00)
+
+| Area | State | Not yet checked |
+| --- | --- | --- |
+| Repo | https://github.com/prbstr/peak, `main`, GPL-3. 50 mind tests and 75 node tests pass. | |
+| Mind, broker, body | Working end to end, Mac and Pi. On the Pi `servod` runs with `PEAK_SIM=1`, started by hand. | |
+| Hearing | Pi USB mic, whisper.cpp `medium.en` on the Mac, wake word "Rho"; for 8 s after it, sentences pass without the name (`PEAK_WAKE_WINDOW_MS`). Transcript 0.4-0.6 s after speech ends. Owner, 5 Nov: "working excellently". | "Bro wave at me" (name run into the request) is missed |
+| Brain | `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes. Every bake-off group at 100% bar one known miss ("can you not your head"). Gesture out at 0.25 s, reply 0.4-0.9 s. Picks tricks since the late restart on 5 Nov. | A trick asked for by voice. Replies took 2-7 s when a photo description was in the queue. |
+| Vision | Pi camera, 640x480 at 15 fps, described by the same model in 5.6 s, change-triggered. | A person in frame. The camera is loose on the desk. |
+| Sensors | Distance and PIR in every `sense`; `presence.js` turns arrivals and close approaches into `sensed` events. | MPU6050 (shares the OLED's pins until a breadboard arrives) |
+| Eyes (OLED) | RoboEyes port, reflexes, `eyes` command and eight tricks running on the Pi at 14 frames a second. Tired and sweating all the time because of the power supply. | The owner has not watched them on the glass |
+| Voice | Speaks through the HomePod mini "Bedroom". | |
+| Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
+| Pi power | Undervolted the whole time (`throttled=0x50005`), CPU held at 600 MHz. Usable on the bench, not for servos. | Idle draw with the mic unplugged |
+| Persistence | Nothing survives a reboot. Pi: `servod`, `camd.sh`, `audiod.sh` started by hand; `peak-servod.service` not installed. Mac: mind, senses, voice and whisper run as tasks of Claude sessions. | |
+
+## Next steps
+
+1. **Pi power.** An official 5.1 V 2.5 A micro-USB supply. Done when `~/peak/node/powerwatch.sh 30` shows 0 undervoltage samples with camera and mic streaming and `vcgencmd get_throttled` reads `0x0` after a reboot.
+2. **Owner watches the eyes** (60 s): idle and blinks, a hand inside 30 cm, "Rho, give me a wink", `npm run trick -- peekaboo`.
+3. **Teaching by voice.** A brain reply that defines a trick from the existing step kinds, saved with `appendTrick()`. The loader, check and merge exist. Learning on its own waits for Lupin (Stage C).
+4. **Eyes prompt.** v1 loses the wave on "night night" 2 times in 3 and nods while answering "two plus two". Try a goodnight example with a null gesture, or a rule; full bake-off each time.
+5. **Survive a reboot.** Units for `camd.sh` and `audiod.sh`; `peak-servod.service` needs `Environment=PEAK_SIM=1` until the PCA9685 is wired. All need the owner's `sudo`.
+6. **When the servos arrive.** Measure UBEC and Mini560 outputs with a multimeter, decide the power layout (`docs/decisions.md`), wire the PCA9685 (V+ from the buck, never the Pi), tune `node/config.yaml` ranges, drop `PEAK_SIM`.
+7. **Rest of the body's I/O.** MPU6050 pose in `sense`; NeoPixel ring and vibrator motor as commands. Needs a breadboard, M/F jumpers and a soldering iron; the NeoPixel also needs SPI on, `core_freq=250` and the neopixel-spi package.
+8. **Camera.** Mount it, test with a person in frame.
+9. **Hearing.** Replace the `PEAK_MIN_DB` gate with whisper.cpp's Silero VAD or an adaptive floor. Tune the Rho wake rule from real transcripts.
+10. **Brain.** Add `look_at` back (native tool calling is possible now). Decide whether an arrival gets a wave once servos are real. Obstacle stop on the Pi itself (Stage B).
+11. **Housekeeping.** Makefile: `m0` uses plain `python3` and `BROKER_IP` reads `en0` (the Mac is on `en1`). `mind/bakeoff/brain/models.json` still lists removed models. `mind/senses/README.md` still names `gemma4:26b`, `ggml-small.bin` and an unwired voice. `dtparam=i2c_arm_baudrate=400000` for smoother eyes (`sudo`). A router DHCP reservation for the Pi. A broker password before any guest network.
+12. **Parts list.** `SHOPPING.md` is behind: its AliExpress ticks came from the owner's word and differ from the order pages read on 2 Nov (`docs/log.md`, Servos), it shows power layout A as settled, and it lists a USB mic he now has. Reconcile it against the order pages with him.
+13. **Still to buy.** Half-size breadboard, 40 M/F jumpers, M/M jumpers, soldering iron, official Pi supply, speaker for the body, multimeter, a longer camera cable if 200 mm does not reach from head to backpack, and the Technic parts for the mech itself.
 
 ## Roadmap stages
 
 | Stage | What | When |
 | --- | --- | --- |
-| A, today | One Mac mind, thin Pi body over MQTT | Working in sim |
+| A, today | One Mac mind, thin Pi body over MQTT | Working, servos simulated |
 | B | Reflex layer on the Pi (obstacle stop, finish gestures if Wi-Fi drops, servo limits) | Once servos are wired |
 | C | Hive: Lupin memory (`../lupin`, MCP) plus more bodies (ESP32 rover, drone later) | After A and B are solid |
 
 ## Commands
 
+Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
+
 | Task | Command |
 | --- | --- |
-| Run the mind | `cd mind && npm start` (or `make mind`) |
-| Whisper server (needed by hearing) | `cd mind && npm run whisper` (model: `~/.cache/whisper.cpp/ggml-small.bin`, port 8178) |
-| Hearing, Mac mic | `cd mind && npm run hearing` (needs `npm run whisper` running) |
-| Voice on the HomePod mini | `cd mind && npm run voice` (needs `PEAK_SPEAKER` in `mind/.env`; first time: `python3.13 -m venv voice/.venv && voice/.venv/bin/pip install -r voice/requirements.txt`) |
-| Mind unit tests | `cd mind && npm test` (heard filter, presence filter, brain prompt/schema/parsing) |
-| Node unit tests | `cd node && ../.venv/bin/python -m unittest test_eyes test_oled test_screen test_pca9685` (on the Pi: `~/peak/.venv/bin/python`) |
-| See the eyes without the Pi | `cd node && ../.venv/bin/python eyes_preview.py` writes `eyes_preview.png` (every state) and `eyes_preview.gif` (a 23 s film), both gitignored; the Mac venv has Pillow for this |
-| What drawing the eyes costs | start `servod` on the Pi with `PEAK_FACE_STATS=1` (a line every 10 s: frames, bytes, seconds sending, CPU); `PEAK_FACE_STATS=full` sends whole frames instead, to compare |
-| Presence (PIR and distance into events) | `cd mind && npm run presence`; tune with `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10) |
-| Brain bake-off (models vs cases) | `cd mind && npm run bakeoff:brain -- --stream` (`PEAK_BRAIN_EYES=1` in front scores the prompt with the eyes field; add `--models huihui_ai/qwen3-vl-abliterated:8b-instruct --no-pull`, since `models.json` still lists removed models) ; `--pair <eyes tag>` checks both stay resident; per-group table shows the held-out groups; see `mind/bakeoff/brain/README.md` |
-| Eyes comparison on photos | `cd mind && node bakeoff/brain/eyes.js --models a,b --images x.jpg,y.jpg` |
-| Mic test page (Start/Stop, levels, transcript, playback) | `cd mind && npm run record` then http://localhost:8179; needs `audiod.sh` on the Pi and `npm run whisper` |
-| Hearing, Pi mic | Pi: `PEAK_MIND=<mac-ip> ./audiod.sh`; Mac: `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing` |
+| Run the mind | `npm start` |
+| Whisper server (hearing needs it) | `npm run whisper` (port 8178, `~/.cache/whisper.cpp/ggml-medium.en.bin`; `PEAK_WHISPER_GGML` picks another model) |
+| Hearing, Pi mic | Pi: `PEAK_MIND=192.168.0.139 ~/peak/node/audiod.sh`; Mac: `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing` |
+| Hearing, Mac mic | `npm run hearing` |
+| Vision, Pi camera | Pi: `PEAK_MIND=192.168.0.139 ~/peak/node/camd.sh`; Mac: `npm run vision` |
 | Vision, one frame from a file | `PEAK_VISION_ONCE=1 PEAK_VISION_SOURCE=<image> npm run vision` |
-| Servo daemon in sim | `PEAK_SIM=1 PEAK_BROKER=<mac-ip> ~/peak/.venv/bin/python -u node/servod.py` (Mac: use `.venv/bin/python`) |
-| Body on the Pi, no servos wired (sensors real) | On the Pi: `PEAK_SIM=1 PEAK_BROKER=twentyones-Mac-mini.local ~/peak/.venv/bin/python -u ~/peak/node/servod.py` |
-| Camera, Pi to Mac | Pi: `PEAK_MIND=192.168.0.139 ~/peak/node/camd.sh`; Mac: `cd mind && npm run vision` (plus `npm start` for the brain) |
-| Watch the Pi camera live on the Mac | `ffplay -fflags nobuffer -flags low_delay -f h264 -probesize 200000 -analyzeduration 500000 udp://0.0.0.0:5000` (needs `camd.sh` on the Pi; stop `npm run vision` first, see gotchas) |
-| Start a Pi daemon in the background over ssh | `ssh lupin@mech.local 'PEAK_MIND=192.168.0.139 setsid nohup ~/peak/node/camd.sh > ~/peak/camd.log 2>&1 < /dev/null &'` (one plain command; see gotchas). Pids are in `~/peak/servod.pid` and `~/peak/camd.pid`; stop with `kill "$(cat ~/peak/camd.pid)"` |
-| Pi power over a window | On the Pi: `~/peak/node/powerwatch.sh 30` (samples with undervoltage, throttling, CPU clock; `kernel_dips` only counts new dips, so it reads 0 while the Pi is under the whole time) |
+| Presence (PIR and distance into events) | `npm run presence` |
+| Voice on the HomePod | `npm run voice` (first time: `python3.13 -m venv voice/.venv && voice/.venv/bin/pip install -r voice/requirements.txt`) |
+| Mind tests | `npm test` |
+| Node tests | `cd node && ../.venv/bin/python -m unittest test_eyes test_oled test_screen test_pca9685` (on the Pi: `~/peak/.venv/bin/python`) |
+| Brain bake-off | `npm run bakeoff:brain -- --stream --models huihui_ai/qwen3-vl-abliterated:8b-instruct --no-pull` (`PEAK_BRAIN_EYES=1` in front scores the eyes prompt; flags in `mind/bakeoff/brain/README.md`) |
+| Eyes comparison on photos | `node bakeoff/brain/eyes.js --models a,b --images x.jpg,y.jpg` |
+| Play a trick without the brain | `npm run trick` lists them; `npm run trick -- wink [node]` plays one |
+| Mic test page | `npm run record`, then http://localhost:8179 (needs `audiod.sh` and `npm run whisper`) |
+| Body on the Pi, no servos wired | On the Pi: `PEAK_SIM=1 PEAK_BROKER=twentyones-Mac-mini.local ~/peak/.venv/bin/python -u ~/peak/node/servod.py` |
+| Start a Pi daemon over ssh | `ssh lupin@mech.local 'PEAK_MIND=192.168.0.139 setsid nohup ~/peak/node/camd.sh > ~/peak/camd.log 2>&1 < /dev/null &'` (one plain command, no `cd &&`). Pids in `~/peak/*.pid`. |
+| Copy `node/` to the Pi without the service | `rsync -a --delete --exclude __pycache__ node/ lupin@mech.local:~/peak/node/` |
+| Deploy with the systemd unit | `scripts/deploy-node.sh [host]` (needs `sudo` on the Pi) |
 | Watch what the Pi sends | `mosquitto_sub -t 'peak/mech/#' -v` |
 | Send a command | `mosquitto_pub -t peak/mech/cmd -m '{"gesture":"wave"}'` |
 | Move the eyes by hand | `mosquitto_pub -t peak/mech/cmd -m '{"eyes":{"mood":"happy","look":"ne","ms":3000}}'` |
-| Play a trick without the brain | `cd mind && npm run trick` lists them; `npm run trick -- wink [node]` plays one (peekaboo and any trick with a `say` step speaks on the HomePod) |
-| See what the OLED was last sent | `ssh lupin@mech.local 'kill -USR1 "$(cat ~/peak/servod.pid)"' && scp lupin@mech.local:peak/oled.png .` (`servod` saves its copy of the panel; it shows what was sent, not that the glass is lit) |
-| Emergency stop | `mosquitto_pub -t peak/mech/cmd -m '{"stop":true}'` |
-| Is the body up? | `mosquitto_sub -t peak/mech/status -C 1` |
 | Fake an event | `mosquitto_pub -t peak/mech/event -m '{"heard":"hey rho, wave at me"}'` |
-| Deploy to the Pi | `scripts/deploy-node.sh [host]` (installs and restarts the systemd unit; for sim testing use plain rsync instead) |
+| Emergency stop | `mosquitto_pub -t peak/mech/cmd -m '{"stop":true}'` |
+| See what the OLED was last sent | `ssh lupin@mech.local 'kill -USR1 "$(cat ~/peak/servod.pid)"' && scp lupin@mech.local:peak/oled.png .` (what was sent, not proof the glass is lit) |
+| See the eyes without the Pi | `cd node && ../.venv/bin/python eyes_preview.py` writes `eyes_preview.png` and `.gif` |
+| Watch the Pi camera live | `ffplay -fflags nobuffer -flags low_delay -f h264 -probesize 200000 -analyzeduration 500000 udp://0.0.0.0:5000` (stop `npm run vision` first) |
+| Pi power over a window | On the Pi: `~/peak/node/powerwatch.sh 30` (read `undervoltage_now`; `kernel_dips` counts only new dips, so it reads 0 while the Pi is under the whole time) |
+| What drawing the eyes costs | Start `servod` with `PEAK_FACE_STATS=1` (`full` sends whole frames, to compare) |
 
-Config is in `mind/.env` (gitignored; `.env.example` is the template): `PEAK_BROKER`, `PEAK_MODEL`, `PEAK_VISION_MODEL`, `PEAK_MIN_DB`, `PEAK_WHISPER_URL`, `PEAK_SILENCE_MS`, `PEAK_NUM_CTX` (4096), `PEAK_TEMPERATURE` (0.3), `PEAK_KEEP_ALIVE` (30m), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 for the 9B), `PEAK_BRAIN_EYES` (1 = the brain also picks a trick for the eyes; off by default), `PEAK_SPEAKER` (AirPlay name, `Bedroom`), `PEAK_SPEAKER_HOST` (optional IP), `PEAK_VOICE` (macOS voice, default Daniel). Set `PEAK_MODEL` and `PEAK_VISION_MODEL` to the same multimodal tag and Ollama loads it once for both; `lib/ollama.js` gives every caller the same load-time options so that works.
+Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` and `PEAK_VISION_MODEL` (the same tag, so Ollama loads it once), `PEAK_BRAIN_EYES`, `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
 
 ## Environment facts
 
-- Mac: Mac mini, 24 GB unified memory. Mac IP on the LAN is `192.168.0.139` (interface `en1`, not `en0`; `ipconfig getifaddr en1`).
-- Pi: `lupin@mech.local` (192.168.0.226 at last check), key login works, **`sudo` needs a password** so Claude cannot install packages. Ask the owner to run `sudo` lines.
-- Attached to the Pi on 5 Nov 2026 (Communica order, wired per the Claude Doc "peak — Bench wiring guide", https://claude.ai/artifact/VFhBowXNv9TeSvXViN2TWc, tab "Connect now"): Camera Module 3 Wide (`imx708_wide`), OLED at I2C `0x3c`, HC-SR04+ on GPIO23 trig / GPIO24 echo (3.3 V), PIR on GPIO17. The owner bench-tested all of these plus the MPU6050 (`0x68`) on 5 Nov; all passed. The MPU6050 takes turns with the OLED on the same four pins until a breadboard arrives, and the OLED was the one connected at 18:00. No USB mic was plugged in at that check. The venv was rebuilt with `--system-site-packages` (gpiozero, lgpio from apt; luma.oled, smbus2, Adafruit PCA9685 from pip; **not** `adafruit-circuitpython-neopixel-spi`). `i2cdetect` is `/usr/sbin/i2cdetect` over non-login ssh.
-- Pi header, physical pins, as wired with F/F jumpers: OLED or MPU6050 on 1 (3.3 V), 9 (GND), 3 (SDA), 5 (SCL); PIR on 2 (5 V), 6 (GND), 11 (OUT); HC-SR04+ on 17 (3.3 V), 20 (GND), 16 (Trig), 18 (Echo). Planned once a breadboard, M/F jumpers and a soldering iron are here (GPIO numbers stay the same): fan on 4 and 14, vibrator motor through a BC337 from pin 13 (GPIO27), NeoPixel DIN on pin 19 (GPIO10, SPI). The NeoPixel needs SPI enabled, `core_freq=250` in `/boot/firmware/config.txt` and the neopixel-spi package; none of the three is in place (checked 5 Nov), and the first two need `sudo`. PCA9685 servo power (V+) comes from the 5 V buck, never the Pi.
-- A second handover is kept in the owner's claude.ai Project (also named "lupin") and is not on disk; the owner pastes it in. Its 5 Nov 18:05 copy was well behind this repo (it still described a Claude-API mind, no commits and the hostname `slav`). Checked against the Pi that evening: hostname, key-only ssh, I2C, watchdog (10 s), `mosquitto-clients` and the venv are all done. This file is the one to trust; take hardware news and the owner's plans from the pasted one.
-- HomePod mini: AirPlay name **Bedroom**, `192.168.0.191`, tvOS 27.2, model `AudioAccessory5,1`, AirPlay open to the network (no pairing needed), volume 33 on 5 Nov 2026. It was the only AirPlay speaker `dns-sd -B _raop._tcp` found; the first-gen HomePod did not show up.
-- Ollama: Homebrew service, **0.40.13** since 3 Nov 2026 (was 0.24.0; `brew upgrade ollama` kept the plist below intact, then `launchctl bootout/bootstrap` to reload). 0.40 runs Qwen3-VL on llama-server, not Ollama's own engine: brain 0.4 s and 5.3 GB (was 0.5 s, 7 GB) but a fresh photo takes 5.6 s instead of 1.8 s, and the scheduler evicts on free *system* RAM too. Downgrading to 0.24.0 means `brew extract` of the old formula (no bottle cached). Config in `~/Library/LaunchAgents/sh.brew.ollama.plist` (flash attention, q8 KV cache, `OLLAMA_MAX_LOADED_MODELS=2`, `OLLAMA_KEEP_ALIVE=30m`). Reload with `launchctl bootout/bootstrap`, not `brew services restart` (it rewrites the plist). Live log: `/opt/homebrew/var/log/ollama.log` (`~/.ollama/logs/server.log` is stale). The GPU gets about 17.8 GB of the 24 GB. Another program also loads `qwen3:14b` (12 GB at 32K ctx) or `qwen2.5-coder:7b` into Ollama at times; do not stop it, but expect it to evict our models when the total passes the budget.
-- The shell tool cannot write to `/tmp` for ffmpeg outputs reliably; use `mktemp -d` dirs.
-- Ollama models (cleanup 4 Nov 2026, freed about 66 GB): peak keeps only `huihui_ai/qwen3-vl-abliterated:8b-instruct` (brain and eyes) and `huihui_ai/qwen3.5-abliterated:9b` (accuracy option, kept for fun). Removed: both Gemma 4 12B, `qwen3-abliterated:8b`, `richardyoung/qwen3-14b-abliterated`, `qwen2.5vl:3b`, `moondream`; re-pull to rerun old bake-offs. Everything else belongs to OpenClaw (`~/.openclaw/openclaw.json` and `agents/main/agent/models.json`: `qwen3:14b`, `qwen2.5-coder:7b-instruct`, `nomic-embed-text`, `llama3.1:8b`); do not remove those. `qwen3-coder:30b` and `gemma4:26b` were removed at the owner's request (4 Nov 2026, 35 GB) and taken out of `models.json` too (backup: `models.json.bak-20261104`). Lupin uses no Ollama models. Code fallbacks for `PEAK_MODEL` and `PEAK_VISION_MODEL` now name Qwen3-VL.
-- Whisper: whisper.cpp `whisper-server` on 127.0.0.1:8178, `ggml-medium.en.bin` (and `ggml-small.bin`) in `~/.cache/whisper.cpp`. The old openai-whisper CLI (`~/.cache/whisper`) is still installed but unused.
-- STT bake-off harness in `mind/bakeoff/` (own venv at `mind/bakeoff/.venv`, python3.13: moonshine-voice, parakeet-mlx, jiwer). Models cached by Moonshine and Hugging Face on first run.
+- **Mac.** Mac mini, Apple M4 Pro, 24 GB, macOS 26.2 (the README and the owner's handover say M5; `sysctl` says M4). LAN address `192.168.0.139` on `en1`, not `en0`. mDNS name `twentyones-Mac-mini.local`. Mac venv at `.venv` is Python 3.9, so `node/` code must run on 3.9; the Pi has 3.13.
+- **Pi.** Pi 3B Rev 1.2, 64 GB microSD. `lupin@mech.local` (192.168.0.226 at last check), key login. Raspberry Pi OS on Debian 13 (trixie), Python 3.13.5. **`sudo` needs a password**, so ask the owner to run `sudo` lines. Venv at `~/peak/.venv`, built with `--system-site-packages`. `i2cdetect` is `/usr/sbin/i2cdetect` over ssh. `scripts/pi-firstboot.sh` sets up a new body (I2C, watchdog, apt packages, venv); it was run on mech on 2 Nov.
+- **Wired to the Pi** (physical pins, F/F jumpers): OLED at I2C `0x3c` on 1, 9, 3, 5; PIR (HC-SR501) on 2, 6, 11 (GPIO17); HC-SR04+ on 17, 20, 16 (GPIO23 trig), 18 (GPIO24 echo); Camera Module 3 Wide; USB mic. The MPU6050 (`0x68`) passed its bench test but takes turns with the OLED. Planned: fan on 4 and 14, vibrator through a BC337 from pin 13 (GPIO27), NeoPixel DIN on pin 19 (GPIO10, SPI), PCA9685 at `0x40`. The 18650 cells are unprotected: keep them bagged until holder, BMS and buck are here.
+- **Claude docs.** Wiring: "peak — Bench wiring guide", https://claude.ai/artifact/VFhBowXNv9TeSvXViN2TWc (tabs "Connect now" and "After the next order"). Design: "Lego Hive Robot — 4 Build Concepts", https://claude.ai/artifact/REqQJMByHZpRAc2ny6526S (Mech Suit build plan with Technic part numbers and milestones M0 to M6; the Mech Suit was chosen over Big Fig, Scout Rover and Quad Walker).
+- **Owner's handover.** He keeps a second handover in his claude.ai Project and pastes it in. It has been well behind this repo each time. Trust this file for the software; take hardware news and his plans from the pasted one.
+- **HomePod mini.** AirPlay name **Bedroom**, `192.168.0.191`, open to the network, no pairing. The first-gen HomePod does not show up on AirPlay.
+- **Ollama.** Homebrew service, 0.40.13. Config in `~/Library/LaunchAgents/sh.brew.ollama.plist` (`OLLAMA_MAX_LOADED_MODELS=2`, keep-alive 30m). Live log: `/opt/homebrew/var/log/ollama.log`. The GPU gets about 17.8 GB.
+- **Models.** peak owns `huihui_ai/qwen3-vl-abliterated:8b-instruct` (brain and eyes, 5.3 GB loaded) and `huihui_ai/qwen3.5-abliterated:9b` (slower accuracy option). `qwen3:14b`, `qwen2.5-coder:7b-instruct`, `nomic-embed-text` and `llama3.1:8b` belong to OpenClaw: never remove them or stop what loads them.
+- **Whisper.** whisper.cpp `whisper-server` on 127.0.0.1:8178, models in `~/.cache/whisper.cpp`.
+- **Speech-to-text bake-off.** Own venv at `mind/bakeoff/.venv` (python3.13).
+- **Parts.** Shops and delivery times are in `CLAUDE.local.md`. Never buy cells, LiPos or microSD cards on AliExpress.
 
-## Gotchas learned the hard way
+## Rules learned the hard way
 
-- ffmpeg single-image input breaks with `-fflags nobuffer`; apply it only to `udp://` video. Never on the audio UDP input: it discards what ffmpeg reads while probing and ate the first sentence. `hearing.js` uses `-probesize 32 -analyzeduration 0` instead. The JPEG encoder needs `format=yuvj420p`.
-- **`-ac 1` must be an output option in `audiod.sh`.** On the input side ALSA ignores it and ffmpeg streams stereo; `hearing.js` reads the stream as mono, so whisper got half-speed interleaved garbage all day (2 Nov) while `arecord` clips on the Pi transcribed perfectly. Diagnose this class of bug by recording the same moment on both ends (`ffmpeg ... -f s16le udp://... -f wav /tmp/tee.wav` on the Pi) and comparing with `ffprobe`.
-- The Pi USB mic rejects 16 kHz in ffmpeg: `audiod.sh` captures at 48 kHz and resamples. Select it by name (`plughw:CARD=Device,DEV=0`); USB card numbers change after reboots.
-- **Never pass `--prompt 'Hey Peak.'` to whisper-server.** Whisper treats the prompt as text already said and suppresses it, so the wake word was being cut off the front of every utterance ("Hey Peak, wave at me" came back as "Wave at me."), on both `small` and `medium`. Without the prompt `medium.en` hears "Hey Peek" reliably, which the filter accepts.
-- Whisper hallucinates on quiet audio: "Thanks for watching.", `[BURP]`, bare "Hey.", and whole fluent sentences nobody said. The earlier regex-only filter also dropped the wake phrase itself. Now `heardFilter.js` gates on the wake word; do not add "hey peak" back to a drop list.
-- `PEAK_MIN_DB` has no good fixed value on this mic (2 Nov bake-off recording): at `-30`, 4 of 10 phrases spoken at normal distance never opened the gate ("Stop." and the quieter ones); at `-38`, room noise never closed it, so every utterance ran to the 12 s cap, one phrase was cut mid-word across two clips, and whisper returned `[Silence]` for the empty ones. Mean level of real speech clips is -30 to -33 dB, idle about -36. Proper fix: a real VAD (whisper.cpp ships Silero: `--vad -vm ggml-silero-v5.1.2.bin`) or an adaptive noise floor, not another constant.
-- `hearing.js` SIGKILLs its ffmpeg child on exit; with SIGTERM it lingered and kept UDP :5001 bound through a quick restart.
-- When restarting a sense for a test, kill the mind too or check `pgrep -f orchestrator/index.js`: two minds answer every event twice (happened 2 Nov).
-- Do not `pkill -f` on the Pi over ssh with a pattern that appears in the ssh command line itself; it kills the session. For `pgrep`, bracket one letter (`pgrep -f "[r]picam-vid"`).
-- Starting a Pi daemon over ssh with `cd dir && VAR=x setsid nohup cmd > log 2>&1 < /dev/null &` hangs the ssh call: the redirects cover only the last command, and the `&&` list's subshell keeps the session's stdout open. Background one plain command (no `cd &&`), as in the Commands table.
-- A raw H264 UDP stream has no container, so ffmpeg probes it for its full 5 s on every open. `vision.js` passes `-f h264 -probesize 200000 -analyzeduration 500000` for `udp://` sources and a look takes 2 s. `camd.sh` sends a keyframe every second (`--intra 15`) so a fresh open never waits long for one, and runs `rpicam-vid -n -v 0`, because by default it logs a line per frame (15 a second, to the SD card).
-- Only one program on the Mac can read the camera's UDP :5000 at a time. With `ffplay` open, a second ffmpeg fails with "bind failed: Address already in use" (checked 5 Nov 2026), so `vision.js` gets no frames while a viewer is up, and a viewer fails to open while `vision.js` is mid-look. To watch and run vision together, `camd.sh` would have to send to two ports (or `vision.js` would have to save its frames for viewing).
-- `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell (injection fix). Keep it that way.
-- The Pi shows **undervoltage** (`vcgencmd get_throttled` = `0x50005`) and has hung or rebooted under load. Still present on 2 Nov 2026 after a new supply AND with the USB mic unplugged: dips every 10-30 s at idle, CPU pinned at 600 MHz. So it is the cable or the supply itself, not a peripheral. After a cable swap (2 Nov evening): idle is clean (one dip at boot, then none over 30 s), but 25 s of 4-core load still produced a dip and live throttling (`0x50005`, CPU at 600 MHz). So the cable was part of it; the supply is still marginal under load. Real-load test (mic streaming + hearing + mind, 4 min, 2 Nov evening): 1 logged dip, no reboot, but the live undervoltage bit was set at the end and the CPU sat at 600 MHz, so the rail hovers right at the 4.63 V threshold. Usable for bench work; not trustworthy for camera + servos. Next: measure the 5V GPIO pin under load (want 4.9-5.2 V); if under 4.8 V, use an official-grade 5.1 V 2.5 A supply. The battery + UBEC path will replace this anyway.
-- Mini560 comes in 3.3/5/9/12 V fixed variants; check the SKU says 5V, then measure with a multimeter before connecting the Pi.
-- **`qwen2.5vl:3b` is 10.4 GB resident**, not 3.2: the vision encoder and image KV are allocated on load. "8B brain + 3B eyes" was about 16 GB, the whole GPU budget, which is why the 14B never fit and why the other program's `qwen3:14b` evicted our models. Judge vision models by `ollama ps`, not `ollama list`.
-- Gemma 4 (`huihui_ai/gemma-4-abliterated:12b` and `:12b-qat`, 7.6 GB each, removed 4 Nov 2026) was scored on 3 Nov 2026 after the Ollama upgrade: 94% strict but 3.0 s per reply, because llama.cpp re-evaluates the whole prompt every call for its sliding-window attention (Qwen3-VL reuses the cached prefix in 0.1 s). It also invented a person in the empty car interior. Not a candidate.
-- `node --test <dir>` runs `orchestrator/index.js` as a test and hangs on MQTT. `npm test` names the test files; keep it that way.
-- Prompt rules interact: adding a head-turn rule made the brain point at a man pointing, a yes → nod rule overrode "stay still" until that got its own rule. Never ship a prompt edit without `npm run bakeoff:brain -- --stream` and a look at the per-group table.
-- 5 Nov 2026, the same lesson twice while adding sensed events. The rule "a sensed event gets one short line" made the brain narrate camera frames it used to ignore ("Screen's gone dark."), which the bake-off could not see because it only scored gestures on `see` events; cases can now say `"silent": true`. Then a rule telling it to stay silent on scenes silenced "Thanks Peak, good job" in 3 of 3 runs. What worked was putting the no-narration wording in the sentence that explains `see` events, plus one silent example, instead of a rule.
-- And a third time the same evening, adding the eyes field: v1 of the prompt lost the wave on "night night" (the brain treated sleepy eyes as the whole answer); a goodnight example fixed it, and the example swapped in beside it ("Point at the door and look surprised") made "Look surprised" a `look_left`. A third run with the goodnight example alone showed that it, not the swap, makes "Rho, what are you?" wave: its gesture is a wave, and the model leans on it. An example teaches more than the thing it was written for. Change one example per run, or the cause stays hidden.
-- **An SSD1306 OLED can be dark while every write succeeds.** On 5 Nov the owner saw nothing on it although `servod` logged no error: the panel's status byte read `0x42` (bit 6 = display off). Two things switch it off behind a running daemon: a power dip resets it, and any other luma program (the wiring guide's script A, a one-off test) blanks and switches it off as it exits. `servod` now reads the status byte before each draw and every 5 s from the sense loop, and redoes the full setup when the panel is dark (`[servod] display on` in the log). Check by hand: `SMBus(1).read_byte(0x3C) & 0x40`. Do not run another OLED script while `servod` is up and expect its picture to stay.
-- **Never send the OLED whole frames for animation.** Measured on the Pi, 5 Nov 2026, 100 kHz I2C, undervolted: a whole 1024-byte frame takes 0.166 s to send, so 4 frames a second with the bus busy 68% of the time. `node/oled.py` keeps a copy of what the panel holds and sends only the changed bytes through column/page windows: the same eyes run at 14 frames a second, about 55 bytes and 16 ms a frame. The copy is thrown away after every re-init and once a minute, because the panel's memory cannot be read back over I2C (so what is on the glass can only be checked by eye or with `eyes_preview.py`). Sweat is the one animation that never stops, and on this power supply it is always on: alone it is drawn at 8 frames a second (measured 9, 0.17 s of sending and about 6% of a core per 10 s; `servod` as a whole 15%). `dtparam=i2c_arm_baudrate=400000` in `/boot/firmware/config.txt` would make every send about four times shorter (needs `sudo` and a reboot; not done). A frame can still hold the bus longer than a 20 ms servo step, and the PCA9685 will share it, so on real servos (not in sim) the eyes jump to where they were heading and keep still during a move. Untested until the PCA9685 is wired.
-- pyatv 0.18 and a HomePod, two traps (5 Nov 2026). `pip install pyatv` pulls `srptools` 2.0, whose `SRPClientSession` takes `private` as keyword-only, and every connection dies with a `TypeError`; `voice/requirements.txt` pins `srptools<2`. And a plain connect (or `atvremote stream_file`, even with `--protocol raop`) also opens the AirPlay remote-control channel, which the HomePod refuses without credentials: "Failed to set up remote control channel". Scan with `protocol={Protocol.RAOP}` so only the audio service is in the config.
-- **Rho is a hard wake word.** It is one syllable and sounds exactly like row and roe; the one bare "Rho" caught on 5 Nov came back from whisper as "Roll.". `heardFilter.js` therefore wakes on "rho" anywhere, but on the homophones (row, roe, ro, roh, rowe, roll) only where a name stands: opening the utterance, with or without "hey", or closing it after a comma, and with punctuation after it. "Row wave at me" with no comma is missed; "three in a row" does not wake. The old name and its spellings (Peak, Peek, Pete, Pig) no longer wake it.
-- The brain copies the few-shot example lines verbatim ("Hello there!", the weather line) even when told not to. Harmless, but vary the examples if it gets annoying.
+One line each. The story and the numbers are in `docs/gotchas.md`.
 
-## Status
+Pi and ssh
+- Never `pkill -f` on the Pi with a pattern that is in your own ssh command line. For `pgrep`, bracket a letter: `pgrep -f "[r]picam-vid"`.
+- Background one plain command over ssh; `cd dir && VAR=x nohup cmd &` hangs the call.
+- The Pi is undervolted and has hung under load. Watch `throttled` in every sense message.
+- `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell.
+- Stop commands over ssh hang when the Pi is down. Check `peak/mech/status` first.
+- Run Python with `-u` on the Pi, or the log stays empty.
 
-| Area | State |
+Power and parts (before anything from the AliExpress order is wired)
+- A Mini560 comes in 3.3, 5, 9 and 12 V versions, and the 5V and PRO 5V boards have `OUT+` on opposite sides. Measure it before it meets the Pi.
+- The 3 A UBEC is 5.25 V ±0.5 V, so it can reach 5.75 V. It feeds the Pi only if it measures under about 5.4 V.
+- GeekServos are rated about 4.8 to 6 V; six can pull 3 A or more. Bench-test each one before building it in.
+- The 2S charger board must be the 8.4 V version. Treat 7.0 V on the battery as low.
+- The 16-LED ring draws about 1 A at full white: servo rail, low brightness, never the Pi's 5 V pin.
+
+Hearing
+- `-ac 1` must be an output option in `audiod.sh`, or the stream is stereo and whisper hears garbage.
+- Never pass `--prompt` with the wake word to whisper-server: it strips the name from the transcript.
+- Never put `-fflags nobuffer` on the audio UDP input.
+- The Pi USB mic rejects 16 kHz: capture at 48 kHz and resample. Select it by name, not card number.
+- Whisper invents sentences on quiet audio. The wake-word gate in `heardFilter.js` is the defence; do not weaken it with drop lists.
+- `PEAK_MIN_DB` has no good fixed value on this mic.
+- Rho sounds like row, roe and roll. The homophones wake it only where a name would stand; "bro" is deliberately not one.
+- `hearing.js` must SIGKILL its ffmpeg on exit, or UDP :5001 stays bound.
+- Test speech engines on real Pi-mic clips. Synthetic `say` clips scored 1.1% word errors against 4.5 to 5.6% on real ones.
+
+Vision
+- Only one program on the Mac can read UDP :5000. Stop `npm run vision` before opening a viewer.
+- A raw H264 stream needs `-f h264 -probesize 200000 -analyzeduration 500000`, or every open costs 5 s.
+- ffmpeg single-image input breaks with `-fflags nobuffer`; the JPEG encoder needs `format=yuvj420p`.
+
+Ollama and models
+- Reload Ollama with `launchctl bootout` and `bootstrap`, not `brew services restart`, which rewrites the plist.
+- Judge a model's memory by `ollama ps`, not `ollama list`; vision models load far bigger than they download.
+- Call Ollama only through `mind/lib/ollama.js`. It sends the same load-time options every time; a caller with different ones makes Ollama reload the model the brain and eyes share.
+- OpenClaw loads `qwen3:14b` at times and evicts our model. Do not stop it; rerun timing tests afterwards.
+- `think:false` may only be sent to models that have the thinking capability.
+
+Brain prompt
+- Never ship a prompt edit without a full `npm run bakeoff:brain -- --stream` and a look at the per-group table.
+- Rules and examples interact. Change one example per run, and write the held-out cases before tuning.
+- An example teaches more than it was written for: the model copies its gesture and even its words.
+- Keep `cases.json` and `sequences.json` at indent 2 when a script rewrites them.
+
+OLED
+- An SSD1306 can be dark while every write succeeds. `servod` re-checks the status byte; do not run another OLED script while `servod` is up.
+- Never send whole frames for animation: 4 frames a second against 14 with changed bytes only.
+
+Voice
+- pyatv needs `srptools<2`, and a scan limited to `Protocol.RAOP`, or the HomePod refuses the connection.
+
+Tests and the shell
+- `node --test <dir>` runs `orchestrator/index.js` and hangs on MQTT. `npm test` names the files; keep it so.
+- The shell's working directory drifts between calls. Use absolute paths.
+- `grep` in a pipeline buffers; use `--line-buffered` when timing a live stream.
+- ffmpeg output to `/tmp` fails unreliably from the shell tool; use a `mktemp -d` directory.
+- Homebrew Mosquitto ignores `conf.d`; the listener lines are in the main conf.
+
+## Decisions
+
+One line each. Evidence in `docs/decisions.md`.
+
+| Decision | Why |
 | --- | --- |
-| Repo | https://github.com/prbstr/peak, branch `main`. |
-| Broker, orchestrator, `servod` in sim | Working, tested end to end Mac <-> Pi. |
-| Hearing | Working from the Pi mic via a resident whisper.cpp server (`npm run whisper`, port 8178, `ggml-medium.en` since 2 Nov evening, about 0.5-0.7 s per utterance on the M4 Pro): about 1 s to transcript, about 4 s to a reply. Transcripts pass through `senses/heardFilter.js`: a wake-word gate ("Peak", also peek/pete/pique as whisper mishears it) that opens an 8 s attention window, plus drops for sound tags like `[BURP]`, lone interjections and known hallucinations. `PEAK_WAKE=off` disables the gate for bench tests. Tests: `cd mind && npm test`. Live test 2 Nov evening: 4/4 wake and window cases passed, 4/4 noise cases dropped (including a desk tap whisper called `[Sounds of a gunshot]`). Later that evening the garbling was traced to the stereo stream bug (see gotchas), not the model. With mono fixed and `medium.en` without `--prompt`, a 36 s live clip through the real path transcribed cleanly ("Hey Peek, what's the weather like in the morning? Peek, nod if you can hear me."). End-to-end re-run 2 Nov 21:20: "Hey Pete." (wake) → "Wave at me." (window) → "Peek, nod if you can hear me." (wake), each transcribed in 0.4-0.6 s and answered by the brain; "(knocking)" dropped. Pipeline verified. Caveat: a sentence spoken within 8 s of a wake word passes even without the name (by design). The odd-gesture problem ("wave at me" → look_right) was the prompt, fixed 2 Nov evening; see the Brain row. **STT bake-off, 2 Nov, 20 real Pi-mic phrases (`mind/bakeoff/README.md`):** whisper small 5.6% WER / 0.14 s, whisper medium.en 4.5% / 0.37 s, Parakeet TDT 0.6B v3 (parakeet-mlx) 4.5% / 0.09 s, Moonshine medium-streaming 11.2% / 0.29 s. Wake-word spellings not counted; the remaining misses are shared by all engines ("nod"→"not", "Sharad", "wave with"→"wave your"), so the owner's pronunciation or the mic, not the model. Decision: stay on whisper.cpp `medium.en`; Parakeet matches it 4x faster but needs a Python/MLX process and its accuracy edge is one phrase. New wake misspellings seen: "Pea", "pig", "I peak". Live test 3 Nov 2026 (Pi mic, desk): every phrase transcribed right, including "nod" as "not"; the gate cut "Hey, Peak." from "wave at me" at the owner's pause and the 8 s attention window stitched it; one "look to your left" without the name was dropped after the window closed; noise triggers ("you", "[BLANK_AUDIO]", "(eerie music)") were all filtered. **5 Nov 2026 19:35:** running again from the Pi mic next to the camera, presence and the HomePod voice, on the undervolted supply. In an 80 s window with a TV or video playing in the room, whisper transcribed its dialogue cleanly and the gate dropped all 14 utterances for having no wake word. Not yet tested in this setup: the owner saying the wake word, and whether the HomePod's own speech comes back through the mic as a `heard` event. **20:04:** the owner's "Hey Peak, wave at me", "Peek, what's the weather like?" and "Peak smile" each passed 0.4 s after speech ended and were answered through the HomePod; "Hey Pig, what's the weather like?" was dropped. No HomePod line came back through the mic in those replies. With vision sharing the model, each brain reply took 2.1-6.9 s instead of 0.4 s: every call re-read the whole prompt (about 2 s for 1,650 tokens) and some waited behind a 5.6 s photo description. **20:10: the character was renamed Rho** (wake rule in gotchas; bake-off unchanged at 100% on every group but the old miss, 143 steps x 3). **Rho live, 20:20, owner's verdict "working excellently":** whisper wrote the name as "Ro" twice ("Hey Ro, wave at me.", "Ro, what are your skills and capabilities?") and a bare one as "Roll"; all three woke it, and "How you doing?" passed inside the attention window. One miss: the name run straight into the request came back as "Bro wave at me" and was dropped; "bro" is deliberately not a wake spelling. Brain replies were 0.5-0.7 s in this run, 2.4 s for a 48-token answer. |
-| Brain | `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes, 5.3 GB resident. Prompt tuned 3 Nov 2026: **100% strict** on the 97-step bake-off (was 94%), 95% on 22 cases written after tuning, 100% valid JSON. The orchestrator streams the reply and fires the gesture at 0.24 s, before the spoken line (0.4 s). Known miss: "can you not your head" (STT for nod) gets no nod. Live test 3 Nov 2026: wave, nod (from "not if you can hear me"), look_left, look_right and a words-only weather answer, all correct, gesture command 255-324 ms after each event, full reply 0.4-0.7 s. **5 Nov 2026:** the prompt learned `{"sensed"}` events and to stay silent on camera scenes nobody is addressing it in. Bake-off now 143 steps (113 cases + 30 sequence steps, 3 runs): every group 100% except the same known miss, including the new `sense` group and the held-out `sense2` and `quiet` groups. Before the change the brain waved at "something came close, 3 cm in front of you". **Eyes field, 5 Nov 2026 (off by default):** with `PEAK_BRAIN_EYES=1` the brain also picks a trick for the eyes. Bake-off grown to 192 steps (44 new cases and a sequence, written before the prompt). The eyes were right 147 of 147 times in all three prompt versions, held-out groups included, and the gesture still fires at 0.25 s; replies are about 110 ms slower (565 against 457 ms p50). But each version cost one old case: v1 drops the wave on "night night" 2 of 3 times; v2 and v3 (the owner asked for a third try) bring it back with a goodnight example, which makes "Rho, what are you?" wave 3 of 3. The gate was no old case lost, so the code carries v1 switched off. Either miss is one wave more or less, with the right words and eyes. **The owner turned v1 on, 5 Nov 2026 late evening:** `PEAK_BRAIN_EYES=1` is in `mind/.env` (the code default stays off). Table in `mind/bakeoff/brain/README.md`. The mind and vision were running during these runs (timings noisy, accuracy not). **Live since the mind was restarted late on 5 Nov 2026** (at the owner's word; it now runs as a background task of the Claude session that restarted it, so it ends with that session). Checked with faked `heard` events against the real body: "Rho, look happy" → the happy trick's `eyes` command and happy eyes in the panel snapshot; "Rho, wave and give me a wink" → `{"gesture":"wave"}` then the wink; "show me your sleepy face" followed by `{"stop":true}` → the mind sent `{"eyes":{"release":true}}` and never sent the trick's last step. Replies 0.6-0.9 s. Not yet tried: the same by voice, and the owner watching the glass. |
-| Vision | Working from an image file, now through the same Qwen3-VL model as the brain (`eyes.js` comparison: the only one of three not to hallucinate a person). On Ollama 0.40.13 a fresh frame takes 5.6 s to describe (1.8 s on 0.24); the `PEAK_VISION_COOLDOWN_S` 10 s loop still works, the `{see}` event just lands later. **Pi camera live since 5 Nov 2026:** `camd.sh` (640x480, 15 fps H264 over UDP :5000) into `vision.js` into the brain, end to end. Two real frames were described accurately (a monitor edge with a purple cable and a brick wall; a ceiling light with "no people"), and the brain answered the empty scene with no gesture and no words. Not yet tested with a person in frame. The camera was lying loose on the desk, not mounted. |
-| Sensors | Live since 5 Nov 2026. `servod` on the Pi (started by hand with `PEAK_SIM=1`, servos simulated) publishes `peak/mech/sense` every second: ultrasonic distance (read 7-37 cm against a hand and the desk), PIR `motion` (true in 3 of 20 readings while the owner was at the desk), SoC temperature, and the `throttled` power flags. **Wired to the brain the same evening:** with `npm run presence` running, the owner's arrival produced "Is someone there?" and a hand at 23 and 29 cm produced "Careful, that's quite close.", each with no gesture, and each sent to the OLED. The owner then reported the OLED blank: the panel had been switched off under `servod` (see gotchas). Fixed the same evening and proven by switching the panel off from a second program: `servod` had it back on within 7 s. The owner then confirmed the reply (`*wave*`, "Hello there!") is readable on the glass. Round trip checked: a faked `{"heard":"hey peak, wave at me"}` produced the wave command on the Pi 306 ms later. Readings now go out every 0.5 s. Not persistent: both daemons die on a Pi reboot until a systemd unit is installed (needs `sudo`). |
-| Eyes (OLED) | **RoboEyes port running on the Pi since 5 Nov 2026 21:22** (`node/eyes.py`, `node/screen.py`, `node/oled.py`, drawn by `servod`). It replaced a Doom-style head (commit `7277f2a`) and a helmet that was never committed, both from the same evening. 63 node tests pass on the Mac and the Pi. Measured on the Pi: 14 frames a second while the eyes move, 9 with only sweat falling (see gotchas); `display on` and no display error in the log; the panel's status byte reads on. On this power supply the eyes are tired and sweating all the time (`0x50005`). **`eyes` command and tricks, 5 Nov 21:50:** happy, angry, shut, `look_left`, the surprised and wink tricks and three malformed commands were sent to the running body; snapshots of what `servod` sent to the panel showed each one, and the daemon stayed up. 75 node tests, 45 mind tests. **Not yet seen by the owner on the glass.** |
-| Servos / PCA9685 / battery | Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Orders seen 2 Nov 2026: AliExpress (servos x10, PCA9685 x2, UBEC 3A, Mini560 PRO 5V x5 plus 2 wrong 9V, BMS, holders, switch, USB iron) and Communica (4x INR18650-30HW cells, Pi Camera Module 3 Wide, HC-SR04+, MPU6050, 0.96in I2C OLED, 16-LED WS2812 ring, PIR sensor, vibration motor, Pi heatsinks and fan, resistors, diodes, transistors, F/F jumpers, heat shrink). Not seen in either order, confirm before relying on them: speaker, multimeter, solder/flux, hookup wire, capacitor, fuse, connectors, Pi power supply, 5A UBEC, 2S Type-C charger. |
-| Pi service | `peak-servod.service` exists but is not installed on the Pi. |
-| Pi power | Unstable (undervoltage). Needs a better supply. 5 Nov 2026 with the camera streaming and `servod` running: `throttled=0x50005` (undervoltage right now), 47 °C, load 0.25, no reboot in the first few minutes. The flag is in every sense message, so watch it from the Mac. **Mic test, 5 Nov 2026 19:25** (`node/powerwatch.sh`, 30 s windows, 2 samples a second; the camera had held the Pi in one unbroken undervoltage since it started at 18:12:05): camera on with the mic plugged in but idle, undervoltage in 58 of 58 samples; camera on and mic streaming, 56 of 56; camera off and mic streaming, 56 of 56; camera off and mic stream off (mic still plugged in), 50 of 57. CPU held at 600-800 MHz with the camera off, 600-1200 with it on. No hang or reboot in about 4 minutes, and the mic audio arrived on the Mac (4 s clip, mean -33 dB). Not measured: the same idle window with the mic unplugged, so the mic's own share is unknown. Conclusion: this supply holds neither the camera nor the mic stream; everything today ran throttled. |
-| Voice (text-to-speech) | **Speaks through the HomePod mini since 5 Nov 2026** (`npm run voice`): the owner heard the test line, then two brain replies went out ("Got it." finished 3.2 s after the command, the connection kept open between lines). One line at a time, a newer one replaces a waiting one. On the Pi `say` still goes to espeak-ng, silent in sim and with no speaker attached; once a speaker is on the body, both would talk. Untested with the mic: the HomePod's own words will reach it, and a line containing "Peak" could wake the hearing gate. |
+| Mosquitto, one broker on the Mac | Retained messages and Last Will give body presence for free; ESP32 bodies speak MQTT natively |
+| All AI on the Mac, the Pi stays thin | A Pi 3B is too slow for whisper or vision |
+| Local abliterated Ollama brain | Owner's choice |
+| One model for brain and eyes, Qwen3-VL 8B | Best of the bake-off for its size and speed, and the only one that did not invent a person in an empty photo |
+| Ollama 0.40.13 kept | Faster, smaller brain; slower photo descriptions accepted |
+| Narrow prompt rules with examples, temperature 0.3 | Took the same model from 94% to 100% |
+| Gesture sent from the streamed reply | 0.24 s instead of 0.4 s |
+| The eyes are a separate reply field, not more gestures | Old cases score as before; a wave and an expression can go together |
+| Eyes prompt v1, on by the owner's word | It missed the strict gate by one case; a missing wave is less odd than a stray one |
+| Jev not used, only its lessons | Hosted, closed and not abliterated |
+| whisper.cpp server with `medium.en` | Stays loaded; as accurate as anything tried on the real mic |
+| Voice through the HomePod mini for now | The body has no speaker; Piper on the body is the plan |
+| Sensors and OLED inside `servod` | One daemon, one status, and the distance reading sits where the obstacle stop needs it |
+| Servos through `node/pca9685.py`, not `adafruit_servokit` | Blinka does not build on the Pi 3B. Without `PEAK_SIM=1` and with no chip wired, `servod` exits on its first I2C write |
+| RoboEyes port, repo GPL-3, no third-party art | Owner chose the look; the licence follows the library |
+| NeoPixel on SPI (GPIO10) | No root, no clash with onboard audio |
+| Power layout undecided between three | Decide after measuring the regulators (`SHOPPING.md`) |
+| Deploy by rsync; Python venv on the Pi | Simple; Raspberry Pi OS blocks system pip |
 
-## Next steps
+## Neighbouring projects
 
-1. Fix Pi power: an official 5.1 V 2.5 A micro-USB supply (see the 5 Nov mic test in Status). Done when `~/peak/node/powerwatch.sh 30` shows 0 undervoltage samples with the camera and mic both streaming, and `vcgencmd get_throttled` reads `0x0` after a reboot.
-2. When parts arrive: measure UBEC and Mini560 outputs, wire PCA9685, tune `node/config.yaml` ranges on the bench, install `peak-servod.service`.
-3. Camera works (5 Nov 2026). Left: mount it, test with a person in frame, speaker.
-3b. Make the Pi daemons survive a reboot: a unit for `camd.sh`, and `peak-servod.service` needs `Environment=PEAK_SIM=1` until the PCA9685 is wired (without it non-sim `servod` exits on the first I2C write and the unit would restart forever). Both installs need the owner's `sudo`.
-3c. Sensors reach the brain (5 Nov 2026) as words only. Open: whether an arrival should get a wave once real servos are on, and an obstacle stop on the Pi itself (Stage B), which must not wait for the Mac.
-3d. Rest of the body's I/O, from the owner's handover (which planned a separate `node/sensord.py`; the sensors went into `servod` instead, so there is one daemon, one status and the distance reading sits where the Stage B obstacle stop needs it; split it out if the outputs make `servod` unwieldy): MPU6050 pose in the sense message (needs the breadboard to share I2C with the OLED), and the NeoPixel ring and vibrator motor as commands on `peak/mech/cmd`. The OLED shows eyes (5 Nov 2026, see the Eyes row in Status); the `eyes` command, tricks and the brain's `eyes` field are the stages after it.
-3e. Orders: the owner confirmed on 5 Nov 2026 that the GeekServos and the PCA9685 boards are ordered on AliExpress, as the Servos row in Status says; the pasted handover's "servos not ordered" and "PCA9685 on the next Communica order" are out of date. Still to buy for the bench, per that handover: a half-size breadboard, 40 M/F jumpers, M/M jumpers, and a soldering iron and an official 5.1 V 2.5 A supply if not already owned. Also from that handover: a router DHCP reservation for the Pi.
-4. Makefile `m0` target uses plain `python3` (fails on the Mac without PyYAML); point it at `.venv/bin/python`.
-5. `scripts/pi-firstboot.sh` was run on the Pi on 2 Nov 2026 (I2C, watchdog, apt deps all confirmed). Run it for each new body.
-5b. Servo output now uses `node/pca9685.py` (direct smbus2 driver) instead of `adafruit_servokit`, whose Blinka dependency does not build on the Pi 3B. Unit tests (`python -m unittest test_pca9685` in `node/`) pass on the Mac and the Pi; the real chip has not been tested yet. With no PCA9685 wired, non-sim `servod` exits with an I/O error on the first I2C write, which is expected.
-6. Add `look_at` back to the brain's reply shape (native tools now possible: the model has the `tools` capability).
-7. Hearing: replace the `PEAK_MIN_DB` RMS gate with whisper.cpp's Silero VAD or an adaptive floor (see gotchas). Tune the Rho wake rule in `heardFilter.js` from real transcripts once the owner has used the name for a while.
-8. Eyes and tricks, what is left. (a) The brain's eyes field is on in `mind/.env` with prompt v1 (it loses the wave on "night night" 2 of 3 times and nods while answering "two plus two"). To do better: a goodnight example with a null gesture, or a rule instead of an example, each with a full bake-off. (b) Done 5 Nov: the mind was restarted with the trick player. (c) The owner has not yet watched the eyes on the glass: idle and blinks, a hand inside 30 cm, `look_left`, a broker stop and start, `npm run trick -- peekaboo`. (d) Teaching by voice: a brain reply that defines a trick from the existing step kinds, saved with `appendTrick()` into `mind/tricks/learned.yaml`; the loader, the check and the merge exist. (e) Learning on its own waits for Lupin (Stage C): which tricks to list for the brain (cap about 16) and remembering what went down well. (f) `dtparam=i2c_arm_baudrate=400000` for smoother eyes (owner's `sudo`).
+The detail is in `CLAUDE.local.md`. What peak itself needs to know:
 
-## Working with the owner
-
-- Prefers tables and actionable breakdowns over prose. Short answers, no padding.
-- Wants Claude to run things, not hand over commands; where `sudo` or purchases are needed, say exactly what to run or buy.
-- Commits are local first; ask before pushing. Never put API keys or `.env` in commits.
-- Do not assume the user is `pi`; it is `lupin`.
-- Live tests that need the owner to speak or watch: 60 seconds max per window. Run several short ones rather than one long one.
+| Name | Where | What it is to peak |
+| --- | --- | --- |
+| lupin | `../lupin` | A context engine over MCP: the planned Stage C memory for the hive. Paused, and nothing in peak uses it yet. Has its own `CLAUDE.md`. |
+| OpenClaw | `~/.openclaw` | Another program on this Mac that shares Ollama with peak. Do not touch its config or models, and never print `openclaw.json`: it holds tokens. |

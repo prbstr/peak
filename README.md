@@ -1,6 +1,6 @@
 # peak
 
-A hive-mind robot whose character is called Rho. One mind (Mac mini M5 Pro), many bodies. First body: **Mech Suit** — a Lego Technic mech with a minifig pilot, six GeekServos, and a Raspberry Pi 3B in the backpack.
+A hive-mind robot whose character is called Rho. One mind (Mac mini M4 Pro), many bodies. First body: **Mech Suit** — a Lego Technic mech with a minifig pilot, six GeekServos, and a Raspberry Pi 3B in the backpack.
 
 ```
 peak/

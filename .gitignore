@@ -9,3 +9,6 @@ node/eyes_preview.png
 node/eyes_preview.gif
 mind/bakeoff/raw/
 mind/bakeoff/brain/results/
+
+# Private notes about the owner; loads beside CLAUDE.md, never committed
+CLAUDE.local.md
