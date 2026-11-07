@@ -13,31 +13,31 @@
 desk_light:
   describe: 'the desk light, a Xiaomi light bar above the monitor; an ESP32 acts as its remote.'
   # The ESP prints its root topic at boot ("peak — Desk light guide", Step 3): peak/desk-light/l2m_<MAC>.
-  base: peak/desk-light/l2m_000000000000
+  base: peak/desk-light/l2m_E8F60A4E22A8
   status: availability
   actions:
     light_on:
       describe: 'switch the desk light on. For "lights on", "turn on the lamp", or when someone says it is dark.'
-      # 0x followed by the puck's serial, learned in Step 4 of the guide
-      topic: 0x000000/command
+      # 0x followed by the puck's serial as the firmware prints it in topics: lowercase, no padding (puck 0x08D722)
+      topic: 0x8d722/command
       payload: { state: 'ON' }
     light_off:
       describe: 'switch the desk light off. For "lights off", "kill the light", "turn off the lamp".'
-      topic: 0x000000/command
+      topic: 0x8d722/command
       payload: { state: 'OFF' }
     light_bright:
       describe: 'desk light to full brightness. For "brighter", "more light", "I cannot see".'
-      topic: 0x000000/command
+      topic: 0x8d722/command
       payload: { brightness: 15 }
     light_dim:
       describe: 'desk light down low. For "dim it", "too bright", "softer", "turn it down".'
-      topic: 0x000000/command
+      topic: 0x8d722/command
       payload: { brightness: 3 }
     light_warm:
       describe: 'desk light to warm white. For "warmer", "cosier", "less harsh", "evening light".'
-      topic: 0x000000/command
+      topic: 0x8d722/command
       payload: { color_temp: 370 }
     light_cool:
       describe: 'desk light to cool white. For "cooler", "whiter", "daylight", "crisper".'
-      topic: 0x000000/command
+      topic: 0x8d722/command
       payload: { color_temp: 153 }

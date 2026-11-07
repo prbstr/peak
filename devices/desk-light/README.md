@@ -36,14 +36,27 @@ arduino-cli core update-index && arduino-cli core install esp32:esp32        # a
 arduino-cli lib install "Arduino_JSON@0.2.0" "CRC@1.0.3" "PubSubClient@2.8" "RF24@1.4.10"
 git clone https://github.com/ebinf/lightbar2mqtt devices/desk-light/Lightbar   # the folder must be named after Lightbar.ino
 cp devices/desk-light/config.h.example devices/desk-light/Lightbar/config.h   # then fill in WIFI_SSID and WIFI_PASSWORD
-arduino-cli compile --fqbn esp32:esp32:esp32c3 devices/desk-light/Lightbar
-arduino-cli upload -p /dev/cu.usbmodem* --fqbn esp32:esp32:esp32c3 devices/desk-light/Lightbar
+arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc devices/desk-light/Lightbar   # CDCOnBoot=cdc, or Serial goes to UART0 and the USB monitor stays blank
+arduino-cli upload -p /dev/cu.usbmodem* --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc devices/desk-light/Lightbar
 arduino-cli monitor -p /dev/cu.usbmodem* -c baudrate=115200
 ```
 
-First boot prints `Root Topic: peak/desk-light/l2m_<MAC>`; a press of the puck prints `unknown serial: 0x<6 hex>`. Both
+First boot prints `Root Topic: peak/desk-light/l2m_<MAC>`; a press of the puck prints `unknown serial: 0x<hex>`. Both
 go into `config.h` (`REMOTES` and `LIGHTBARS`, the same serial) and into `mind/devices/devices.yaml` (`base` and the
-action topics), then flash again.
+action topics), then flash again. The firmware prints the serial unpadded and uses it lowercase in topics: the owner's
+puck is `0x08D722` in `config.h` and `0x8d722` in the topics. The board is `l2m_E8F60A4E22A8`.
+
+## Two patches to the sketch, made at flash time (7 Nov 2026)
+
+| Patch | Why |
+| --- | --- |
+| In `Lightbar.ino`, after `WiFi.begin(...)`: `WiFi.mode(WIFI_STA);` before it and `WiFi.setTxPower(WIFI_POWER_8_5dBm);` after it | The ESP32-C3 SuperMini's antenna is mismatched; at full power it never associated (a dot a second for minutes). With 8.5 dBm it joined in 2 s. |
+| Build with `CDCOnBoot=cdc` | Without it the serial monitor over USB shows nothing: `Serial` is UART0 on pins 20/21. |
+
+Seen on the first live run: the MQTT link drops for a moment during each radio burst (`Sending command` →
+`connection lost!` → reconnect in about a second, availability flapping offline/online on the broker). The command
+had already gone out over the radio. If it bothers the mind, lower the nRF24's PA level (`radio.setPALevel(RF24_PA_LOW)`
+in `radio.cpp`'s `setup()`) or move the module a wire's length further from the board's antenna.
 
 ## Topics the firmware uses
 
