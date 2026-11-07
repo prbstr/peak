@@ -1,8 +1,9 @@
 // Brain bake-off. Every case in cases.json goes through the real buildMessages/askBrain path, once per run,
 // for each model. Scores gesture accuracy, JSON validity, latency, tokens/s and whether the model stays
 // resident next to the vision model. A case may also say which tricks the eyes may show ("eyes": [names or
-// null]); cases that do not are counted when the brain moves the eyes anyway. Run from mind/:
-// npm run bakeoff:brain -- [flags]   (PEAK_BRAIN_EYES=1 in front to score the prompt with the eyes field)
+// null]) and which device action it expects ("action": [names or null]); cases that say nothing are counted
+// when the brain moves the eyes or switches a device anyway. Run from mind/:
+// npm run bakeoff:brain -- [flags]   (PEAK_BRAIN_EYES=1 and/or PEAK_BRAIN_DEVICES=1 in front to score those fields)
 //   --models a,b     comma list (default: models.json)
 //   --runs N         repeats per case (default 3)
 //   --pair TAG       after scoring, load TAG as the eyes and check both stay on the GPU (same TAG = unified check)
@@ -15,6 +16,7 @@ import { parseArgs } from 'node:util';
 import { MODEL as PRODUCTION, askBrain, buildMessages } from '../../orchestrator/brain.js';
 import { gestureNames } from '../../orchestrator/gestures.js';
 import { loadTricks } from '../../orchestrator/tricks.js';
+import { actionNames } from '../../orchestrator/devices.js';
 import { capabilities, chat, loadOptions, ps, pull, tags, thinkFlag, unload } from '../../lib/ollama.js';
 
 const here = new URL('.', import.meta.url);
@@ -40,6 +42,9 @@ const checkExpect = (id, expect) => {
   }
   for (const t of expect.eyes ?? []) {
     if (t !== null && !trickNames.includes(t)) throw new Error(`${id}: expected eyes "${t}" is not a trick`);
+  }
+  for (const a of expect.action ?? []) {
+    if (a !== null && !actionNames.includes(a)) throw new Error(`${id}: expected action "${a}" is not in devices.yaml`);
   }
 };
 for (const c of cases) checkExpect(c.id, c.expect);
@@ -103,11 +108,14 @@ async function scoreModel(model) {
     const eyes = r.reply?.eyes ?? null;
     const eyesAsked = Boolean(expect.eyes);
     const eyesOk = !eyesAsked || (r.reply !== null && expect.eyes.includes(eyes));
-    const strict = gestureOk && eyesOk && (!expect.sayRequired || Boolean(r.reply.say)) && (!expect.silent || !r.reply.say);
+    const action = r.reply?.action ?? null;
+    const actionAsked = Boolean(expect.action);
+    const actionOk = !actionAsked || (r.reply !== null && expect.action.includes(action));
+    const strict = gestureOk && eyesOk && actionOk && (!expect.sayRequired || Boolean(r.reply.say)) && (!expect.silent || !r.reply.say);
     const thinkingLeak = Boolean(r.thinking) || /^\s*<think>/.test(r.content);
     const earlyMismatch = args.stream && early !== gesture;
-    calls.push({ id, run, gesture, eyes, eyesAsked, eyesOk, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, confidence: r.confidence, gestureMs: r.gestureMs, earlyMismatch, content: r.valid ? undefined : r.content });
-    log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${String(eyes ?? '-').padEnd(9)} ${(r.stats.totalMs / 1000).toFixed(1)}s${r.gestureMs != null ? ` (gesture ${r.gestureMs}ms)` : ''} p=${r.confidence?.toFixed(2) ?? '-'} ${r.reply?.say ?? ''}`);
+    calls.push({ id, run, gesture, eyes, eyesAsked, eyesOk, action, actionAsked, actionOk, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, confidence: r.confidence, gestureMs: r.gestureMs, earlyMismatch, content: r.valid ? undefined : r.content });
+    log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${String(eyes ?? '-').padEnd(9)} ${String(action ?? '-').padEnd(12)} ${(r.stats.totalMs / 1000).toFixed(1)}s${r.gestureMs != null ? ` (gesture ${r.gestureMs}ms)` : ''} p=${r.confidence?.toFixed(2) ?? '-'} ${r.reply?.say ?? ''}`);
   };
   for (let run = 1; run <= runs; run++) {
     for (const c of cases) await score(c.id, run, c.event, c.expect, []);
@@ -138,6 +146,10 @@ async function scoreModel(model) {
     eyesOk: calls.filter(c => c.eyesAsked && c.eyesOk).length,
     // the eyes moved in a case that says nothing about eyes: not wrong, but a brain that does it everywhere is over-acting
     eyesUnasked: calls.filter(c => !c.eyesAsked && c.eyes !== null).length,
+    actionAsked: calls.filter(c => c.actionAsked).length,
+    actionOk: calls.filter(c => c.actionAsked && c.actionOk).length,
+    // a device switched in a case that says nothing about devices: an arm swinging at a question, in another form
+    actionUnasked: calls.filter(c => !c.actionAsked && c.action !== null).length,
     confidence: {
       ok: mean(calls.filter(c => c.gestureOk && c.confidence != null).map(c => c.confidence)),
       wrong: mean(calls.filter(c => !c.gestureOk && c.confidence != null).map(c => c.confidence)),
@@ -146,8 +158,8 @@ async function scoreModel(model) {
       const cs = calls.filter(c => c.id.split('.')[0] === g);
       return [g, { n: cs.length, strict: cs.filter(c => c.strict).length }];
     })),
-    failures: calls.filter(c => !c.strict).map(({ id, run, gesture, eyes, say, confidence, content }) => ({ id, run, gesture, eyes, say, confidence, content })),
-    calls: calls.map(({ id, run, gesture, eyes, say, gestureOk, eyesOk, strict, confidence, gestureMs, stats }) => ({ id, run, gesture, eyes, say, gestureOk, eyesOk, strict, confidence, gestureMs, totalMs: stats.totalMs })),
+    failures: calls.filter(c => !c.strict).map(({ id, run, gesture, eyes, action, say, confidence, content }) => ({ id, run, gesture, eyes, action, say, confidence, content })),
+    calls: calls.map(({ id, run, gesture, eyes, action, say, gestureOk, eyesOk, actionOk, strict, confidence, gestureMs, stats }) => ({ id, run, gesture, eyes, action, say, gestureOk, eyesOk, actionOk, strict, confidence, gestureMs, totalMs: stats.totalMs })),
   };
   if (!args['keep-loaded'] && model !== PRODUCTION && model !== args.pair) await unload(model);
   return summary;
@@ -165,14 +177,14 @@ function toMarkdown(results) {
     if (!r.failures.length) return `### ${r.model}\n\nNo failures.`;
     const byCase = new Map();
     for (const f of r.failures) byCase.set(f.id, [...(byCase.get(f.id) ?? []), f]);
-    const lines = [...byCase].map(([id, fs]) => `- \`${id}\` (${fs.length}/${runs}): ${fs.map(f => f.content !== undefined ? `invalid ${JSON.stringify(f.content).slice(0, 80)}` : `${f.gesture}${f.eyes ? `+${f.eyes}` : ''}${f.confidence != null ? ` p=${f.confidence.toFixed(2)}` : ''} ${f.say ? JSON.stringify(f.say) : '(silent)'}`).join(' | ')}`);
+    const lines = [...byCase].map(([id, fs]) => `- \`${id}\` (${fs.length}/${runs}): ${fs.map(f => f.content !== undefined ? `invalid ${JSON.stringify(f.content).slice(0, 80)}` : `${f.gesture}${f.eyes ? `+${f.eyes}` : ''}${f.action ? `+[${f.action}]` : ''}${f.confidence != null ? ` p=${f.confidence.toFixed(2)}` : ''} ${f.say ? JSON.stringify(f.say) : '(silent)'}`).join(' | ')}`);
     return `### ${r.model}\n\n${lines.join('\n')}`;
   });
   const groupNames = [...new Set(results.flatMap(r => Object.keys(r.groups ?? {})))];
   const groupHead = `| Model | ${groupNames.join(' | ')} |\n|${' --- |'.repeat(groupNames.length + 1)}`;
   const groupRows = results.map(r => `| ${r.model} | ${groupNames.map(g => r.groups?.[g] ? pct(r.groups[g].strict, r.groups[g].n) : '-').join(' | ')} |`);
-  const extraHead = '| Model | gesture p50 s | early mismatches | confidence when right | confidence when wrong | eyes right | eyes unasked |\n| --- | --- | --- | --- | --- | --- | --- |';
-  const extraRows = results.map(r => `| ${r.model} | ${r.gestureP50Ms != null ? (r.gestureP50Ms / 1000).toFixed(2) : '-'} | ${r.earlyMismatches ?? 0} | ${r.confidence?.ok?.toFixed(2) ?? '-'} | ${r.confidence?.wrong?.toFixed(2) ?? '-'} | ${r.eyesAsked ? `${r.eyesOk}/${r.eyesAsked}` : '-'} | ${r.eyesUnasked ?? 0} |`);
+  const extraHead = '| Model | gesture p50 s | early mismatches | confidence when right | confidence when wrong | eyes right | eyes unasked | action right | action unasked |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |';
+  const extraRows = results.map(r => `| ${r.model} | ${r.gestureP50Ms != null ? (r.gestureP50Ms / 1000).toFixed(2) : '-'} | ${r.earlyMismatches ?? 0} | ${r.confidence?.ok?.toFixed(2) ?? '-'} | ${r.confidence?.wrong?.toFixed(2) ?? '-'} | ${r.eyesAsked ? `${r.eyesOk}/${r.eyesAsked}` : '-'} | ${r.eyesUnasked ?? 0} | ${r.actionAsked ? `${r.actionOk}/${r.actionAsked}` : '-'} | ${r.actionUnasked ?? 0} |`);
   const extra = `\n## Per group (strict)\n\n${groupHead}\n${groupRows.join('\n')}\n\n## Timing and confidence\n\n${extraHead}\n${extraRows.join('\n')}\n`;
   const foreign = results.map(r => r.pair?.foreign ?? []).flat();
   const note = foreign.length ? `\nOther models loaded during pair checks (not ours): ${[...new Set(foreign)].join(', ')}\n` : '';

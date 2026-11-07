@@ -16,6 +16,7 @@
     "voice": "sh -c 'set -a; [ -f .env ] && . ./.env; set +a; exec voice/.venv/bin/python -u voice/homepod.py'",
     "record": "node scripts/record.js",
     "trick": "node scripts/trick.js",
+    "device": "node scripts/device.js",
     "pub": "node scripts/pub.js",
     "sub": "node scripts/sub.js"
   },

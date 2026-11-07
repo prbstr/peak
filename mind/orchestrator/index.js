@@ -7,12 +7,15 @@ import mqtt from 'mqtt';
 import { runTool } from './tools.js';
 import { MODEL, TRICKS, askBrain, buildMessages, trimHistory } from './brain.js';
 import { createTrickPlayer } from './tricks.js';
+import { createDeviceHub } from './devices.js';
 import { formatStats } from '../lib/ollama.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
 
 const client = mqtt.connect(BROKER);
-const player = createTrickPlayer(client, { tricks: TRICKS });
+/** Devices in the room (the desk light): the brain's `action` field and a trick's action step go through here. */
+const hub = createDeviceHub(client);
+const player = createTrickPlayer(client, { tricks: TRICKS, run: name => hub.run(name) });
 
 /** Latest sense reading per node that is online: { mech: {...}, rover: {...} } */
 const hive = new Map();
@@ -25,10 +28,12 @@ let waiting = null;
 
 client.on('connect', () => {
   console.log(`[mind] connected to ${BROKER}, brain: ${MODEL}`);
-  client.subscribe(['peak/+/sense', 'peak/+/event', 'peak/+/status', 'peak/+/cmd']);
+  client.subscribe(['peak/+/sense', 'peak/+/event', 'peak/+/status', 'peak/+/cmd', ...hub.statusTopics]);
 });
 
 client.on('message', (topic, payload) => {
+  const device = hub.status(topic, payload);
+  if (device) return console.log(`[mind] device ${device.device} is ${device.online ? 'online' : 'offline'}`);
   const [, node, kind] = topic.split('/');
   if (kind === 'status') {
     // retained, and set to offline by the broker's Last Will when a body drops
@@ -96,13 +101,15 @@ async function think(node, event) {
   // the grammar makes the early gesture and the parsed one identical; this is the belt to that brace
   if (reply.gesture && reply.gesture !== early) await runTool(client, node, 'gesture', { name: reply.gesture });
   if (reply.say) await runTool(client, node, 'say', { text: reply.say });
+  // a device action is one publish on the device's own topic; the parsed reply guarantees the name
+  if (reply.action && !hub.run(reply.action)) console.warn(`[mind] no such action ${reply.action}`);
   // A trick may bring its own gesture and line. The reply's win, and with something close in front of the body
   // (a sensed event) no arm swings at all. It plays on its own time; the next event does not wait for it.
   if (reply.eyes) {
     const skip = [(reply.gesture || 'sensed' in event) && 'gesture', reply.say && 'say'].filter(Boolean);
     player.play(node, reply.eyes, { skip }).catch(e => console.error('[mind] trick failed:', e.message));
   }
-  const text = [reply.gesture && `*${reply.gesture}*`, reply.eyes && `(${reply.eyes})`, reply.say].filter(Boolean).join(' ');
+  const text = [reply.gesture && `*${reply.gesture}*`, reply.eyes && `(${reply.eyes})`, reply.action && `[${reply.action}]`, reply.say].filter(Boolean).join(' ');
   if (text) client.publish('peak/brain/intent', JSON.stringify({ node, text, at: Date.now() }));
 }
 

@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 import { readFileSync } from 'node:fs';
 import { DESCRIBE, GESTURES_PATH, gestureNames, loadGestureNames } from './gestures.js';
-import { EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, buildMessages, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
+import { DEVICE_RULES, EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, DEVICES, buildMessages, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
+import { DEVICES as KNOWN_DEVICES } from './devices.js';
 import { loadTricks } from './tricks.js';
 
 test('gesture names are exactly the keys of node/gestures.yaml', () => {
@@ -56,13 +57,13 @@ test('parseReply rejects bad JSON', () => {
 
 test('parseReply accepts a good reply', () => {
   const r = parseReply('{"gesture":"nod","say":"Yes."}');
-  assert.deepEqual(r.reply, { gesture: 'nod', eyes: null, say: 'Yes.' });
+  assert.deepEqual(r.reply, { gesture: 'nod', eyes: null, action: null, say: 'Yes.' });
   assert.equal(r.valid, true);
 });
 
 test('parseReply nulls an unknown gesture and counts it', () => {
   const r = parseReply('{"gesture":"moonwalk","say":null}');
-  assert.deepEqual(r.reply, { gesture: null, eyes: null, say: null });
+  assert.deepEqual(r.reply, { gesture: null, eyes: null, action: null, say: null });
   assert.equal(r.valid, false);
   assert.equal(r.violations.unknownGesture, true);
 });
@@ -147,10 +148,10 @@ test('without tricks, the default, the prompt and the reply shape have no eyes i
 
 test('parseReply keeps a known trick and nulls an unknown one, counted', () => {
   const good = parseReply('{"gesture":"nod","eyes":"wink","say":null}', undefined, names);
-  assert.deepEqual(good.reply, { gesture: 'nod', eyes: 'wink', say: null });
+  assert.deepEqual(good.reply, { gesture: 'nod', eyes: 'wink', action: null, say: null });
   assert.equal(good.valid, true);
   const bad = parseReply('{"gesture":null,"eyes":"moonwalk","say":"Hi."}', undefined, names);
-  assert.deepEqual(bad.reply, { gesture: null, eyes: null, say: 'Hi.' });
+  assert.deepEqual(bad.reply, { gesture: null, eyes: null, action: null, say: 'Hi.' });
   assert.equal(bad.violations.unknownEyes, true);
   assert.equal(bad.valid, false);
   assert.equal(parseReply('{"gesture":"wave","say":"Hi."}', undefined, names).reply.eyes, null);
@@ -160,4 +161,57 @@ test('the gesture is still read early with eyes after it', () => {
   assert.equal(earlyGesture('{"gesture":"wave","eyes":'), 'wave');
   assert.equal(earlyGesture('{"gesture": null, "eyes": "happy"'), null);
   assert.equal(earlyGesture('{"gesture":"wa'), undefined);
+});
+
+// The action field is off unless PEAK_BRAIN_DEVICES=1, so these build the prompt and schema with the devices handed in.
+const actions = Object.keys(KNOWN_DEVICES.actions);
+const withDevices = buildSystem(undefined, undefined, undefined, {}, KNOWN_DEVICES);
+const withBoth = buildSystem(undefined, undefined, undefined, tricks, KNOWN_DEVICES);
+
+test('with devices the brain can name an action, after the eyes and before the words', () => {
+  assert.deepEqual(Object.keys(buildSchema([], actions).properties), ['gesture', 'action', 'say']);
+  assert.deepEqual(Object.keys(buildSchema(names, actions).properties), ['gesture', 'eyes', 'action', 'say']);
+  assert.deepEqual(buildSchema(names, actions).properties.action.enum, [...actions, null]);
+  assert.deepEqual(buildSchema(names, actions).required, ['gesture', 'eyes', 'action', 'say']);
+  assert.ok(actions.includes('light_off'));
+});
+
+test('with devices the system prompt lists each device and its actions, carries the device rules and shows action in every example', () => {
+  for (const [name, device] of Object.entries(KNOWN_DEVICES.devices)) assert.ok(withDevices.includes(`- ${name}: ${device.describe}`), name);
+  for (const [name, action] of Object.entries(KNOWN_DEVICES.actions)) assert.ok(withDevices.includes(`  - ${name}: ${action.describe}`), name);
+  for (const line of DEVICE_RULES.split('\n')) assert.ok(withDevices.includes(line), line);
+  assert.match(withDevices, /\{"gesture": <name or null>, "action": <name or null>, "say": <one short sentence or null>\}/);
+  assert.match(withBoth, /\{"gesture": <name or null>, "eyes": <name or null>, "action": <name or null>, "say": <one short sentence or null>\}/);
+  const examples = withDevices.split('Examples:\n')[1].split('\n');
+  for (const line of examples) assert.match(line, /-> \{"gesture":("[a-z_]+"|null),"action":("[a-z_]+"|null),"say":/, line);
+  assert.ok(examples.some(line => line.includes('"action":"light_on"')));
+  assert.ok(examples.filter(line => line.includes('"action":null')).length > examples.length / 2, 'action is null in most examples');
+  for (const line of withBoth.split('Examples:\n')[1].split('\n')) assert.match(line, /"eyes":("[a-z_]+"|null),"action":("[a-z_]+"|null),"say":/, line);
+});
+
+test('a device example is shown only when its action exists', () => {
+  const lamp = { devices: { lamp: { describe: 'a lamp.', base: 'peak/lamp', status: 'peak/lamp/status', actions: ['lamp_on'] } }, actions: { lamp_on: { device: 'lamp', describe: 'on.', topic: 'peak/lamp/cmd', payload: '1' } } };
+  const prompt = buildSystem(undefined, undefined, undefined, {}, lamp);
+  assert.doesNotMatch(prompt, /light_on|light_dim/);
+  assert.match(prompt, /"Don't touch the light"/);
+});
+
+test('without devices, the default, the prompt and the reply shape have no action in them', () => {
+  if (process.env.PEAK_BRAIN_DEVICES !== '1') {
+    assert.deepEqual(DEVICES, { devices: {}, actions: {} });
+    assert.ok(!('action' in REPLY_SCHEMA.properties));
+  }
+  const plain = buildSystem(undefined, undefined, undefined, {}, { devices: {}, actions: {} });
+  assert.doesNotMatch(plain, /action|Devices|light/);
+  assert.doesNotMatch(withEyes, /action|Devices/);
+});
+
+test('parseReply keeps a known action and nulls an unknown one, counted', () => {
+  const good = parseReply('{"gesture":null,"eyes":null,"action":"light_off","say":null}', undefined, names, actions);
+  assert.deepEqual(good.reply, { gesture: null, eyes: null, action: 'light_off', say: null });
+  assert.equal(good.valid, true);
+  const bad = parseReply('{"gesture":null,"action":"warp_drive","say":"Hi."}', undefined, names, actions);
+  assert.deepEqual(bad.reply, { gesture: null, eyes: null, action: null, say: 'Hi.' });
+  assert.equal(bad.violations.unknownAction, true);
+  assert.equal(bad.valid, false);
 });

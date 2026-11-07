@@ -1,10 +1,12 @@
 // Tricks: named sequences the hive can play on a body: eye moves, a gesture, a line, pauses. They are data
 // (tricks/tricks.yaml), so a new trick is a new entry, not new code. A second file, tricks/learned.yaml, is
 // for tricks added while the mind runs: nothing writes it yet, but appendTrick() is the door for teaching by
-// voice and for Lupin later. Both files pass the same check, against the body's own command contract.
+// voice and for Lupin later. Both files pass the same check, against the body's own command contract. A step may
+// also switch a device (an action from devices/devices.yaml), so a trick can turn the room's light off.
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { parse, stringify } from 'yaml';
 import { gestureNames } from './gestures.js';
+import { actionNames } from './devices.js';
 
 export const TRICKS_PATH = new URL('../tricks/tricks.yaml', import.meta.url);
 export const LEARNED_PATH = new URL('../tricks/learned.yaml', import.meta.url);
@@ -36,12 +38,13 @@ function misfit(spec, v) {
   return null;
 }
 
-function stepProblem(step, gestures) {
-  if (!isObject(step) || Object.keys(step).length !== 1) return 'must have exactly one of eyes, gesture, say, wait';
+function stepProblem(step, gestures, actions) {
+  if (!isObject(step) || Object.keys(step).length !== 1) return 'must have exactly one of eyes, gesture, say, wait, action';
   const [[kind, v]] = Object.entries(step);
   switch (kind) {
     case 'eyes': { const bad = misfit({ properties: EYES }, v); return bad && `eyes ${bad}`; }
     case 'gesture': return gestures.includes(v) ? null : `gesture "${v}" is not in gestures.yaml`;
+    case 'action': return actions.includes(v) ? null : `action "${v}" is not in devices.yaml`;
     case 'say': return typeof v === 'string' && v.trim() && v.length <= SAY_MAX ? null : `say must be 1 to ${SAY_MAX} characters`;
     case 'wait': return Number.isInteger(v) && v >= 1 && v <= MAX_MS ? null : `wait must be 1 to ${MAX_MS} ms`;
     default: return `unknown step "${kind}"`;
@@ -49,9 +52,10 @@ function stepProblem(step, gestures) {
 }
 
 /** Why a trick cannot be used, or null. */
-export function trickProblem(name, trick, gestures = gestureNames) {
+export function trickProblem(name, trick, gestures = gestureNames, actions = actionNames) {
   if (!NAME.test(name)) return 'name must be 2 to 24 of a-z, 0-9 and _, starting with a letter';
   if (gestures.includes(name)) return 'name is already a gesture';
+  if (actions.includes(name)) return 'name is already a device action';
   if (!isObject(trick)) return 'must have describe and steps';
   const { describe, steps } = trick;
   if (typeof describe !== 'string' || !describe.trim() || describe.length > MAX_DESCRIBE || describe.includes('\n')) {
@@ -59,7 +63,7 @@ export function trickProblem(name, trick, gestures = gestureNames) {
   }
   if (!Array.isArray(steps) || !steps.length || steps.length > MAX_STEPS) return `needs 1 to ${MAX_STEPS} steps`;
   for (const [i, step] of steps.entries()) {
-    const bad = stepProblem(step, gestures);
+    const bad = stepProblem(step, gestures, actions);
     if (bad) return `step ${i + 1}: ${bad}`;
   }
   const waits = steps.reduce((ms, s) => ms + (s.wait ?? 0), 0);
@@ -72,17 +76,17 @@ function readYaml(path) {
 
 /** { name: { describe, steps, learned } }. A bad built-in trick is our mistake and throws; a bad learned one is
  *  left out with a warning, because a mind must still start with a damaged memory. Built-ins win a name clash. */
-export function loadTricks({ builtin = TRICKS_PATH, learned = LEARNED_PATH, gestures = gestureNames, warn = console.warn } = {}) {
+export function loadTricks({ builtin = TRICKS_PATH, learned = LEARNED_PATH, gestures = gestureNames, actions = actionNames, warn = console.warn } = {}) {
   const tricks = {};
   for (const [name, trick] of Object.entries(readYaml(builtin))) {
-    const bad = trickProblem(name, trick, gestures);
+    const bad = trickProblem(name, trick, gestures, actions);
     if (bad) throw new Error(`tricks.yaml: ${name}: ${bad}`);
     tricks[name] = { describe: trick.describe, steps: trick.steps, learned: false };
   }
   let remembered = {};
   try { remembered = readYaml(learned); } catch (e) { warn(`[tricks] learned.yaml unreadable, ignored: ${e.message}`); }
   for (const [name, trick] of Object.entries(isObject(remembered) ? remembered : {})) {
-    const bad = name in tricks ? 'a built-in trick has that name' : trickProblem(name, trick, gestures);
+    const bad = name in tricks ? 'a built-in trick has that name' : trickProblem(name, trick, gestures, actions);
     if (bad) { warn(`[tricks] learned trick ${name} ignored: ${bad}`); continue; }
     tricks[name] = { describe: trick.describe, steps: trick.steps, learned: true };
   }
@@ -91,18 +95,19 @@ export function loadTricks({ builtin = TRICKS_PATH, learned = LEARNED_PATH, gest
 
 /** Remember a new trick: checked, then appended to learned.yaml. Returns why not, or null when it is saved.
  *  The caller reloads with loadTricks(). */
-export function appendTrick(name, describe, steps, { learned = LEARNED_PATH, builtin = TRICKS_PATH, gestures = gestureNames } = {}) {
-  const bad = trickProblem(name, { describe, steps }, gestures);
+export function appendTrick(name, describe, steps, { learned = LEARNED_PATH, builtin = TRICKS_PATH, gestures = gestureNames, actions = actionNames } = {}) {
+  const bad = trickProblem(name, { describe, steps }, gestures, actions);
   if (bad) return bad;
-  if (name in loadTricks({ builtin, learned, gestures, warn: () => {} })) return 'a trick has that name already';
+  if (name in loadTricks({ builtin, learned, gestures, actions, warn: () => {} })) return 'a trick has that name already';
   appendFileSync(learned, stringify({ [name]: { describe, steps } }));
   return null;
 }
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-/** Plays tricks on bodies, one per body at a time: a newer trick or a stop takes the body from the one running. */
-export function createTrickPlayer(client, { tricks = loadTricks(), sleep = pause } = {}) {
+/** Plays tricks on bodies, one per body at a time: a newer trick or a stop takes the body from the one running.
+ *  `run(action)` is the device hub's; without it an action step is skipped. */
+export function createTrickPlayer(client, { tricks = loadTricks(), sleep = pause, run = null } = {}) {
   const running = new Map();
   const publish = (node, cmd) => client.publish(`peak/${node}/cmd`, JSON.stringify(cmd));
   return {
@@ -117,7 +122,9 @@ export function createTrickPlayer(client, { tricks = loadTricks(), sleep = pause
         if (running.get(node) !== turn) return false;
         const [[kind, value]] = Object.entries(step);
         if (kind === 'wait') await sleep(value);
-        else if (!skip.includes(kind)) publish(node, { [kind]: value });
+        else if (skip.includes(kind)) continue;
+        else if (kind === 'action') run?.(value);
+        else publish(node, { [kind]: value });
       }
       if (running.get(node) !== turn) return false;
       running.delete(node);

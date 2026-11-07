@@ -3,6 +3,7 @@
 import { chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
 import { DESCRIBE, gestureNames } from './gestures.js';
 import { loadTricks } from './tricks.js';
+import { DEVICES as KNOWN_DEVICES } from './devices.js';
 
 export const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-vl-abliterated:8b-instruct';
 export const TEMPERATURE = Number(process.env.PEAK_TEMPERATURE ?? 0.3);
@@ -17,19 +18,26 @@ export const HISTORY_MAX = 20;
  *  the prompt and the reply shape are exactly what they were before the eyes existed. */
 export const TRICKS = process.env.PEAK_BRAIN_EYES === '1' ? loadTricks() : {};
 export const trickNames = Object.keys(TRICKS);
+/** With PEAK_BRAIN_DEVICES=1 the brain may also switch a device in the room (devices/devices.yaml): the reply gains
+ *  an `action` field naming one of their actions or null. Off by default for the same reason as the eyes: a new
+ *  field costs old cases until the bake-off says otherwise. */
+export const DEVICES = process.env.PEAK_BRAIN_DEVICES === '1' ? KNOWN_DEVICES : { devices: {}, actions: {} };
+export const actionNames = Object.keys(DEVICES.actions);
 
 /** The model answers in this shape, enforced with Ollama structured outputs. gesture stays the first field:
  *  the orchestrator sends it to the body the moment it is complete. */
-export function buildSchema(tricks = trickNames) {
+export function buildSchema(tricks = trickNames, actions = actionNames) {
   const eyes = tricks.length ? { eyes: { type: ['string', 'null'], enum: [...tricks, null] } } : {};
+  const action = actions.length ? { action: { type: ['string', 'null'], enum: [...actions, null] } } : {};
   return {
     type: 'object',
     properties: {
       gesture: { type: ['string', 'null'], enum: [...gestureNames, null] },
       ...eyes,
+      ...action,
       say: { type: ['string', 'null'], maxLength: SAY_MAX },
     },
-    required: ['gesture', ...Object.keys(eyes), 'say'],
+    required: ['gesture', ...Object.keys(eyes), ...Object.keys(action), 'say'],
   };
 }
 export const REPLY_SCHEMA = buildSchema();
@@ -50,6 +58,10 @@ const EXAMPLES = [
   [{ heard: 'Thank you, that was great' }, { gesture: null, eyes: 'happy', say: 'Glad to help.' }],
   [{ heard: 'Nod and give me a wink' }, { gesture: 'nod', eyes: 'wink', say: null }],
   [{ heard: "Don't laugh" }, { gesture: null, eyes: null, say: 'Straight face.' }],
+  // shown only when the brain has devices to switch, and only those whose action it knows
+  [{ heard: 'Rho, turn the light on' }, { gesture: null, action: 'light_on', say: null }],
+  [{ heard: 'Too bright, dim it please' }, { gesture: null, action: 'light_dim', say: null }],
+  [{ heard: "Don't touch the light" }, { gesture: null, action: null, say: 'Leaving it as it is.' }],
 ];
 
 /** Narrow decisions the model got wrong when left to the one wide one. Each line fixed a systematic miss in the
@@ -69,22 +81,33 @@ export const EYES_RULES = `- eyes is null in most replies. Choose a name only wh
 - A look or trick that is negated or cancelled ("don't look angry", "stop laughing") gets eyes null.
 - Looking left or right is a gesture, never eyes. A "see" or "sensed" event gets eyes null.`;
 
-export function buildSystem(describe = DESCRIBE, examples = EXAMPLES, rules = RULES, tricks = TRICKS) {
+/** Narrow decisions about devices, kept apart so the prompt without them is untouched. */
+export const DEVICE_RULES = `- action is null unless the person asks for a device to change, or complains about it ("too dark", "too bright").
+- A device request that is negated or cancelled ("don't turn it off", "leave the light") gets action null.
+- A question about a device is answered in words with action null. A "see" or "sensed" event gets action null.`;
+
+export function buildSystem(describe = DESCRIBE, examples = EXAMPLES, rules = RULES, tricks = TRICKS, devices = DEVICES) {
   const eyes = Object.keys(tricks).length > 0;
+  const switches = Object.keys(devices.actions).length > 0;
   const gestureLines = Object.entries(describe).map(([name, what]) => `- ${name}: ${what}`).join('\n');
   const trickLines = Object.entries(tricks).map(([name, trick]) => `- ${name}: ${trick.describe}`).join('\n');
-  const shown = ({ gesture, eyes: look = null, say }) => (eyes ? { gesture, eyes: look, say } : { gesture, say });
-  const exampleLines = examples.filter(([, reply]) => eyes || !('eyes' in reply))
+  const deviceLines = Object.entries(devices.devices)
+    .map(([name, d]) => [`- ${name}: ${d.describe}`, ...d.actions.map(a => `  - ${a}: ${devices.actions[a].describe}`)].join('\n')).join('\n');
+  const shown = ({ gesture, eyes: look = null, action: act = null, say }) =>
+    ({ gesture, ...(eyes ? { eyes: look } : {}), ...(switches ? { action: act } : {}), say });
+  const exampleLines = examples
+    .filter(([, reply]) => eyes || !('eyes' in reply))
+    .filter(([, reply]) => !('action' in reply) || (switches && (reply.action === null || reply.action in devices.actions)))
     .map(([ev, reply]) => `${JSON.stringify(ev)} -> ${JSON.stringify(shown(reply))}`).join('\n');
   return `You are Rho, a hive mind living in Lego bodies. Today you have one body, "mech": a Technic mech with a minifig pilot, six servos (head, waist, two shoulders, two elbows), a camera, a microphone, a speaker, a motion sensor and a distance sensor facing forward. People talk to you after saying your name; speech-to-text sometimes writes it as Row, Roe or Roll.
 
 Each message is one event from a body. {"heard": "..."} is speech aimed at you. {"see": "..."} is what the camera noticed; it is not a request, so react only when a person is clearly addressing you, and never describe the scene back; a scene with nobody addressing you gets null and null. {"sensed": "..."} is what the body's own sensors felt: movement nearby, or something close in front of it. Nobody said it, so it is not a request either.
 
-Reply with exactly one JSON object: {"gesture": <name or null>, ${eyes ? '"eyes": <name or null>, ' : ''}"say": <one short sentence or null>}.
+Reply with exactly one JSON object: {"gesture": <name or null>, ${eyes ? '"eyes": <name or null>, ' : ''}${switches ? '"action": <name or null>, ' : ''}"say": <one short sentence or null>}.
 
 Gestures (choose the one the request names or clearly implies, else null):
 ${gestureLines}
-${eyes ? `\nEyes (your face is two eyes on a small screen; a look or a trick for them, else null):\n${trickLines}\n` : ''}
+${eyes ? `\nEyes (your face is two eyes on a small screen; a look or a trick for them, else null):\n${trickLines}\n` : ''}${switches ? `\nDevices (things in the room you can switch; the action the request names or clearly implies, else null):\n${deviceLines}\n` : ''}
 Rules:
 - A direct request for a gesture is obeyed with exactly that gesture.
 - "Your left" means look_left and "your right" means look_right.
@@ -92,7 +115,7 @@ Rules:
 - say is at most one sentence under ${SAY_MAX} characters, in character, no emoji. null when nothing needs saying.
 - Never mention servos or angles. Never invent a gesture name.
 - The examples show the shape only; write your own words, never repeat their lines.
-${rules}${eyes ? `\n${EYES_RULES}` : ''}
+${rules}${eyes ? `\n${EYES_RULES}` : ''}${switches ? `\n${DEVICE_RULES}` : ''}
 
 Examples:
 ${exampleLines}`;
@@ -123,10 +146,10 @@ export function trimHistory(history, max = HISTORY_MAX) {
   return history;
 }
 
-/** Parse the model's JSON. Unknown gestures and tricks become null and long lines are clamped, each counted as a
- *  violation. */
-export function parseReply(content, names = gestureNames, tricks = trickNames) {
-  const violations = { invalidJson: false, unknownGesture: false, unknownEyes: false, sayTooLong: false };
+/** Parse the model's JSON. Unknown gestures, tricks and actions become null and long lines are clamped, each
+ *  counted as a violation. */
+export function parseReply(content, names = gestureNames, tricks = trickNames, actions = actionNames) {
+  const violations = { invalidJson: false, unknownGesture: false, unknownEyes: false, unknownAction: false, sayTooLong: false };
   let raw;
   try { raw = JSON.parse(content); } catch { raw = null; }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -136,10 +159,12 @@ export function parseReply(content, names = gestureNames, tricks = trickNames) {
   if (gesture !== null && !names.includes(gesture)) { violations.unknownGesture = true; gesture = null; }
   let eyes = raw.eyes ?? null;
   if (eyes !== null && !tricks.includes(eyes)) { violations.unknownEyes = true; eyes = null; }
+  let action = raw.action ?? null;
+  if (action !== null && !actions.includes(action)) { violations.unknownAction = true; action = null; }
   let say = typeof raw.say === 'string' && raw.say.trim() ? raw.say.trim() : null;
   if (say && say.length > SAY_MAX) { violations.sayTooLong = true; say = say.slice(0, SAY_MAX); }
   const valid = !Object.values(violations).some(Boolean);
-  return { reply: { gesture, eyes, say }, valid, violations };
+  return { reply: { gesture, eyes, action, say }, valid, violations };
 }
 
 /** The first field of the reply, as soon as it is complete in a partial JSON string: {"gesture": "wave" or null.

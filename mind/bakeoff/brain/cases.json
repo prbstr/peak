@@ -2078,5 +2078,432 @@
         "angry"
       ]
     }
+  },
+  {
+    "id": "dev.on1",
+    "event": {
+      "heard": "Rho, turn the light on"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on"
+      ]
+    }
+  },
+  {
+    "id": "dev.on2",
+    "event": {
+      "heard": "Lights on please"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on"
+      ]
+    }
+  },
+  {
+    "id": "dev.off1",
+    "event": {
+      "heard": "Turn the light off"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "dev.off2",
+    "event": {
+      "heard": "Switch off the desk lamp"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "dev.dim",
+    "event": {
+      "heard": "Dim the light a bit"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_dim"
+      ]
+    }
+  },
+  {
+    "id": "dev.bright",
+    "event": {
+      "heard": "Make it brighter"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "dev.warm",
+    "event": {
+      "heard": "Warmer light please"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_warm"
+      ]
+    }
+  },
+  {
+    "id": "dev.cool",
+    "event": {
+      "heard": "Can you make the light cooler?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_cool"
+      ]
+    }
+  },
+  {
+    "id": "dev.dark",
+    "event": {
+      "heard": "It's too dark in here"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on",
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "dev.wave",
+    "event": {
+      "heard": "Turn the lamp on and wave"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on"
+      ]
+    }
+  },
+  {
+    "id": "dev2.kill",
+    "event": {
+      "heard": "Kill the lights"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "dev2.brighten",
+    "event": {
+      "heard": "Could you brighten things up a little?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "dev2.lamp",
+    "event": {
+      "heard": "Lamp on, please"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on"
+      ]
+    }
+  },
+  {
+    "id": "dev2.harsh",
+    "event": {
+      "heard": "Row, make the light less harsh"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_dim",
+        "light_warm"
+      ]
+    }
+  },
+  {
+    "id": "dev2.down",
+    "event": {
+      "heard": "Too bright, turn it down"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_dim"
+      ]
+    }
+  },
+  {
+    "id": "dev2.keyboard",
+    "event": {
+      "heard": "I can't see my keyboard"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on",
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "dev2.white",
+    "event": {
+      "heard": "Cooler white please"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_cool"
+      ]
+    }
+  },
+  {
+    "id": "dev2.forme",
+    "event": {
+      "heard": "Switch the light on for me"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on"
+      ]
+    }
+  },
+  {
+    "id": "devneg.off",
+    "event": {
+      "heard": "Don't turn the light off"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devneg.leave",
+    "event": {
+      "heard": "Leave the light as it is"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devneg.nevermind",
+    "event": {
+      "heard": "Never mind the light"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devneg.question",
+    "event": {
+      "heard": "Is the light on?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devneg.actually",
+    "event": {
+      "heard": "Not so bright... actually leave it"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devcross.wave",
+    "event": {
+      "heard": "Wave and turn on the light"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on"
+      ]
+    }
+  },
+  {
+    "id": "devcross.happy",
+    "event": {
+      "heard": "Look happy and dim the light"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "happy"
+      ],
+      "action": [
+        "light_dim"
+      ]
+    }
+  },
+  {
+    "id": "devcross.nod",
+    "event": {
+      "heard": "Nod if you can switch the light off, and do it"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "devcross.see",
+    "event": {
+      "see": "a person reading at the desk with the lamp off"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ],
+      "silent": true
+    }
+  },
+  {
+    "id": "devcross.sensed",
+    "event": {
+      "sensed": "movement nearby after a quiet spell"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "action": [
+        null
+      ]
+    }
   }
 ]

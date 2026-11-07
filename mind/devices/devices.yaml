@@ -1,0 +1,43 @@
+# Devices: things in the room the hive can switch. Each is a node on the broker like a body, with no senses and
+# no gestures: its own firmware says which topics it listens on, and this file maps the brain's actions onto them.
+#   describe: what the brain is told the device is (one line)
+#   base:     the topic prefix the firmware uses; every topic below sits under it
+#   status:   topic under base whose retained payload is "online" or "offline" (set by the firmware's Last Will);
+#             default "status", the hive's own convention
+#   actions:  what the brain may ask for. Each has describe (one line, for the brain), topic (under base) and
+#             payload (a string sent as is, or an object sent as JSON). Names share one namespace with gestures
+#             and tricks, because the brain names any of them in one word.
+# A new device is a new entry here; nothing else changes. Its firmware and wiring live in devices/<name>/ at the
+# repo root. The desk light runs lightbar2mqtt (https://github.com/ebinf/lightbar2mqtt): absolute levels only,
+# brightness 0 to 15 and colour in mireds 153 (cool) to 370 (warm), so "brighter" and "dimmer" are presets.
+desk_light:
+  describe: 'the desk light, a Xiaomi light bar above the monitor; an ESP32 acts as its remote.'
+  # The ESP prints its root topic at boot ("peak — Desk light guide", Step 3): peak/desk-light/l2m_<MAC>.
+  base: peak/desk-light/l2m_000000000000
+  status: availability
+  actions:
+    light_on:
+      describe: 'switch the desk light on. For "lights on", "turn on the lamp", or when someone says it is dark.'
+      # 0x followed by the puck's serial, learned in Step 4 of the guide
+      topic: 0x000000/command
+      payload: { state: 'ON' }
+    light_off:
+      describe: 'switch the desk light off. For "lights off", "kill the light", "turn off the lamp".'
+      topic: 0x000000/command
+      payload: { state: 'OFF' }
+    light_bright:
+      describe: 'desk light to full brightness. For "brighter", "more light", "I cannot see".'
+      topic: 0x000000/command
+      payload: { brightness: 15 }
+    light_dim:
+      describe: 'desk light down low. For "dim it", "too bright", "softer", "turn it down".'
+      topic: 0x000000/command
+      payload: { brightness: 3 }
+    light_warm:
+      describe: 'desk light to warm white. For "warmer", "cosier", "less harsh", "evening light".'
+      topic: 0x000000/command
+      payload: { color_temp: 370 }
+    light_cool:
+      describe: 'desk light to cool white. For "cooler", "whiter", "daylight", "crisper".'
+      topic: 0x000000/command
+      payload: { color_temp: 153 }

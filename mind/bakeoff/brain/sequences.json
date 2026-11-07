@@ -450,5 +450,90 @@
         }
       }
     ]
+  },
+  {
+    "id": "seq.dev",
+    "steps": [
+      {
+        "event": {
+          "heard": "Rho, lights on"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "action": [
+            "light_on"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "Brighter"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "action": [
+            "light_bright"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "A bit warmer"
+        },
+        "expect": {
+          "gesture": [
+            null
+          ],
+          "sayRequired": false,
+          "action": [
+            "light_warm"
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "Thanks, that's perfect"
+        },
+        "expect": {
+          "gesture": [
+            null,
+            "nod"
+          ],
+          "sayRequired": true,
+          "eyes": [
+            "happy",
+            null
+          ],
+          "action": [
+            null
+          ]
+        }
+      },
+      {
+        "event": {
+          "heard": "Now off, I'm off to bed"
+        },
+        "expect": {
+          "gesture": [
+            null,
+            "wave"
+          ],
+          "sayRequired": false,
+          "eyes": [
+            "sleepy",
+            null
+          ],
+          "action": [
+            "light_off"
+          ]
+        }
+      }
+    ]
   }
 ]
