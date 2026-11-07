@@ -54,6 +54,8 @@ Working from an image file, now through the same Qwen3-VL model as the brain (`e
 
 **Pi camera live since 5 Nov 2026:** `camd.sh` (640x480, 15 fps H264 over UDP :5000) into `vision.js` into the brain, end to end. Two real frames were described accurately (a monitor edge with a purple cable and a brick wall; a ceiling light with "no people"), and the brain answered the empty scene with no gesture and no words. Not yet tested with a person in frame. The camera was lying loose on the desk, not mounted.
 
+**Desk camera, 7 Nov 2026 evening:** the Pi, with its camera, hung over the desk on the spare monitor arm, streaming 1920x1080 (sensor mode 2304:1296, full field of view) at 15 fps. Three 25 s recordings (looking at a part, wiring, phone then the ESP32). A hand tracker (MediaPipe, 6-7 ms a frame) finds busy hands where today's change gate fires once in 75 s; a crop around the hands with a "desk" prompt describes 13 of 19 busy moments right against 6.5 for the whole frame, which also invented soldering four times. One look is 5.5-6.5 s; several frames per look take 17 s. Detail in `mind/bakeoff/desk/README.md`.
+
 ## Sensors
 
 Live since 5 Nov 2026. `servod` on the Pi (started by hand with `PEAK_SIM=1`, servos simulated) publishes `peak/mech/sense` every second: ultrasonic distance (read 7-37 cm against a hand and the desk), PIR `motion` (true in 3 of 20 readings while the owner was at the desk), SoC temperature, and the `throttled` power flags.
