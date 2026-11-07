@@ -16,3 +16,4 @@ CLAUDE.local.md
 # Device firmware: the clone is made at flash time; config.h holds the Wi-Fi password
 devices/*/Lightbar/
 devices/*/config.h
+mind/run/

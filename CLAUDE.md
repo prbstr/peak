@@ -40,7 +40,7 @@ Start:
 
 1. `git status` and `git log -5`. Another session may have committed since this file was loaded into your context; re-read a file before you edit it, and commit only your own files.
 2. See what is running before you start anything: `pgrep -fl "orchestrator/index.js|senses/|voice/homepod|whisper-server"` on the Mac, `mosquitto_sub -t peak/mech/status -C 1 -W 3` for the body. Two minds answer every event twice.
-3. The Mac processes are background tasks of whichever session started them and stop when that session closes. Do not stop a process another session started unless the owner says so in this chat.
+3. Since 7 Nov evening the Mac processes are started detached by `npm run up` (pids and logs in `mind/run/`) and outlive any session; `npm run status` shows them. A session may still have started one by hand as its own background task. Do not stop a process another session started unless the owner says so in this chat; `npm run down` stops them all, so use it only on his word.
 4. A faked `heard` event is spoken aloud on the HomePod in the bedroom while the voice process runs. Mind the hour.
 
 End, when anything changed:
@@ -107,7 +107,7 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 | Voice | Speaks through the HomePod mini "Bedroom". | |
 | Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
 | Pi power | Fixed 7 Nov by the official 5.1 V 2.5 A micro-USB supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run |
-| Persistence | Nothing survives a reboot. Pi: `servod`, `camd.sh`, `audiod.sh` started by hand; `peak-servod.service` not installed. Mac: mind, senses, voice and whisper run as tasks of Claude sessions. | |
+| Persistence | Nothing survives a reboot, but one command brings it all back: `npm run up` (Mac parts detached, Pi daemons over ssh). `peak-servod.service` not installed. | |
 
 ## Next steps
 
@@ -140,7 +140,8 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 
 | Task | Command |
 | --- | --- |
-| Run the mind | `npm start` |
+| Start all of Rho | `npm run up` (whisper, mind, hearing, vision, presence, voice as detached processes with logs in `mind/run/`; starts the Pi daemons over ssh if the body is offline; `-- mind voice` for some parts). `npm run status` lists them; `npm run down` stops the Mac side, `-- body` the Pi too. Since 7 Nov evening. |
+| Run the mind alone, in the foreground | `npm start` |
 | Whisper server (hearing needs it) | `npm run whisper` (port 8178, `~/.cache/whisper.cpp/ggml-medium.en.bin`; `PEAK_WHISPER_GGML` picks another model) |
 | Hearing, Pi mic | Pi: `PEAK_MIND=192.168.0.139 ~/peak/node/audiod.sh`; Mac: `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing` |
 | Hearing, Mac mic | `npm run hearing` |
@@ -170,7 +171,7 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 | Pi power over a window | On the Pi: `~/peak/node/powerwatch.sh 30` (read `undervoltage_now`; `kernel_dips` counts only new dips, so it reads 0 while the Pi is under the whole time) |
 | What drawing the eyes costs | Start `servod` with `PEAK_FACE_STATS=1` (`full` sends whole frames, to compare) |
 
-Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` and `PEAK_VISION_MODEL` (the same tag, so Ollama loads it once), `PEAK_BRAIN_EYES`, `PEAK_BRAIN_DEVICES`, `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
+Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` and `PEAK_VISION_MODEL` (the same tag, so Ollama loads it once), `PEAK_BRAIN_EYES` (1 since 5 Nov), `PEAK_BRAIN_DEVICES` (1 since 7 Nov), `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
 
 ## Environment facts
 
