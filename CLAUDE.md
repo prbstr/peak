@@ -193,6 +193,8 @@ One line each. The story and the numbers are in `docs/gotchas.md`.
 
 Pi and ssh
 - Never `pkill -f` on the Pi with a pattern that is in your own ssh command line. For `pgrep`, bracket a letter: `pgrep -f "[r]picam-vid"`.
+- The bracket trick is not enough when the same ssh command also starts the program: `pgrep -f "[s]ervod.py" || start servod.py` matches itself and never starts anything. Judge the Pi daemons by their pid files (`kill -0 $(cat ~/peak/servod.pid)`), as `up.sh` does.
+- `servod` died silently once on 7 Nov evening (log ended mid-chat, no error, Pi up 6 h, power fine); the mic's ffmpeg survived it. Cause unknown; `npm run up` brings it back.
 - Background one plain command over ssh; `cd dir && VAR=x nohup cmd &` hangs the call.
 - The Pi is undervolted and has hung under load. Watch `throttled` in every sense message.
 - `say` on the Pi goes to `espeak-ng` as an argv entry, never through a shell.

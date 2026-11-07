@@ -33,17 +33,26 @@ wants vision && start vision "senses/vision.js" npm run -s vision
 wants presence && start presence "senses/presence.js" npm run -s presence
 wants voice && start voice "voice/homepod.py" npm run -s voice
 
-# the body: servod (servos simulated until the PCA9685 is wired), camera and mic streams, each one plain ssh command
+# the body: servod (servos simulated until the PCA9685 is wired), camera and mic streams, each one plain ssh command.
+# "Already running" is judged by the pid files the daemons leave in ~/peak, never by pgrep: a pgrep pattern would
+# match this very ssh command line, which names the program it starts.
+alive() { ssh -o ConnectTimeout=5 "$PI" "kill -0 \"\$(cat ~/peak/$1.pid 2>/dev/null)\" 2>/dev/null"; }
 if wants body; then
-  status=$(mosquitto_sub -t peak/mech/status -C 1 -W 3 2>/dev/null || true)
-  if [ "$status" = "online" ]; then
-    echo "body: online"
+  if alive servod; then
+    echo "body: servod running"
   else
-    echo "body: $status, starting servod, camd and audiod on $PI"
-    ssh -o ConnectTimeout=5 "$PI" 'pgrep -f "[s]ervod.py" > /dev/null || (PEAK_SIM=1 PEAK_BROKER=twentyones-Mac-mini.local setsid nohup ~/peak/.venv/bin/python -u ~/peak/node/servod.py > ~/peak/servod.log 2>&1 < /dev/null & echo $! > ~/peak/servod.pid)'
+    echo "body: starting servod on $PI"
+    ssh -o ConnectTimeout=5 "$PI" 'PEAK_SIM=1 PEAK_BROKER=twentyones-Mac-mini.local setsid nohup ~/peak/.venv/bin/python -u ~/peak/node/servod.py > ~/peak/servod.log 2>&1 < /dev/null & echo $! > ~/peak/servod.pid'
   fi
-  ssh -o ConnectTimeout=5 "$PI" 'pgrep -f "[r]picam-vid" > /dev/null || (PEAK_MIND='"$PEAK_MIND"' setsid nohup ~/peak/node/camd.sh > ~/peak/camd.log 2>&1 < /dev/null &)'
-  ssh -o ConnectTimeout=5 "$PI" 'pgrep -f "[a]udiod|arecord|ffmpeg.*5001" > /dev/null || (PEAK_MIND='"$PEAK_MIND"' setsid nohup ~/peak/node/audiod.sh > ~/peak/audiod.log 2>&1 < /dev/null &)'
-  echo "body: camera and mic streams checked"
+  if alive camd; then echo "body: camera running"; else
+    echo "body: starting the camera stream"
+    ssh -o ConnectTimeout=5 "$PI" 'PEAK_MIND='"$PEAK_MIND"' setsid nohup ~/peak/node/camd.sh > ~/peak/camd.log 2>&1 < /dev/null & echo $! > ~/peak/camd.pid'
+  fi
+  if alive audiod; then echo "body: mic running"; else
+    echo "body: starting the mic stream"
+    ssh -o ConnectTimeout=5 "$PI" 'PEAK_MIND='"$PEAK_MIND"' setsid nohup ~/peak/node/audiod.sh > ~/peak/audiod.log 2>&1 < /dev/null & echo $! > ~/peak/audiod.pid'
+  fi
+  sleep 4
+  echo "body: $(mosquitto_sub -t peak/mech/status -C 1 -W 5 2>/dev/null || echo 'no answer')"
 fi
 echo "ready: say \"Rho\", pause, then the request. npm run status shows the parts; npm run down stops them."
