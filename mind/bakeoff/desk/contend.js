@@ -43,7 +43,8 @@ const phase = async name => {
     rows.push(await probe());
   }
   const g = rows.map(r => r.gestureMs), t = rows.map(r => r.totalMs), p = rows.map(r => r.promptMs);
-  console.log(`${name.padEnd(22)} gesture median ${median(g)} ms, max ${Math.max(...g)} | reply median ${median(t)} ms, max ${Math.max(...t)} | prompt eval median ${median(p)} ms`);
+  const p90 = xs => [...xs].sort((a, b) => a - b)[Math.floor(xs.length * 0.9)];
+  console.log(`${name.padEnd(22)} gesture median ${median(g)} ms, p90 ${p90(g)}, max ${Math.max(...g)} | reply median ${median(t)} ms, p90 ${p90(t)}, max ${Math.max(...t)} | prompt eval median ${median(p)} ms`);
   console.log(`   say: ${rows.at(-1).say}`);
   return rows;
 };

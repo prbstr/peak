@@ -35,6 +35,32 @@ HC-SR04 in its bag ("blue keycaps", "plastic bottle"), hands moving fast (blurre
 called a circuit board. The prompt change was one run on one evening; the timings in that run are cached and
 not counted.
 
+## A second, smaller model for the desk (7 Nov 2026, late)
+
+Built in, the 8B describing the desk made the brain wait: Ollama 0.40.13 runs qwen3vl on one slot
+("model architecture does not currently support parallel requests"), so a question asked during a look queues
+behind the image. `contend.js` asks the brain a desk question at random moments while looks run back to back on
+unique crops (204 = the 34 real crops at six offsets), 20 questions each:
+
+| Looks by | Gesture median / p90 / max | Reply median / p90 / max |
+| --- | --- | --- |
+| nothing (quiet) | 0.24 / 0.27 / 0.46 s | 0.88 / 0.93 / 1.1 s |
+| the 8B itself (one model) | 3.5 / 5.7 / 6.1 s | 4.1 / 6.4 / 6.7 s |
+| `qwen3-vl:4b-instruct` beside it | **0.80 / 1.1 / 1.1 s** | 3.0 / 4.1 / 4.1 s |
+
+The 4B never makes the brain queue; it only shares the GPU, which slows the spoken line. Accuracy on the same
+19 labelled moments (`labels.json`, hand crops, the desk prompt), half a point for partly right:
+
+| Model | Right | Notes |
+| --- | --- | --- |
+| 8B (brain's own) | 13 / 19 | |
+| `qwen3-vl:4b-instruct` (3.3 GB) | 12.5 / 19 | named the bagged HC-SR04 "a small blue plastic package containing electronic components" |
+| `qwen3-vl:2b-instruct` (1.9 GB) | 9 / 19 | scissors where there were wires; long sentences |
+| `gemma3:4b` (3.4 GB) | not scored | never loaded: with `OLLAMA_MAX_LOADED_MODELS=2` and two busy models its requests hung past 5 minutes |
+
+The 2B and gemma3 were deleted afterwards. Ollama starts these models with `--image-min-tokens 1024`, so a small
+crop costs as much as a 640 frame.
+
 ## Not yet
 
 A brighter room, a held-out recording, a tighter crop (the crop is 2x the hands and at least 640x480), and a

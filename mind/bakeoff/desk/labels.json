@@ -1,0 +1,26 @@
+{
+  "_about": "What the hands were really doing at each moment of the 7 Nov 2026 recordings (w1-w3, 25 s each), labelled from per-second contact sheets and full-resolution crops. Only moments with hands busy; idle moments (hands in the lap) are scored by the hand gate, not here.",
+  "w1": {
+    "0": "using the mouse", "3": "using the mouse", "6": "using the mouse",
+    "15": "picking up a small blue module (in a clear bag)",
+    "18": "turning over and looking at a blue module in a clear plastic bag",
+    "21": "turning over and looking at a blue module in a clear plastic bag",
+    "24": "putting the blue module down"
+  },
+  "w2": {
+    "12": "picking up a yellow jumper wire",
+    "15": "handling a small component with a yellow wire",
+    "18": "connecting a yellow wire to a small component",
+    "21": "connecting a yellow wire to a small component"
+  },
+  "w3": {
+    "3": "letting go of the mouse",
+    "6": "holding a smartphone in both hands",
+    "9": "holding a smartphone in both hands",
+    "12": "holding a smartphone in both hands",
+    "15": "putting the phone down and reaching for a small board",
+    "18": "holding a small black circuit board (the ESP32) with a yellow wire",
+    "21": "holding the small black circuit board",
+    "24": "holding the small black circuit board at the keyboard"
+  }
+}

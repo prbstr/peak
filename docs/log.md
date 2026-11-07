@@ -58,6 +58,8 @@ Working from an image file, now through the same Qwen3-VL model as the brain (`e
 
 **Desk camera built into Rho, 7 Nov 2026 late:** `vision.js` desk mode (hands.py + crop + `{"doing"}`), kept by the mind as context for the next heard event. Live: "Bro, what am I holding?" while holding the ESP32-C3 got "You're connecting a micro USB cable to a Raspberry Pi Zero." (the board was misnamed; the plumbing worked). Brain bake-off with 8 new desk cases: 24/24, older groups unchanged. Cost: the brain queues behind a look. `bakeoff/desk/contend.js`, 10 probes each: gesture median 0.72 s quiet against 4.8 s (max 7.6 s) during looks. `OLLAMA_NUM_PARALLEL=2` was tried and reverted: Ollama 0.40.13 logs "model architecture does not currently support parallel requests" for qwen3vl and starts one slot regardless. Ollama also starts this model with `--image-min-tokens 1024`, which is why no image costs less than about 1,100 tokens.
 
+**A second model for the desk, 7 Nov 2026 late:** `qwen3-vl:4b-instruct` describing the crops beside the 8B brain: the brain's gesture during looks 0.80 s median, 1.1 s worst, against 3.5 s and 6.1 s when the 8B does both (20 questions each, unique crops). Accuracy 12.5 of 19 against the 8B's 13; `qwen3-vl:2b-instruct` 9 of 19. `gemma3:4b` never loaded under `OLLAMA_MAX_LOADED_MODELS=2`. Table in `mind/bakeoff/desk/README.md`.
+
 ## Sensors
 
 Live since 5 Nov 2026. `servod` on the Pi (started by hand with `PEAK_SIM=1`, servos simulated) publishes `peak/mech/sense` every second: ultrasonic distance (read 7-37 cm against a hand and the desk), PIR `motion` (true in 3 of 20 readings while the owner was at the desk), SoC temperature, and the `throttled` power flags.
