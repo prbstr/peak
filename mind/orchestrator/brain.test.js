@@ -113,10 +113,11 @@ test('the system prompt carries every tuning rule and the yes-answer example', (
 // The eyes field is off unless PEAK_BRAIN_EYES=1, so these build the prompt and schema with the tricks handed in.
 const tricks = loadTricks();
 const names = Object.keys(tricks);
-const withEyes = buildSystem(undefined, undefined, undefined, tricks);
+const noDevices = { devices: {}, actions: {} };
+const withEyes = buildSystem(undefined, undefined, undefined, tricks, noDevices);
 
 test('with tricks the brain can pick one for the eyes, after the gesture and before the words', () => {
-  const schema = buildSchema(names);
+  const schema = buildSchema(names, []);
   assert.deepEqual(Object.keys(schema.properties), ['gesture', 'eyes', 'say']);
   assert.deepEqual(schema.properties.eyes.enum, [...names, null]);
   assert.deepEqual(schema.required, ['gesture', 'eyes', 'say']);
@@ -134,16 +135,16 @@ test('with tricks the system prompt explains each one, carries the eyes rules an
 });
 
 test('without tricks, the default, the prompt and the reply shape have no eyes in them', () => {
-  if (process.env.PEAK_BRAIN_EYES !== '1') {
+  if (process.env.PEAK_BRAIN_EYES !== '1' && process.env.PEAK_BRAIN_DEVICES !== '1') {
     assert.deepEqual(TRICKS, {});
-    assert.equal(SYSTEM, buildSystem(undefined, undefined, undefined, {}));
-    assert.deepEqual(REPLY_SCHEMA, buildSchema([]));
+    assert.equal(SYSTEM, buildSystem(undefined, undefined, undefined, {}, noDevices));
+    assert.deepEqual(REPLY_SCHEMA, buildSchema([], []));
   }
-  const plain = buildSystem(undefined, undefined, undefined, {});
+  const plain = buildSystem(undefined, undefined, undefined, {}, noDevices);
   assert.doesNotMatch(plain, /eyes|Eyes|wink|peekaboo/);
   assert.match(plain, /\{"gesture": <name or null>, "say": <one short sentence or null>\}/);
-  assert.deepEqual(Object.keys(buildSchema([]).properties), ['gesture', 'say']);
-  assert.deepEqual(buildSchema([]).required, ['gesture', 'say']);
+  assert.deepEqual(Object.keys(buildSchema([], []).properties), ['gesture', 'say']);
+  assert.deepEqual(buildSchema([], []).required, ['gesture', 'say']);
 });
 
 test('parseReply keeps a known trick and nulls an unknown one, counted', () => {

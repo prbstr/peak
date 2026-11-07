@@ -84,8 +84,9 @@ test('the hub publishes an action on its own topic and follows the device\'s sta
   assert.deepEqual(client.sent, [['peak/lamp/l2m_1/cmd', '{"state":"ON"}'], ['peak/lamp/l2m_1/cmd', 'OFF']]);
   assert.equal(logged.length, 0);
   hub.status('peak/lamp/l2m_1/availability', Buffer.from('offline'));
-  assert.equal(hub.run('lamp_on'), true);
-  assert.match(logged[0], /lamp is not online; sending lamp_on anyway/);
+  assert.equal(hub.run('lamp_on'), false);
+  assert.equal(client.sent.length, 2);
+  assert.match(logged[0], /lamp is offline; lamp_on not sent/);
 });
 
 test('a trick may switch a device: the step is checked against the actions and played through the hub', async () => {

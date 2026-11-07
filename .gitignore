@@ -17,3 +17,8 @@ CLAUDE.local.md
 devices/*/Lightbar/
 devices/*/config.h
 mind/run/
+
+# ESPHome nodes: the venv, build output and secrets
+devices/.venv/
+devices/*/.esphome/
+devices/*/secrets.yaml

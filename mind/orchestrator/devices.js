@@ -85,14 +85,14 @@ export function createDeviceHub(client, { devices = DEVICES, log = console.log }
       if (up) online.add(device); else online.delete(device);
       return { device, online: up };
     },
-    /** Publish an action's payload on its topic. False for an unknown action. An offline device still gets it: the
-     *  broker holds nothing for it, but the device may be back before anyone notices. */
+    /** Publish an action's payload on its topic. False for an unknown action, or for a device that is not online:
+     *  nothing is queued for it on purpose, because a switch replayed minutes late is a real switch (the light bar
+     *  only understands "flip"), and the mind is told so it can say so. */
     run(name) {
       const action = devices.actions[name];
       if (!action) return false;
-      if (!online.has(action.device)) log(`[devices] ${action.device} is not online; sending ${name} anyway`);
-      // QoS 1: the desk light keeps a persistent session, so a command sent while it reconnects waits at the broker
-      client.publish(action.topic, action.payload, { qos: 1 });
+      if (!online.has(action.device)) { log(`[devices] ${action.device} is offline; ${name} not sent`); return false; }
+      client.publish(action.topic, action.payload);
       return true;
     },
   };

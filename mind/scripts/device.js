@@ -25,5 +25,6 @@ function finish() {
     return c.end();
   }
   const { topic, payload } = DEVICES.actions[name];
-  c.publish(topic, payload, { qos: 1 }, () => { console.log(`→ ${topic} ${payload}`); c.end(); });
+  if (!hub.online.has(DEVICES.actions[name].device)) console.log(`${DEVICES.actions[name].device} is offline; sending anyway`);
+  c.publish(topic, payload, () => { console.log(`→ ${topic} ${payload}`); c.end(); });
 }
