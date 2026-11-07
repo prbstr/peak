@@ -87,3 +87,16 @@ Unstable (undervoltage). Needs a better supply. 5 Nov 2026 with the camera strea
 ## Voice (text-to-speech)
 
 **Speaks through the HomePod mini since 5 Nov 2026** (`npm run voice`): the owner heard the test line, then two brain replies went out ("Got it." finished 3.2 s after the command, the connection kept open between lines). One line at a time, a newer one replaces a waiting one. On the Pi `say` still goes to espeak-ng, silent in sim and with no speaker attached; once a speaker is on the body, both would talk. Untested with the mic: the HomePod's own words will reach it, and a line containing "Peak" could wake the hearing gate.
+
+## Desk light (device)
+
+**7 Nov 2026, built and lit.** ESP32-C3 SuperMini + nRF24L01+ on seven F/F jumpers (CE 10, CSN 7, SCK 4, MOSI 6, MISO 5,
+3V3, GND), the owner's first soldering job (the two header strips), lightbar2mqtt 0.3 flashed with `arduino-cli`
+(esp32 core 3.3.12, `CDCOnBoot=cdc`). Radio check passed first time. Wi-Fi joined only after `WiFi.setTxPower(8.5 dBm)`
+(the SuperMini antenna trap): minutes of retries before, 2 s after. Board `l2m_E8F60A4E22A8`, IP 192.168.0.18; the
+puck's serial `0x08D722` heard four times in one press-and-turn. With the stock single-channel send (68) the bar went
+off but never back on; sending the burst over channels 6, 15, 43 and 68 fixed it: off-on-off-on, four of four on the
+glass, 9 s apart. By voice, with the mind on `PEAK_BRAIN_DEVICES=1`: "Row, light off" → light_off, "Bro, dim the
+light" (inside the attention window) and "Ro, dim the light" → light_dim, five of five brain picks right, 0.6-0.8 s
+each, the bar following. Dropped by the wake gate outside the window: "Bro ..." three times, "Roar!" and "Rome" once
+each. MQTT link flapped once during a radio burst on the first run, not again in three later runs.

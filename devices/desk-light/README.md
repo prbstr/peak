@@ -52,11 +52,14 @@ puck is `0x08D722` in `config.h` and `0x8d722` in the topics. The board is `l2m_
 | --- | --- |
 | In `Lightbar.ino`, after `WiFi.begin(...)`: `WiFi.mode(WIFI_STA);` before it and `WiFi.setTxPower(WIFI_POWER_8_5dBm);` after it | The ESP32-C3 SuperMini's antenna is mismatched; at full power it never associated (a dot a second for minutes). With 8.5 dBm it joined in 2 s. |
 | Build with `CDCOnBoot=cdc` | Without it the serial monitor over USB shows nothing: `Serial` is UART0 on pins 20/21. |
+| In `radio.cpp`, `setup()`: `radio.setPALevel(RF24_PA_LOW)`; in `Lightbar.ino`: `WiFi.setSleep(false)`; in `mqtt.cpp`: `connect(..., cleanSession=false)` and `subscribe(".../+/command", 1)`; and the mind publishes actions with QoS 1 | At full radio power the burst knocked the C3 off the broker, and a whole voice window's commands were lost while it reconnected (the mind saw it offline for a minute). Low power and no modem sleep make the drops rare; the persistent QoS 1 session makes a command sent during one wait at the broker instead of vanishing. After the change: six commands, two of them 1 s apart, all delivered, no drop. |
+| In `radio.cpp`, `sendCommand()`: the 20 writes hop over channels 6, 15, 43 and 68 (five each), then the channel goes back to 68 for listening | Sent on 68 alone, the bar switched off but never back on: in standby it does not listen on that channel. The original puck hops over these four (lamperez's notes); lamperez's own driver uses 6. With the hop, off-on-off-on worked four of four on the glass. Worth offering upstream. |
 
-Seen on the first live run: the MQTT link drops for a moment during each radio burst (`Sending command` →
-`connection lost!` → reconnect in about a second, availability flapping offline/online on the broker). The command
-had already gone out over the radio. If it bothers the mind, lower the nRF24's PA level (`radio.setPALevel(RF24_PA_LOW)`
-in `radio.cpp`'s `setup()`) or move the module a wire's length further from the board's antenna.
+Seen on the first live run, and not since the hopping patch (three runs, 11 commands, no drop): the MQTT link
+dropped for a moment during a radio burst (`Sending command` → `connection lost!` → reconnect in about a second,
+availability flapping on the broker). A command published while the link is down is lost. If it comes back, lower the
+nRF24's PA level (`radio.setPALevel(RF24_PA_LOW)` in `radio.cpp`'s `setup()`, what lamperez uses from close by) or
+move the module a wire's length further from the board's antenna.
 
 ## Topics the firmware uses
 

@@ -91,7 +91,8 @@ export function createDeviceHub(client, { devices = DEVICES, log = console.log }
       const action = devices.actions[name];
       if (!action) return false;
       if (!online.has(action.device)) log(`[devices] ${action.device} is not online; sending ${name} anyway`);
-      client.publish(action.topic, action.payload);
+      // QoS 1: the desk light keeps a persistent session, so a command sent while it reconnects waits at the broker
+      client.publish(action.topic, action.payload, { qos: 1 });
       return true;
     },
   };
