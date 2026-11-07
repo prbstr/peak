@@ -90,7 +90,7 @@ Pi (mech)                         Mac (mind)
 
 The aim for the eyes and tricks is a set that grows over time: the robot can be taught new tricks and skills, and later learns new things on its own.
 
-## Where things stand (5 Nov 2026, 23:00)
+## Where things stand (7 Nov 2026, 14:10)
 
 | Area | State | Not yet checked |
 | --- | --- | --- |
@@ -100,15 +100,15 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 | Brain | `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes. Every bake-off group at 100% bar one known miss ("can you not your head"). Gesture out at 0.25 s, reply 0.4-0.9 s. Picks tricks since the late restart on 5 Nov. | A trick asked for by voice. Replies took 2-7 s when a photo description was in the queue. |
 | Vision | Pi camera, 640x480 at 15 fps, described by the same model in 5.6 s, change-triggered. | A person in frame. The camera is loose on the desk. |
 | Sensors | Distance and PIR in every `sense`; `presence.js` turns arrivals and close approaches into `sensed` events. | MPU6050 (shares the OLED's pins until a breadboard arrives) |
-| Eyes (OLED) | RoboEyes port, reflexes, `eyes` command and eight tricks running on the Pi at 14 frames a second. Tired and sweating all the time because of the power supply. | The owner has not watched them on the glass |
+| Eyes (OLED) | RoboEyes port, reflexes, `eyes` command and eight tricks running on the Pi at 14 frames a second. The tired-and-sweating strain should be gone since the new supply (7 Nov); `throttled` reads 0x0 in every sense. | The owner has not watched them on the glass |
 | Voice | Speaks through the HomePod mini "Bedroom". | |
 | Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
-| Pi power | Undervolted the whole time (`throttled=0x50005`), CPU held at 600 MHz. Usable on the bench, not for servos. | Idle draw with the mic unplugged |
+| Pi power | Fixed 7 Nov by the owner's new supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run; the supply model is not logged |
 | Persistence | Nothing survives a reboot. Pi: `servod`, `camd.sh`, `audiod.sh` started by hand; `peak-servod.service` not installed. Mac: mind, senses, voice and whisper run as tasks of Claude sessions. | |
 
 ## Next steps
 
-1. **Pi power.** An official 5.1 V 2.5 A micro-USB supply. Done when `~/peak/node/powerwatch.sh 30` shows 0 undervoltage samples with camera and mic streaming and `vcgencmd get_throttled` reads `0x0` after a reboot.
+1. **Pi power.** Done 7 Nov 2026: the owner's new supply passed the test (`docs/log.md`, Pi power). Left: note the supply's model and rating there.
 2. **Owner watches the eyes** (60 s): idle and blinks, a hand inside 30 cm, "Rho, give me a wink", `npm run trick -- peekaboo`.
 3. **Teaching by voice.** A brain reply that defines a trick from the existing step kinds, saved with `appendTrick()`. The loader, check and merge exist. Learning on its own waits for Lupin (Stage C).
 4. **Eyes prompt.** v1 loses the wave on "night night" 2 times in 3 and nods while answering "two plus two". Try a goodnight example with a null gesture, or a rule; full bake-off each time.
