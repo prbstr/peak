@@ -19,6 +19,8 @@ const player = createTrickPlayer(client, { tricks: TRICKS, run: name => hub.run(
 
 /** Latest sense reading per node that is online: { mech: {...}, rover: {...} } */
 const hive = new Map();
+/** Latest {"doing"} per node from the desk camera: { text, at }. Added to the next heard event while fresh. */
+const desk = new Map();
 /** Rolling conversation so the character stays coherent */
 const history = [];
 /** One event thinks at a time. One more may wait; a newer event replaces it, because the
@@ -53,6 +55,11 @@ client.on('message', (topic, payload) => {
     hive.set(node, { ...data, at: Date.now() });
     return;
   }
+  // what the desk camera sees the hands doing is context, not something to answer: kept for the next thing heard
+  if (kind === 'event' && typeof data.doing === 'string') {
+    desk.set(node, { text: data.doing, at: Date.now() });
+    return console.log(`[mind] desk: ${data.doing}`);
+  }
   // events are things worth thinking about: a face seen, a word heard, a bump
   if (kind === 'event') {
     if (waiting) console.log('[mind] busy, replaced the waiting event');
@@ -77,7 +84,7 @@ async function drain() {
 }
 
 async function think(node, event) {
-  const messages = buildMessages(history, node, event, hive);
+  const messages = buildMessages(history, node, event, hive, desk.get(node));
   history.push(messages.at(-1));
   trimHistory(history);
 

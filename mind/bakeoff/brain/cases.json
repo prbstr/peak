@@ -2690,5 +2690,133 @@
         "light_off"
       ]
     }
+  },
+  {
+    "id": "desk.holding",
+    "event": {
+      "heard": "Rho, what am I holding?"
+    },
+    "desk": "The hands are holding a small black circuit board with a yellow wire attached.",
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "desk.part",
+    "event": {
+      "heard": "Rho, what's this part?"
+    },
+    "desk": "The hands are holding a small blue module in a clear plastic bag.",
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "desk.doing",
+    "event": {
+      "heard": "Rho, what do you think I'm doing?"
+    },
+    "desk": "The hands are plugging a yellow jumper wire into a pin header.",
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "desk.wave",
+    "event": {
+      "heard": "Rho, wave at me"
+    },
+    "desk": "The hands are holding a smartphone.",
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "desk.nod",
+    "event": {
+      "heard": "Nod if you can hear me"
+    },
+    "desk": "The hand is using a black gaming mouse with red lights.",
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "desk.left",
+    "event": {
+      "heard": "Rho, look to your left"
+    },
+    "desk": "The hands are typing on a black keyboard.",
+    "expect": {
+      "gesture": [
+        "look_left"
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "desk.dim",
+    "event": {
+      "heard": "Rho, dim the light"
+    },
+    "desk": "The hands are holding a pair of scissors.",
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_dim"
+      ]
+    }
+  },
+  {
+    "id": "desk.hello",
+    "event": {
+      "heard": "Hi Rho"
+    },
+    "desk": "The hands are holding a small circuit board with wires.",
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
   }
 ]

@@ -1,7 +1,8 @@
 // Brain bake-off. Every case in cases.json goes through the real buildMessages/askBrain path, once per run,
 // for each model. Scores gesture accuracy, JSON validity, latency, tokens/s and whether the model stays
 // resident next to the vision model. A case may also say which tricks the eyes may show ("eyes": [names or
-// null]) and which device action it expects ("action": [names or null]); cases that say nothing are counted
+// null]) and which device action it expects ("action": [names or null]), and what the desk camera saw ("desk":
+// a sentence, added 4 s old); cases that say nothing are counted
 // when the brain moves the eyes or switches a device anyway. Run from mind/:
 // npm run bakeoff:brain -- [flags]   (PEAK_BRAIN_EYES=1 and/or PEAK_BRAIN_DEVICES=1 in front to score those fields)
 //   --models a,b     comma list (default: models.json)
@@ -98,8 +99,9 @@ async function scoreModel(model) {
   log(`[bakeoff] ${model}: warm ${(warm.stats.totalMs / 1000).toFixed(1)}s (load ${warm.stats.loadMs}ms)`);
 
   const calls = [];
-  const score = async (id, run, event, expect, history) => {
-    const messages = buildMessages(history, 'mech', event, hive());
+  // a case's "desk" is what the desk camera saw 4 s before the event, the way the orchestrator adds it
+  const score = async (id, run, event, expect, history, desk) => {
+    const messages = buildMessages(history, 'mech', event, hive(), desk ? { text: desk, at: Date.now() - 4000 } : null);
     let early;
     const r = await askBrain({ model, messages, onGesture: args.stream ? g => { early = g; } : undefined });
     history.push(messages.at(-1), { role: 'assistant', content: r.content });
@@ -118,7 +120,7 @@ async function scoreModel(model) {
     log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${String(eyes ?? '-').padEnd(9)} ${String(action ?? '-').padEnd(12)} ${(r.stats.totalMs / 1000).toFixed(1)}s${r.gestureMs != null ? ` (gesture ${r.gestureMs}ms)` : ''} p=${r.confidence?.toFixed(2) ?? '-'} ${r.reply?.say ?? ''}`);
   };
   for (let run = 1; run <= runs; run++) {
-    for (const c of cases) await score(c.id, run, c.event, c.expect, []);
+    for (const c of cases) await score(c.id, run, c.event, c.expect, [], c.desk);
     for (const q of sequences) {
       const history = [];
       for (let i = 0; i < q.steps.length; i++) await score(`${q.id}.${i + 1}`, run, q.steps[i].event, q.steps[i].expect, history);

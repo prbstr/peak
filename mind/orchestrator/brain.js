@@ -130,11 +130,23 @@ export function summarizeHive(hive) {
   return names.length ? `Bodies online: ${names.join(', ')}` : '';
 }
 
-/** [system, ...history, user]. The user turn is the event plus the hive summary. */
-export function buildMessages(history, node, event, hive = new Map()) {
-  const summary = summarizeHive(hive);
-  const content = `[${node}] ${JSON.stringify(event)}${summary ? `\n${summary}` : ''}`;
-  return [{ role: 'system', content: SYSTEM }, ...history, { role: 'user', content }];
+/** How long what the desk camera saw stays worth telling the brain. */
+export const DESK_FRESH_MS = Number(process.env.PEAK_DESK_FRESH_S ?? 30) * 1000;
+
+/** What the desk camera last saw, as a line for something heard: "Your desk camera, 4 s ago: ...". Only for speech
+ *  (it answers "what am I holding?"), only while fresh, and empty otherwise, so every other prompt is unchanged. */
+export function deskLine(event, seen, now = Date.now(), fresh = DESK_FRESH_MS) {
+  if (!seen || !('heard' in event)) return '';
+  const age = now - seen.at;
+  if (age < 0 || age > fresh) return '';
+  return `Your desk camera, ${Math.round(age / 1000)} s ago: ${seen.text}`;
+}
+
+/** [system, ...history, user]. The user turn is the event, what the desk camera saw if it matters, and the hive
+ *  summary. */
+export function buildMessages(history, node, event, hive = new Map(), seen = null, now = Date.now()) {
+  const lines = [`[${node}] ${JSON.stringify(event)}`, deskLine(event, seen, now), summarizeHive(hive)].filter(Boolean);
+  return [{ role: 'system', content: SYSTEM }, ...history, { role: 'user', content: lines.join('\n') }];
 }
 
 /** Drop whole turns from the front so a user turn is never separated from its answer. */

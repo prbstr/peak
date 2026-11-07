@@ -28,9 +28,10 @@ export const statsOf = r => {
 export const formatStats = s =>
   `${(s.totalMs / 1000).toFixed(1)}s (load ${s.loadMs}ms, prompt ${s.promptTokens} tok ${s.promptMs}ms, out ${s.evalTokens} tok ${s.evalMs}ms, ${s.tokPerS} tok/s)`;
 
-async function post(path, body) {
+async function post(path, body, signal) {
   const res = await fetch(`${OLLAMA}${path}`, {
     method: 'POST',
+    signal,
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -44,9 +45,10 @@ async function get(path) {
   return res.json();
 }
 
-/** POST /api/chat without streaming. Returns the message, timing stats and token logprobs when asked for. */
-export async function chat(body) {
-  const r = await (await post('/api/chat', { stream: false, keep_alive: KEEP_ALIVE, ...body })).json();
+/** POST /api/chat without streaming. Returns the message, timing stats and token logprobs when asked for.
+ *  An AbortSignal as `signal` cancels the call; Ollama stops generating when the connection closes. */
+export async function chat({ signal, ...body }) {
+  const r = await (await post('/api/chat', { stream: false, keep_alive: KEEP_ALIVE, ...body }, signal)).json();
   return { message: r.message, stats: statsOf(r), logprobs: r.logprobs ?? r.message?.logprobs ?? null };
 }
 
@@ -128,4 +130,10 @@ export async function pull(model, onProgress = () => {}) {
 /** Evict a model now. */
 export async function unload(model) {
   await post('/api/generate', { model, keep_alive: 0 });
+}
+
+/** POST /api/embed: one vector per input string. The embedding model stays loaded as long as the brain does. */
+export async function embed({ model, input, signal }) {
+  const r = await (await post('/api/embed', { model, input, keep_alive: KEEP_ALIVE }, signal)).json();
+  return r.embeddings ?? [];
 }

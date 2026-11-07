@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 import { readFileSync } from 'node:fs';
 import { DESCRIBE, GESTURES_PATH, gestureNames, loadGestureNames } from './gestures.js';
-import { DEVICE_RULES, EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, DEVICES, buildMessages, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
+import { DEVICE_RULES, EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, DEVICES, buildMessages, deskLine, DESK_FRESH_MS, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
 import { DEVICES as KNOWN_DEVICES } from './devices.js';
 import { loadTricks } from './tricks.js';
 
@@ -215,4 +215,23 @@ test('parseReply keeps a known action and nulls an unknown one, counted', () => 
   assert.deepEqual(bad.reply, { gesture: null, eyes: null, action: null, say: 'Hi.' });
   assert.equal(bad.violations.unknownAction, true);
   assert.equal(bad.valid, false);
+});
+
+test('what the desk camera saw goes only with speech, only while fresh', () => {
+  const seen = { text: 'The hands are holding a small circuit board.', at: 1_000_000 };
+  assert.equal(deskLine({ heard: 'what am I holding?' }, seen, 1_004_000), 'Your desk camera, 4 s ago: The hands are holding a small circuit board.');
+  assert.equal(deskLine({ heard: 'hi' }, seen, 1_000_000 + DESK_FRESH_MS + 1), '');
+  assert.equal(deskLine({ see: 'a desk' }, seen, 1_001_000), '');
+  assert.equal(deskLine({ sensed: 'movement' }, seen, 1_001_000), '');
+  assert.equal(deskLine({ heard: 'hi' }, null, 1_001_000), '');
+});
+
+test('a prompt without a desk sighting is exactly what it was before', () => {
+  const hive = new Map([['mech', {}]]);
+  const plain = buildMessages([], 'mech', { heard: 'wave' }, hive);
+  assert.equal(plain.at(-1).content, '[mech] {"heard":"wave"}\nBodies online: mech');
+  const stale = buildMessages([], 'mech', { heard: 'wave' }, hive, { text: 'x', at: 0 }, DESK_FRESH_MS + 1);
+  assert.deepEqual(stale, plain);
+  const fresh = buildMessages([], 'mech', { heard: 'wave' }, hive, { text: 'Typing.', at: 0 }, 2000);
+  assert.equal(fresh.at(-1).content, '[mech] {"heard":"wave"}\nYour desk camera, 2 s ago: Typing.\nBodies online: mech');
 });
