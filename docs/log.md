@@ -48,6 +48,19 @@ switched it on 2 of 3, "can you get the light?" got the example's line back word
 `mind/bakeoff/brain/README.md`. End to end over MQTT the same day with three faked events: the right payload on the
 light's own topic 0.6-1.0 s after each, the wave first at 0.3 s. No ESP yet, so no light moved.
 
+**Example bank, 7 Nov 2026 late evening:** the prompt's 18 examples moved to `mind/examples/examples.yaml` (prompt
+byte-identical) and `npm run teach` appends lessons to `mind/examples/learned.yaml`, read by a running mind on its next
+event. Five runs of 756 calls each, 22:17 to 23:54, seven held-out `bank` cases written first: all 18 examples 96%
+strict (`bank` 67%, `devfresh` 69%); the nearest 6 by embedding 95% with `vision`, `eyes`, `devcross` and `seq` below
+the baseline, p50 1.3 s and prompt eval 714 ms (no prompt cache, 6 brain reloads); five lessons taught, then all 23
+examples **98%**, `bank` 100%, `devfresh` 92%, `fresh` 95%, no old group lower, p50 0.7 s, p95 1.0 s, 2162 prompt
+tokens; the nearest 6 by words with the lessons 98% but `bank` 90% and `seq` 98%. The embedding run after teaching
+never got an embedding (every pick timed out at 400 ms, then Ollama answered 503; `docs/gotchas.md`). Default stays all
+examples; retrieval is an option behind `PEAK_EXAMPLES_K`. Table in `mind/bakeoff/brain/README.md`. Not yet run live:
+the mind in `mind/run/` is the pre-bank code and belongs to another session; a restart and a 60 s window are needed.
+The desk camera's descriptions (6.5 s each, same model) made the first attempts 80 min a run and live replies 10 s;
+after it stopped a run took 10 to 12 min.
+
 ## Vision
 
 Working from an image file, now through the same Qwen3-VL model as the brain (`eyes.js` comparison: the only one of three not to hallucinate a person). On Ollama 0.40.13 a fresh frame takes 5.6 s to describe (1.8 s on 0.24); the `PEAK_VISION_COOLDOWN_S` 10 s loop still works, the `{see}` event just lands later.

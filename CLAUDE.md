@@ -62,6 +62,7 @@ End, when anything changed:
 | sense / event | A body publishes raw readings on `sense`. A sense program on the Mac turns readings, audio or frames into an `event` worth a thought: `{"heard"}`, `{"see"}`, `{"sensed"}`. |
 | gesture | A named servo move from `node/gestures.yaml`: wave, point, nod, shrug, rest, look_left, look_right. |
 | trick | A named sequence of eye moves, gestures, words, device actions and waits, kept as data in `mind/tricks/tricks.yaml`. |
+| example bank / lesson | The `{event} -> {reply}` examples in the brain's prompt: the built-ins in `mind/examples/examples.yaml` plus the lessons in `mind/examples/learned.yaml`. A lesson is one taught example (`npm run teach`), live on the mind's next event. |
 | device / action | A node with no senses and no gestures that the hive can switch (the desk light; a projector and screen later), declared in `mind/devices/devices.yaml`. An action is one named switch on it (`light_off`), with the topic and payload its firmware wants. |
 | bake-off | Scoring candidates (models, prompts, speech engines) on fixed cases. Held-out groups are cases written after tuning stops. |
 | lupin | Three things: the login user on the Pi; a separate project in `../lupin`, a personal context engine over MCP; and the name of the owner's sidebar group and claude.ai Project that hold these chats. |
@@ -82,7 +83,7 @@ Pi (mech)                         Mac (mind)
 - **Broker.** One Mosquitto on the Mac (brew service, `*:1883`, anonymous). Bodies are clients only.
 - **Topics.** `peak/<node>/cmd`, `/sense`, `/event`, `/status` (retained online/offline, set by Last Will), and `peak/brain/intent`. Schemas in `contracts/`.
 - **Senses publish events only**, never raw frames or audio. The orchestrator thinks on one event at a time; one more may wait and a newer one replaces it. Bodies that go offline leave the hive map.
-- **Brain.** Replies in JSON enforced by Ollama structured outputs, built in `mind/orchestrator/brain.js`: `{gesture, say}`, plus `eyes` when `PEAK_BRAIN_EYES=1` (on in `mind/.env`, off in code) and `action` when `PEAK_BRAIN_DEVICES=1` (off in both, 7 Nov; the owner's call). `eyes` names a trick or is null; `action` names a device action or is null. The gesture is the first field and is sent the moment it streams in, before the spoken line. The brain never moves servos or eyes directly. A `sensed` event gets one line and no gesture, so no arm swings at something 5 cm away.
+- **Brain.** Replies in JSON enforced by Ollama structured outputs, built in `mind/orchestrator/brain.js`: `{gesture, say}`, plus `eyes` when `PEAK_BRAIN_EYES=1` (on in `mind/.env`, off in code) and `action` when `PEAK_BRAIN_DEVICES=1` (off in both, 7 Nov; the owner's call). `eyes` names a trick or is null; `action` names a device action or is null. The gesture is the first field and is sent the moment it streams in, before the spoken line. The brain never moves servos or eyes directly. Its examples are the example bank, `mind/examples/examples.yaml` plus the lessons in `mind/examples/learned.yaml`, all shown and checked like a reply (`mind/orchestrator/examples.js`); `PEAK_EXAMPLES_K=N` would show only the N nearest, measured worse on 7 Nov and off. A `sensed` event gets one line and no gesture, so no arm swings at something 5 cm away.
 - **Devices.** `mind/devices/devices.yaml` declares each device the hive can switch: a `describe` line, the topic prefix its firmware uses, its online/offline topic, and its actions with the exact topic and payload each sends. `mind/orchestrator/devices.js` checks the file at load (like tricks) and publishes; the brain's `action`, a trick's `action` step and `npm run device -- <action>` all go through it. Firmware and wiring per device under `devices/<name>/` at the repo root. First device: the desk light (six actions, absolute presets, because lightbar2mqtt takes levels not steps).
 - **`servod`** runs one motion at a time with a one-deep queue; `say` runs beside it; `{"stop": true}` aborts the move and releases the servos. It also owns the GPIO sensors and adds `distance_cm`, `motion`, `temp` and `throttled` to `sense` twice a second. `PEAK_SIM=1` simulates the servos only: sensors and the OLED stay real.
 - **Eyes.** `servod` draws them with no help from the mind. Reflexes, highest claim first: broker offline = shut; something closer than 30 cm = wide eyes once; `look_left` / `look_right` = eyes held to that side; a spoken line = eyes pulsing, starting `talk_delay_s` after the command; bad power or heat = tired lids and sweat (`strain: false` in `node/config.yaml` switches that off); otherwise wander and blink.
@@ -92,14 +93,14 @@ Pi (mech)                         Mac (mind)
 
 The aim for the eyes and tricks is a set that grows over time: the robot can be taught new tricks and skills, and later learns new things on its own.
 
-## Where things stand (7 Nov 2026, 21:00)
+## Where things stand (8 Nov 2026, 00:15)
 
 | Area | State | Not yet checked |
 | --- | --- | --- |
 | Repo | https://github.com/prbstr/peak, `main`, GPL-3. 50 mind tests and 75 node tests pass. | |
 | Mind, broker, body | Working end to end, Mac and Pi. On the Pi `servod` runs with `PEAK_SIM=1`, started by hand. | |
 | Hearing | Pi USB mic, whisper.cpp `medium.en` on the Mac, wake word "Rho"; for 8 s after it, sentences pass without the name (`PEAK_WAKE_WINDOW_MS`). Transcript 0.4-0.6 s after speech ends. Owner, 5 Nov: "working excellently". | "Bro wave at me" (name run into the request) is missed |
-| Brain | `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes. Every bake-off group at 100% bar one known miss ("can you not your head"). Gesture out at 0.25 s, reply 0.4-0.9 s. Picks tricks since the late restart on 5 Nov. Action field built 7 Nov: 99% strict with it on, 0 unasked switches, 72% on the fresh device cases; off until the owner sets `PEAK_BRAIN_DEVICES=1`. | A trick asked for by voice. Replies took 2-7 s when a photo description was in the queue. |
+| Brain | `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes. Every bake-off group at 100% bar one known miss ("can you not your head"). Gesture out at 0.25 s, reply 0.4-0.9 s. Picks tricks since the late restart on 5 Nov. Action field built 7 Nov: 99% strict with it on, 0 unasked switches; on in `mind/.env`. Example bank built 7 Nov late: the examples are data in `mind/examples/`, five lessons taught by `npm run teach`, 98% strict over 212 cases with the seven held-out bank cases 100% and no old group lower; the mind running from `mind/run/` predates it. | A trick asked for by voice. The bank live: restart the mind, then a spoken paraphrase of a lesson. Replies took 10 s while the desk camera described frames on the same model. |
 | Desk light (device) | **Working on the glass and by voice since 7 Nov evening** on the ESP32-C6 under ESPHome with the `xiaomi_lightbar` component (`devices/desk-light/light.yaml`): on, off, dim, bright, warm, cool by hand, "Bro, lights off" and "lights on" by voice. Relative steps, state kept across reboots, the puck heard, no firmware patches. The C3 route (lightbar2mqtt, four flash-time patches) is retired; its lessons are in `devices/desk-light/README.md`. Powered from the Mac mini's USB-C for now. | A USB charger of its own. The C3 SuperMini is spare: the next blank ESPHome node. |
 | Vision | Pi camera, 640x480 at 15 fps, described by the same model in 5.6 s, change-triggered. Since 7 Nov evening the Pi hangs over the desk on the spare monitor arm (camera turned 90°). Desk bake-off (`mind/bakeoff/desk/`): a hand-tracker gate plus a crop around the hands described 13 of 19 busy moments right; the change gate missed nearly all of them. | Not built into `vision.js` yet. A brighter room; a held-out recording. |
 | Sensors | Distance and PIR in every `sense`; `presence.js` turns arrivals and close approaches into `sensed` events. | MPU6050 (shares the OLED's pins until a breadboard arrives) |
@@ -113,8 +114,8 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 
 1. **Pi power.** Done 7 Nov 2026 with the official 5.1 V 2.5 A micro-USB supply (`docs/log.md`, Pi power).
 2. **Owner watches the eyes** (60 s): idle and blinks, a hand inside 30 cm, "Rho, give me a wink", `npm run trick -- peekaboo`.
-3. **Teaching by voice.** A brain reply that defines a trick from the existing step kinds, saved with `appendTrick()`. The loader, check and merge exist. Learning on its own waits for Lupin (Stage C).
-4. **Eyes prompt.** v1 loses the wave on "night night" 2 times in 3 and nods while answering "two plus two". Try a goodnight example with a null gesture, or a rule; full bake-off each time.
+3. **Teaching.** By hand since 7 Nov late: `npm run teach -- "text" --gesture wave --eyes sleepy --say "..."` appends a lesson to `mind/examples/learned.yaml` and a running mind uses it on its next event; measured in `mind/bakeoff/brain/README.md`. Left: the live test once the mind is restarted (60 s, a paraphrase of a lesson); teaching by voice ("Rho, when I say X, do Y" becomes a brain reply that defines a lesson or a trick, saved with `appendExample()` or `appendTrick()`); learning on its own waits for Lupin (Stage C).
+4. **Eyes prompt.** The goodnight wave came back with the bed lesson (7 Nov late, `fresh.night` 3 of 3); v1 still nods while answering "two plus two". Try a lesson before a rule; full bake-off each time.
 5. **Survive a reboot.** Units for `camd.sh` and `audiod.sh`; `peak-servod.service` needs `Environment=PEAK_SIM=1` until the PCA9685 is wired. All need the owner's `sudo`.
 6. **When the servos arrive.** Measure UBEC and Mini560 outputs with a multimeter, decide the power layout (`docs/decisions.md`), wire the PCA9685 (V+ from the buck, never the Pi), tune `node/config.yaml` ranges, drop `PEAK_SIM`.
 7. **Rest of the body's I/O.** MPU6050 pose in `sense`; NeoPixel ring and vibrator motor as commands. Needs a breadboard, M/F jumpers and a soldering iron; the NeoPixel also needs SPI on, `core_freq=250` and the neopixel-spi package.
@@ -151,9 +152,10 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 | Voice on the HomePod | `npm run voice` (first time: `python3.13 -m venv voice/.venv && voice/.venv/bin/pip install -r voice/requirements.txt`) |
 | Mind tests | `npm test` |
 | Node tests | `cd node && ../.venv/bin/python -m unittest test_eyes test_oled test_screen test_pca9685` (on the Pi: `~/peak/.venv/bin/python`) |
-| Brain bake-off | `npm run bakeoff:brain -- --stream --models huihui_ai/qwen3-vl-abliterated:8b-instruct --no-pull` (`PEAK_BRAIN_EYES=1` and `PEAK_BRAIN_DEVICES=1` in front score those fields; flags in `mind/bakeoff/brain/README.md`) |
+| Brain bake-off | `npm run bakeoff:brain -- --stream --models huihui_ai/qwen3-vl-abliterated:8b-instruct --no-pull` (`PEAK_BRAIN_EYES=1` and `PEAK_BRAIN_DEVICES=1` in front score those fields, `PEAK_EXAMPLES_K=6` scores nearest-example retrieval; flags in `mind/bakeoff/brain/README.md`) |
 | Eyes comparison on photos | `node bakeoff/brain/eyes.js --models a,b --images x.jpg,y.jpg` |
 | Play a trick without the brain | `npm run trick` lists them; `npm run trick -- wink [node]` plays one |
+| Teach Rho by example, without the brain | `npm run teach` lists the lessons; `npm run teach -- "Off to bed" --gesture wave --eyes sleepy --say "Sleep well."` adds one (`--see`/`--sensed TEXT` for other events, `--action light_on`, `--note`); the mind uses it on its next event |
 | Switch a device without the brain | `npm run device` lists the actions and which devices are online; `npm run device -- light_off` sends one |
 | Mic test page | `npm run record`, then http://localhost:8179 (needs `audiod.sh` and `npm run whisper`) |
 | Body on the Pi, no servos wired | On the Pi: `PEAK_SIM=1 PEAK_BROKER=twentyones-Mac-mini.local ~/peak/.venv/bin/python -u ~/peak/node/servod.py` |
@@ -171,7 +173,7 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 | Pi power over a window | On the Pi: `~/peak/node/powerwatch.sh 30` (read `undervoltage_now`; `kernel_dips` counts only new dips, so it reads 0 while the Pi is under the whole time) |
 | What drawing the eyes costs | Start `servod` with `PEAK_FACE_STATS=1` (`full` sends whole frames, to compare) |
 
-Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` and `PEAK_VISION_MODEL` (the same tag, so Ollama loads it once), `PEAK_BRAIN_EYES` (1 since 5 Nov), `PEAK_BRAIN_DEVICES` (1 since 7 Nov), `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
+Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` and `PEAK_VISION_MODEL` (the same tag, so Ollama loads it once), `PEAK_BRAIN_EYES` (1 since 5 Nov), `PEAK_BRAIN_DEVICES` (1 since 7 Nov), `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B), `PEAK_EXAMPLES_K` (0 = every example in the prompt, the measured default; N = the N nearest by `PEAK_EXAMPLES_PICK`, embed or lexical). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
 
 ## Environment facts
 
@@ -236,12 +238,16 @@ Ollama and models
 - Call Ollama only through `mind/lib/ollama.js`. It sends the same load-time options every time; a caller with different ones makes Ollama reload the model the brain and eyes share.
 - OpenClaw loads `qwen3:14b` at times and evicts our model. Do not stop it; rerun timing tests afterwards.
 - `think:false` may only be sent to models that have the thinking capability.
+- An aborted request cancels the model load it started, and Ollama answered 503 after enough of them. Load a model with no timeout (`warm()` in `examples.js`), then put timeouts on the calls that use it.
+- Two model slots: the brain and the desk camera's vision model fill them. A third model (the embedder) evicts one; nothing else may load a model while the camera runs.
+- A system prompt that differs per event loses the prompt cache: prompt eval 133 ms fixed, 309-714 ms varying. Fewer tokens were slower.
 
 Brain prompt
 - Never ship a prompt edit without a full `npm run bakeoff:brain -- --stream` and a look at the per-group table.
 - Rules and examples interact. Change one example per run, and write the held-out cases before tuning.
 - An example teaches more than it was written for: the model copies its gesture and even its words.
 - Keep `cases.json` and `sequences.json` at indent 2 when a script rewrites them.
+- Teach with `npm run teach` (a lesson in `learned.yaml`), not by editing `examples.yaml`. A bake-off scores the lessons too, so list them before calling a run a baseline.
 
 OLED
 - An SSD1306 can be dark while every write succeeds. `servod` re-checks the status byte; do not run another OLED script while `servod` is up.
@@ -252,6 +258,7 @@ Voice
 
 Tests and the shell
 - `node --test <dir>` runs `orchestrator/index.js` and hangs on MQTT. `npm test` names the files; keep it so.
+- One Ollama call in 750 can drop (`fetch failed`) and once ended a bake-off at call 220; `run.js` retries a call three times.
 - The shell's working directory drifts between calls. Use absolute paths.
 - `grep` in a pipeline buffers; use `--line-buffered` when timing a live stream.
 - ffmpeg output to `/tmp` fails unreliably from the shell tool; use a `mktemp -d` directory.
@@ -274,6 +281,7 @@ One line each. Evidence in `docs/decisions.md`.
 | Eyes prompt v1, on by the owner's word | It missed the strict gate by one case; a missing wave is less odd than a stray one |
 | Devices are hive nodes declared in `devices.yaml`, no Home Assistant; the desk light runs lightbar2mqtt unchanged on an ESP32-C3 | Presence and one command path come free from the broker; the only ESPHome bar component is for the wrong model |
 | Device actions are a fourth flat enum field, `action`; prompt v2 in code, switch off | Same shape as `eyes`; gate cleared (no old group lower), 99% strict, 0 unasked switches, but 72% on the fresh cases |
+| Examples are data, shown whole; nearest-K retrieval built but off; lessons over fine-tuning | All 23: 98% strict, held-out bank 100%, no group lower. Nearest 6 by embedding: 95%, four groups lower, p50 1.3 s. A lesson lands in seconds |
 | Jev not used, only its lessons | Hosted, closed and not abliterated |
 | whisper.cpp server with `medium.en` | Stays loaded; as accurate as anything tried on the real mic |
 | Voice through the HomePod mini for now | The body has no speaker; Piper on the body is the plan |

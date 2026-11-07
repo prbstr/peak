@@ -14,7 +14,8 @@
 //   --stream         stream replies and report how soon the gesture field is complete (time-to-gesture)
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { MODEL as PRODUCTION, askBrain, buildMessages } from '../../orchestrator/brain.js';
+import { MODEL as PRODUCTION, askBrain, buildMessages, visibleExample } from '../../orchestrator/brain.js';
+import { K as EXAMPLES_K, PICK as EXAMPLES_PICK, pickExamples, warmExamples } from '../../orchestrator/examples.js';
 import { gestureNames } from '../../orchestrator/gestures.js';
 import { loadTricks } from '../../orchestrator/tricks.js';
 import { actionNames } from '../../orchestrator/devices.js';
@@ -95,15 +96,27 @@ async function scoreModel(model) {
   await ensurePulled(model);
   const caps = await capabilities(model);
   log(`[bakeoff] ${model}: capabilities ${caps.join(', ')}`);
+  if (EXAMPLES_K > 0 && EXAMPLES_PICK === 'embed') { await warmExamples(); log('[bakeoff] example bank embedded'); }
   const warm = await askBrain({ model, messages: buildMessages([], 'mech', { heard: 'hello' }, hive()) });
   log(`[bakeoff] ${model}: warm ${(warm.stats.totalMs / 1000).toFixed(1)}s (load ${warm.stats.loadMs}ms)`);
 
   const calls = [];
+  let retries = 0;
   // a case's "desk" is what the desk camera saw 4 s before the event, the way the orchestrator adds it
   const score = async (id, run, event, expect, history, desk) => {
-    const messages = buildMessages(history, 'mech', event, hive(), desk ? { text: desk, at: Date.now() - 4000 } : null);
-    let early;
-    const r = await askBrain({ model, messages, onGesture: args.stream ? g => { early = g; } : undefined });
+    const picked = await pickExamples(event, { filter: visibleExample });
+    const messages = buildMessages(history, 'mech', event, hive(), desk ? { text: desk, at: Date.now() - 4000 } : null, Date.now(), picked.examples);
+    let early, r;
+    // a dropped connection (Ollama swapping runners while another program loads a model) must not end an hour's run
+    for (let attempt = 1; ; attempt++) {
+      try { r = await askBrain({ model, messages, onGesture: args.stream ? g => { early = g; } : undefined }); break; }
+      catch (e) {
+        if (attempt >= 3) throw e;
+        retries++;
+        log(`[bakeoff]   ${id}: ${e.message}, retrying in 3 s`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
     history.push(messages.at(-1), { role: 'assistant', content: r.content });
     const gesture = r.reply?.gesture ?? null;
     const gestureOk = r.reply !== null && expect.gesture.includes(gesture);
@@ -116,7 +129,7 @@ async function scoreModel(model) {
     const strict = gestureOk && eyesOk && actionOk && (!expect.sayRequired || Boolean(r.reply.say)) && (!expect.silent || !r.reply.say);
     const thinkingLeak = Boolean(r.thinking) || /^\s*<think>/.test(r.content);
     const earlyMismatch = args.stream && early !== gesture;
-    calls.push({ id, run, gesture, eyes, eyesAsked, eyesOk, action, actionAsked, actionOk, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, confidence: r.confidence, gestureMs: r.gestureMs, earlyMismatch, content: r.valid ? undefined : r.content });
+    calls.push({ id, run, gesture, eyes, eyesAsked, eyesOk, action, actionAsked, actionOk, say: r.reply?.say ?? null, gestureOk, strict, valid: r.valid, violations: r.violations, thinkingLeak, stats: r.stats, confidence: r.confidence, gestureMs: r.gestureMs, earlyMismatch, shown: picked.examples.length, pickHow: picked.how, pickMs: picked.ms, content: r.valid ? undefined : r.content });
     log(`[bakeoff]   ${run}/${runs} ${id.padEnd(20)} ${strict ? 'ok  ' : 'FAIL'} ${String(gesture).padEnd(10)} ${String(eyes ?? '-').padEnd(9)} ${String(action ?? '-').padEnd(12)} ${(r.stats.totalMs / 1000).toFixed(1)}s${r.gestureMs != null ? ` (gesture ${r.gestureMs}ms)` : ''} p=${r.confidence?.toFixed(2) ?? '-'} ${r.reply?.say ?? ''}`);
   };
   for (let run = 1; run <= runs; run++) {
@@ -129,7 +142,7 @@ async function scoreModel(model) {
   const n = calls.length;
   const times = calls.map(c => c.stats.totalMs);
   const summary = {
-    model, caps, n,
+    model, caps, n, retries,
     gestureAcc: calls.filter(c => c.gestureOk).length,
     strict: calls.filter(c => c.strict).length,
     jsonOk: calls.filter(c => !c.violations.invalidJson).length,
@@ -140,6 +153,11 @@ async function scoreModel(model) {
     p50Ms: quantile(times, 0.5), p95Ms: quantile(times, 0.95),
     tokPerS: Math.round(calls.reduce((s, c) => s + c.stats.tokPerS, 0) / n),
     promptTokens: Math.round(calls.reduce((s, c) => s + c.stats.promptTokens, 0) / n),
+    // what changing examples cost: prompt evaluation (the cached prefix no longer covers the examples) and the pick
+    promptP50Ms: quantile(calls.map(c => c.stats.promptMs), 0.5),
+    shown: Math.round(mean(calls.map(c => c.shown))),
+    pickP50Ms: quantile(calls.map(c => c.pickMs), 0.5),
+    pickHow: Object.fromEntries(['all', 'embed', 'lexical'].map(h => [h, calls.filter(c => c.pickHow === h).length]).filter(([, n]) => n)),
     resident: await resident(model),
     pair: args.pair ? await pairCheck(model, args.pair) : null,
     gestureP50Ms: args.stream ? quantile(calls.map(c => c.gestureMs ?? 0), 0.5) : null,
@@ -185,12 +203,12 @@ function toMarkdown(results) {
   const groupNames = [...new Set(results.flatMap(r => Object.keys(r.groups ?? {})))];
   const groupHead = `| Model | ${groupNames.join(' | ')} |\n|${' --- |'.repeat(groupNames.length + 1)}`;
   const groupRows = results.map(r => `| ${r.model} | ${groupNames.map(g => r.groups?.[g] ? pct(r.groups[g].strict, r.groups[g].n) : '-').join(' | ')} |`);
-  const extraHead = '| Model | gesture p50 s | early mismatches | confidence when right | confidence when wrong | eyes right | eyes unasked | action right | action unasked |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |';
-  const extraRows = results.map(r => `| ${r.model} | ${r.gestureP50Ms != null ? (r.gestureP50Ms / 1000).toFixed(2) : '-'} | ${r.earlyMismatches ?? 0} | ${r.confidence?.ok?.toFixed(2) ?? '-'} | ${r.confidence?.wrong?.toFixed(2) ?? '-'} | ${r.eyesAsked ? `${r.eyesOk}/${r.eyesAsked}` : '-'} | ${r.eyesUnasked ?? 0} | ${r.actionAsked ? `${r.actionOk}/${r.actionAsked}` : '-'} | ${r.actionUnasked ?? 0} |`);
+  const extraHead = '| Model | gesture p50 s | early mismatches | confidence when right | confidence when wrong | eyes right | eyes unasked | action right | action unasked | prompt eval p50 ms | examples shown | pick p50 ms |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |';
+  const extraRows = results.map(r => `| ${r.model} | ${r.gestureP50Ms != null ? (r.gestureP50Ms / 1000).toFixed(2) : '-'} | ${r.earlyMismatches ?? 0} | ${r.confidence?.ok?.toFixed(2) ?? '-'} | ${r.confidence?.wrong?.toFixed(2) ?? '-'} | ${r.eyesAsked ? `${r.eyesOk}/${r.eyesAsked}` : '-'} | ${r.eyesUnasked ?? 0} | ${r.actionAsked ? `${r.actionOk}/${r.actionAsked}` : '-'} | ${r.actionUnasked ?? 0} | ${r.promptP50Ms ?? '-'} | ${r.shown ?? '-'} | ${r.pickP50Ms ?? '-'}${r.pickHow ? ` (${Object.entries(r.pickHow).map(([h, n]) => `${h} ${n}`).join(', ')})` : ''} |`);
   const extra = `\n## Per group (strict)\n\n${groupHead}\n${groupRows.join('\n')}\n\n## Timing and confidence\n\n${extraHead}\n${extraRows.join('\n')}\n`;
   const foreign = results.map(r => r.pair?.foreign ?? []).flat();
   const note = foreign.length ? `\nOther models loaded during pair checks (not ours): ${[...new Set(foreign)].join(', ')}\n` : '';
-  return `# Brain bake-off ${new Date().toISOString()}\n\n${cases.length} cases + ${totalSteps - cases.length} sequence steps, x ${runs} runs${args.only ? `, only ${args.only}` : ''}${args.pair ? `, pair ${args.pair}` : ''}\n\n${head}\n${sep}\n${rows.join('\n')}\n${note}${extra}\n## Failures\n\n${failures.join('\n\n')}\n`;
+  return `# Brain bake-off ${new Date().toISOString()}\n\n${cases.length} cases + ${totalSteps - cases.length} sequence steps, x ${runs} runs${args.only ? `, only ${args.only}` : ''}${args.pair ? `, pair ${args.pair}` : ''}, examples ${EXAMPLES_K ? `nearest ${EXAMPLES_K} by ${EXAMPLES_PICK}` : 'all'}\n\n${head}\n${sep}\n${rows.join('\n')}\n${note}${extra}\n## Failures\n\n${failures.join('\n\n')}\n`;
 }
 
 const results = [];

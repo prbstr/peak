@@ -195,3 +195,36 @@ it" example, shorter example lines that are less worth copying, a rule for "can 
 Live over MQTT the same day (mind started with the flag, three faked `heard` events, no ESP yet): "turn the light
 off" → `{"state":"OFF"}` on the light's command topic 0.6 s after the event; "wave and make it warmer" → the wave at
 0.31 s, then `{"color_temp":370}`; "is the light on?" → words only, the example's line verbatim.
+
+## Example bank, 7 Nov 2026 late (Qwen3-VL 8B, eyes and devices on, 212 cases + 40 sequence steps x 3 runs)
+
+The prompt's examples moved out of `brain.js` into `mind/examples/examples.yaml` (the same 18, prompt byte-identical),
+and what Rho is taught goes into `mind/examples/learned.yaml` by `npm run teach` and reaches the prompt on the next
+event. `PEAK_EXAMPLES_K=N` shows only the N nearest examples to the event instead of all of them, picked by embedding
+(`qwen3-embedding:0.6b` through Ollama) or by word overlap (`PEAK_EXAMPLES_PICK=lexical`). Seven held-out `bank` cases
+were written before any run: a paraphrase of each lesson and two traps (a bedtime story, talk about the lamp). The five
+lessons were taught between runs 2 and 3, worded unlike both the cases and the built-ins. The report's timing table
+gained "prompt eval p50 ms", "examples shown" and "pick p50 ms"; a dropped Ollama call is retried three times (the first
+baseline run had died at call 220 on one "fetch failed").
+
+| Run | Examples in the prompt | Strict | Old groups below the baseline | `bank` (7 held out) | `devfresh` | p50 / p95 s | Prompt eval p50 | Prompt tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1, baseline | all 18 | 96% | - | 67% | 69% | 0.7 / 1.1 | 133 ms | 1998 |
+| 2, nearest 6 by embedding | 6 | 95% | `vision` 88 (`see_nod` waved), `eyes` 90 (`surprised` looked right), `devcross` 80 (`happy` dimmed the light), `seq` 98 | 71% | 67% | 1.3 / 2.2 | 714 ms | 1616 |
+| 3, nearest 6 by embedding, 5 lessons taught | 6 | 98% | `seq` 98 (`quiet.4`) | 86% (`bed` 0/3: rest, not a wave) | 92% | 0.9 / 1.4 | 309 ms | 1617 |
+| **4, all 23 (18 + the 5 lessons)** | **23** | **98%** | **none; `fresh` 94 → 95** | **100%** | **92%** | **0.7 / 1.0** | **133 ms** | **2162** |
+| 5, nearest 6 by words, 5 lessons | 6 | 98% | `seq` 98 (`quiet.4`) | 90% (`bed` 1/3) | 92% | 0.9 / 1.5 | 312 ms | 1617 |
+
+Run 3 is not what its header says: the embedding model never answered in time (756 of 756 picks fell back to words,
+each after the 400 ms timeout; see `docs/gotchas.md`), so it is run 5 with a delay. Run 2 is the honest retrieval
+result: fewer examples lost four groups that all 18 keep, the brain reloaded 6 times as the embedder fought for one of
+Ollama's two model slots, and a prompt that differs per event loses the prompt cache (133 → 714 ms prompt eval), so the
+shorter prompt was slower. Lessons work either way: run 4 against run 1 fixes `fresh.night` (the goodnight wave the
+eyes prompt kept losing), three of the four `devfresh` misses ("leave the lamp on", "can you get the light", "gloomy")
+and all seven `bank` cases, with no old group lower and the same 0.26 s gesture. The remaining misses are the known
+four: `stt_not_head`, `cross.still_angry`, `dev2.harsh` (cool for "less harsh") and `devfresh.see`.
+
+Decision: the default stays **all examples** (`PEAK_EXAMPLES_K=0`), and teaching means appending to `learned.yaml`.
+Retrieval stays in the code as an option for when the bank is too big to show whole; at 23 examples it costs accuracy
+and time. The five lessons stay in `learned.yaml`. The bake-off runs with whatever is in that file, so a lesson is part
+of the prompt it scores; run `npm run teach` to list them.

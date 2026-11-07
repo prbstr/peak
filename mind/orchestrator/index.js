@@ -5,7 +5,8 @@
 import 'dotenv/config';
 import mqtt from 'mqtt';
 import { runTool } from './tools.js';
-import { MODEL, TRICKS, askBrain, buildMessages, trimHistory } from './brain.js';
+import { MODEL, TRICKS, askBrain, buildMessages, trimHistory, visibleExample } from './brain.js';
+import { K as EXAMPLES_K, PICK as EXAMPLES_PICK, pickExamples, warmExamples } from './examples.js';
 import { createTrickPlayer } from './tricks.js';
 import { createDeviceHub } from './devices.js';
 import { formatStats } from '../lib/ollama.js';
@@ -16,6 +17,9 @@ const client = mqtt.connect(BROKER);
 /** Devices in the room (the desk light): the brain's `action` field and a trick's action step go through here. */
 const hub = createDeviceHub(client);
 const player = createTrickPlayer(client, { tricks: TRICKS, run: name => hub.run(name) });
+
+// with the bank picking by embedding, load that model now rather than on the first event
+if (EXAMPLES_K > 0 && EXAMPLES_PICK === 'embed') warmExamples().then(() => console.log('[mind] example bank embedded'));
 
 /** Latest sense reading per node that is online: { mech: {...}, rover: {...} } */
 const hive = new Map();
@@ -84,7 +88,9 @@ async function drain() {
 }
 
 async function think(node, event) {
-  const messages = buildMessages(history, node, event, hive, desk.get(node));
+  // the examples for this event: the whole bank, or the nearest few (PEAK_EXAMPLES_K in .env; examples.js)
+  const picked = await pickExamples(event, { filter: visibleExample });
+  const messages = buildMessages(history, node, event, hive, desk.get(node), Date.now(), picked.examples);
   history.push(messages.at(-1));
   trimHistory(history);
 
@@ -100,7 +106,7 @@ async function think(node, event) {
     },
   });
   history.push({ role: 'assistant', content });
-  console.log(`[mind] brain ${formatStats(stats)} gesture at ${gestureMs}ms, confidence ${confidence?.toFixed(2) ?? '-'}`);
+  console.log(`[mind] brain ${formatStats(stats)} gesture at ${gestureMs}ms, confidence ${confidence?.toFixed(2) ?? '-'}, examples ${picked.examples.length} ${picked.how}${picked.ms ? ` ${picked.ms}ms` : ''}`);
   // a load after the first call means Ollama evicted the brain (another model took the slot)
   if (stats.loadMs > 1000) console.warn('[mind] brain was reloaded (evicted?)');
   if (!reply) return console.error('[mind] unparseable reply:', content);

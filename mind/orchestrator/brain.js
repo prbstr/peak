@@ -4,6 +4,7 @@ import { chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
 import { DESCRIBE, gestureNames } from './gestures.js';
 import { loadTricks } from './tricks.js';
 import { DEVICES as KNOWN_DEVICES } from './devices.js';
+import { loadExamples } from './examples.js';
 
 export const MODEL = process.env.PEAK_MODEL ?? 'huihui_ai/qwen3-vl-abliterated:8b-instruct';
 export const TEMPERATURE = Number(process.env.PEAK_TEMPERATURE ?? 0.3);
@@ -42,28 +43,16 @@ export function buildSchema(tricks = trickNames, actions = actionNames) {
 }
 export const REPLY_SCHEMA = buildSchema();
 
-const EXAMPLES = [
-  [{ heard: 'Rho, wave at me' }, { gesture: 'wave', say: 'Hello there!' }],
-  [{ heard: 'Nod if you can hear me.' }, { gesture: 'nod', say: null }],
-  [{ heard: 'Look to your left' }, { gesture: 'look_left', say: null }],
-  [{ heard: "What's the weather like?" }, { gesture: null, say: 'No window to the sky from in here, only this room.' }],
-  [{ heard: 'Did you hear that?' }, { gesture: 'nod', say: 'Loud and clear.' }],
-  [{ see: 'a person waving at the camera' }, { gesture: 'wave', say: 'I see you.' }],
-  [{ see: 'an empty desk and a chair' }, { gesture: null, say: null }],
-  [{ see: 'a person walking past, not looking at the camera' }, { gesture: null, say: null }],
-  [{ sensed: 'movement nearby after a quiet spell' }, { gesture: null, say: 'Is someone there?' }],
-  [{ sensed: 'something came close, 8 cm in front of you' }, { gesture: null, say: 'Careful, that is close.' }],
-  // shown only when the brain has eyes to move
-  [{ heard: 'Look happy' }, { gesture: null, eyes: 'happy', say: null }],
-  [{ heard: 'Thank you, that was great' }, { gesture: null, eyes: 'happy', say: 'Glad to help.' }],
-  [{ heard: 'Nod and give me a wink' }, { gesture: 'nod', eyes: 'wink', say: null }],
-  [{ heard: "Don't laugh" }, { gesture: null, eyes: null, say: 'Straight face.' }],
-  // shown only when the brain has devices to switch, and only those whose action it knows
-  [{ heard: 'Rho, turn the light on' }, { gesture: null, action: 'light_on', say: null }],
-  [{ heard: 'Too bright, dim it please' }, { gesture: null, action: 'light_dim', say: null }],
-  [{ heard: "Don't touch the light" }, { gesture: null, action: null, say: 'Leaving it as it is.' }],
-  [{ heard: 'Is the lamp on right now?' }, { gesture: null, action: null, say: "I can't tell from here, I only hold the switch." }],
-];
+/** The example bank: examples/examples.yaml plus what was taught in examples/learned.yaml, [{ event, reply }]. */
+export const EXAMPLES = loadExamples();
+
+/** Whether an example belongs in the prompt: one with an eyes field only when the brain has eyes, one with an
+ *  action field only when it has devices and knows that action. */
+export function visibleExample({ reply }, tricks = TRICKS, devices = DEVICES) {
+  const eyes = Object.keys(tricks).length > 0;
+  const switches = Object.keys(devices.actions).length > 0;
+  return (eyes || !('eyes' in reply)) && (!('action' in reply) || (switches && (reply.action === null || reply.action in devices.actions)));
+}
 
 /** Narrow decisions the model got wrong when left to the one wide one. Each line fixed a systematic miss in the
  *  bake-off (see LESSONS.md, lesson 3, and the README's tuning table); drop one only with the bake-off to prove it. */
@@ -97,9 +86,8 @@ export function buildSystem(describe = DESCRIBE, examples = EXAMPLES, rules = RU
   const shown = ({ gesture, eyes: look = null, action: act = null, say }) =>
     ({ gesture, ...(eyes ? { eyes: look } : {}), ...(switches ? { action: act } : {}), say });
   const exampleLines = examples
-    .filter(([, reply]) => eyes || !('eyes' in reply))
-    .filter(([, reply]) => !('action' in reply) || (switches && (reply.action === null || reply.action in devices.actions)))
-    .map(([ev, reply]) => `${JSON.stringify(ev)} -> ${JSON.stringify(shown(reply))}`).join('\n');
+    .filter(ex => visibleExample(ex, tricks, devices))
+    .map(({ event, reply }) => `${JSON.stringify(event)} -> ${JSON.stringify(shown(reply))}`).join('\n');
   return `You are Rho, a hive mind living in Lego bodies. Today you have one body, "mech": a Technic mech with a minifig pilot, six servos (head, waist, two shoulders, two elbows), a camera, a microphone, a speaker, a motion sensor and a distance sensor facing forward. People talk to you after saying your name; speech-to-text sometimes writes it as Row, Roe or Roll.
 
 Each message is one event from a body. {"heard": "..."} is speech aimed at you. {"see": "..."} is what the camera noticed; it is not a request, so react only when a person is clearly addressing you, and never describe the scene back; a scene with nobody addressing you gets null and null. {"sensed": "..."} is what the body's own sensors felt: movement nearby, or something close in front of it. Nobody said it, so it is not a request either.
@@ -143,10 +131,12 @@ export function deskLine(event, seen, now = Date.now(), fresh = DESK_FRESH_MS) {
 }
 
 /** [system, ...history, user]. The user turn is the event, what the desk camera saw if it matters, and the hive
- *  summary. */
-export function buildMessages(history, node, event, hive = new Map(), seen = null, now = Date.now()) {
+ *  summary. `examples` is the subset of the bank to show (pickExamples in examples.js); the whole bank gives the
+ *  prompt the mind has always sent. */
+export function buildMessages(history, node, event, hive = new Map(), seen = null, now = Date.now(), examples = EXAMPLES) {
   const lines = [`[${node}] ${JSON.stringify(event)}`, deskLine(event, seen, now), summarizeHive(hive)].filter(Boolean);
-  return [{ role: 'system', content: SYSTEM }, ...history, { role: 'user', content: lines.join('\n') }];
+  const system = examples === EXAMPLES ? SYSTEM : buildSystem(DESCRIBE, examples);
+  return [{ role: 'system', content: system }, ...history, { role: 'user', content: lines.join('\n') }];
 }
 
 /** Drop whole turns from the front so a user turn is never separated from its answer. */

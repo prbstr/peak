@@ -2818,5 +2818,106 @@
         null
       ]
     }
+  },
+  {
+    "id": "bank.bed",
+    "event": {
+      "heard": "Off to sleep, catch you in the morning"
+    },
+    "expect": {
+      "gesture": [
+        "wave"
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "bank.bed_story",
+    "event": {
+      "heard": "Tell me a bedtime story"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true
+    }
+  },
+  {
+    "id": "bank.leave_light",
+    "event": {
+      "heard": "The lamp can stay on, I'm reading"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "bank.sort_light",
+    "event": {
+      "heard": "Can you sort the light out?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on",
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "bank.murky",
+    "event": {
+      "heard": "It's all a bit murky in here"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on",
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "bank.freeze_sleepy",
+    "event": {
+      "heard": "Freeze, and look sleepy"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "eyes": [
+        "sleepy"
+      ]
+    }
+  },
+  {
+    "id": "bank.lamp_talk",
+    "event": {
+      "heard": "I'm reading an article about lamps"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
   }
 ]

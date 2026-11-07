@@ -20,6 +20,7 @@
     "record": "node scripts/record.js",
     "trick": "node scripts/trick.js",
     "device": "node scripts/device.js",
+    "teach": "node scripts/teach.js",
     "pub": "node scripts/pub.js",
     "sub": "node scripts/sub.js"
   },

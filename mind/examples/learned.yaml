@@ -1,0 +1,41 @@
+- event:
+    heard: I'm heading to bed, see you tomorrow
+  reply:
+    gesture: wave
+    eyes: sleepy
+    say: Sleep well.
+  taught: 2026-11-07T20:46:54Z
+  note: a goodnight gets a wave; taught 7 Nov 2026 for the bank bake-off
+- event:
+    heard: It's fine to leave the light on while I read
+  reply:
+    gesture: null
+    action: null
+    say: It stays on.
+  taught: 2026-11-07T20:51:55Z
+  note: permission is not a request; taught 7 Nov 2026 for the bank bake-off
+- event:
+    heard: Would you mind sorting the light out?
+  reply:
+    gesture: null
+    action: light_on
+    say: null
+  taught: 2026-11-07T20:56:57Z
+  note: would you / can you is a request; taught 7 Nov 2026 for the bank bake-off
+- event:
+    heard: Feels a bit dim and dreary in here
+  reply:
+    gesture: null
+    action: light_bright
+    say: null
+  taught: 2026-11-07T21:01:58Z
+  note: a complaint about the dark means brighter; taught 7 Nov 2026 for the bank
+    bake-off
+- event:
+    heard: Don't move, just look sleepy
+  reply:
+    gesture: null
+    eyes: sleepy
+    say: null
+  taught: 2026-11-07T21:07:00Z
+  note: still plus a look is eyes only; taught 7 Nov 2026 for the bank bake-off

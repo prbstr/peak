@@ -77,3 +77,13 @@ Given when the parts were chosen; none of it has been tested, because the AliExp
 - **Rejected:** NoIR camera (purple colours in daylight), HQ camera (no lens, heavy for a 9 g servo), ReSpeaker 2-Mics pHAT (covers the GPIO header).
 - **The USB soldering iron** probably needs a USB-C PD charger of 20 W or more.
 - **If a good supply and cable still leave the Pi undervolted,** the Pi's aged polyfuse is the next suspect.
+
+## Added 7 Nov 2026 late, from the example-bank bake-off
+
+- **An aborted Ollama request cancels the model load it started.** `/api/embed` with a 400 ms `AbortSignal.timeout` against a cold `qwen3-embedding:0.6b` logged `Load failed ... context canceled` on every try, so the model never came up, every pick fell back to words, and after about 40 minutes of this Ollama answered 503 to every embed for the rest of the run (756 of 756 picks lexical in run 3). Load a model with no timeout first (`warm()` in `examples.js`; `npm run teach` and the mind do), then put timeouts on the calls that use it.
+- **A third model evicts one of the two.** `OLLAMA_MAX_LOADED_MODELS=2` holds the brain and, while the desk camera runs, its 4B vision model. The embedder made three: 6 brain reloads in one bake-off run and `model predicted to exceed available memory, evicting` at 3.7 GB system free (`system_limited=true`, 24 GB Mac). Nothing else may load a model while the camera is on.
+- **A prompt that changes per event loses Ollama's prompt cache.** Prompt eval 133 ms with one fixed system prompt, 309 to 714 ms when the examples differ per event; p50 0.7 s went to 0.9 to 1.3 s although the prompt was 400 tokens shorter. Fewer tokens is not faster when the prefix changes.
+- **The desk camera serializes with the brain.** Each description takes 6.5 s on the shared model; with it running, live replies in `mind/run/mind.log` took 10 s (prompt eval 2.8 s) and a 756-call bake-off 80 min instead of 12. Stop the vision process (its pid is in `mind/run/vision.pid`) for timing runs, on the owner's word if another session started it.
+- **One dropped connection ended a 756-call bake-off at call 220** ("fetch failed", nothing in the Ollama log). `run.js` now retries a call three times, 3 s apart, and counts retries in the summary.
+- **A bake-off scores whatever is in `mind/examples/learned.yaml`.** The lessons are part of the prompt, so a baseline run after teaching is not the old baseline. `npm run teach` lists them.
+

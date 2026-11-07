@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 import { readFileSync } from 'node:fs';
 import { DESCRIBE, GESTURES_PATH, gestureNames, loadGestureNames } from './gestures.js';
-import { DEVICE_RULES, EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, DEVICES, buildMessages, deskLine, DESK_FRESH_MS, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
+import { DEVICE_RULES, EYES_RULES, REPLY_SCHEMA, RULES, SAY_MAX, SYSTEM, TRICKS, DEVICES, buildMessages, deskLine, DESK_FRESH_MS, EXAMPLES, visibleExample, buildSchema, buildSystem, parseReply, summarizeHive, trimHistory, earlyGesture, gestureConfidence } from './brain.js';
 import { DEVICES as KNOWN_DEVICES } from './devices.js';
 import { loadTricks } from './tricks.js';
 
@@ -234,4 +234,25 @@ test('a prompt without a desk sighting is exactly what it was before', () => {
   assert.deepEqual(stale, plain);
   const fresh = buildMessages([], 'mech', { heard: 'wave' }, hive, { text: 'Typing.', at: 0 }, 2000);
   assert.equal(fresh.at(-1).content, '[mech] {"heard":"wave"}\nYour desk camera, 2 s ago: Typing.\nBodies online: mech');
+});
+
+test('the example bank is the yaml file, and a subset of it builds a smaller prompt', () => {
+  assert.equal(EXAMPLES.filter(ex => !ex.learned).length, 18, "built-in examples");
+  assert.ok(EXAMPLES.every(ex => ex.event && ex.reply && typeof ex.learned === "boolean"));
+  const few = EXAMPLES.slice(0, 2);
+  const msgs = buildMessages([], 'mech', { heard: 'wave' }, new Map(), null, Date.now(), few);
+  assert.notEqual(msgs[0].content, SYSTEM);
+  assert.match(msgs[0].content, /Examples:\n\{"heard":"Rho, wave at me"\} -> [^\n]*\n\{"heard":"Nod if you can hear me."\} -> [^\n]*$/);
+  assert.equal(buildMessages([], 'mech', { heard: 'wave' }, new Map(), null, Date.now(), EXAMPLES)[0].content, SYSTEM);
+});
+
+test('visibleExample hides the eyes and action examples the brain cannot act on', () => {
+  const noDevices = { devices: {}, actions: {} };
+  assert.equal(visibleExample({ reply: { gesture: null, eyes: 'happy', say: null } }, {}, noDevices), false);
+  assert.equal(visibleExample({ reply: { gesture: null, eyes: 'happy', say: null } }, { happy: {} }, noDevices), true);
+  assert.equal(visibleExample({ reply: { gesture: null, action: 'light_on', say: null } }, {}, noDevices), false);
+  assert.equal(visibleExample({ reply: { gesture: null, action: 'light_on', say: null } }, {}, KNOWN_DEVICES), true);
+  assert.equal(visibleExample({ reply: { gesture: null, action: null, say: 'x' } }, {}, KNOWN_DEVICES), true);
+  assert.equal(visibleExample({ reply: { gesture: null, action: 'nope', say: null } }, {}, KNOWN_DEVICES), false);
+  assert.equal(visibleExample({ reply: { gesture: 'wave', say: 'hi' } }, {}, noDevices), true);
 });
