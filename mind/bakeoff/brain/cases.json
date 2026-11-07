@@ -2505,5 +2505,190 @@
         null
       ]
     }
+  },
+  {
+    "id": "devfresh.heading_out",
+    "event": {
+      "heard": "Hit the lights, I'm heading out"
+    },
+    "expect": {
+      "gesture": [
+        "wave",
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.gloomy",
+    "event": {
+      "heard": "Bit gloomy in here"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on",
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.crank",
+    "event": {
+      "heard": "Crank the brightness all the way"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_bright"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.candle",
+    "event": {
+      "heard": "Something softer, like candlelight"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_warm",
+        "light_dim"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.daylight",
+    "event": {
+      "heard": "Daylight mode please"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_cool"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.stt",
+    "event": {
+      "heard": "Roll, lamp off"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.leave_on",
+    "event": {
+      "heard": "You can leave the lamp on tonight"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devfresh.colour",
+    "event": {
+      "heard": "What colour is the light now?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": true,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devfresh.dont_dim",
+    "event": {
+      "heard": "Don't dim it, I'm still working"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ]
+    }
+  },
+  {
+    "id": "devfresh.see",
+    "event": {
+      "see": "a dark room with only the monitor glowing"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        null
+      ],
+      "silent": true
+    }
+  },
+  {
+    "id": "devfresh.nod_out",
+    "event": {
+      "heard": "Nod, then lights out"
+    },
+    "expect": {
+      "gesture": [
+        "nod"
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_off"
+      ]
+    }
+  },
+  {
+    "id": "devfresh.get",
+    "event": {
+      "heard": "Rho, can you get the light?"
+    },
+    "expect": {
+      "gesture": [
+        null
+      ],
+      "sayRequired": false,
+      "action": [
+        "light_on",
+        "light_off"
+      ]
+    }
   }
 ]

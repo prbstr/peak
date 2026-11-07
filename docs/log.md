@@ -38,6 +38,16 @@ Working from the Pi mic via a resident whisper.cpp server (`npm run whisper`, po
 
 **Live since the mind was restarted late on 5 Nov 2026** (at the owner's word; it now runs as a background task of the Claude session that restarted it, so it ends with that session). Checked with faked `heard` events against the real body: "Rho, look happy" → the happy trick's `eyes` command and happy eyes in the panel snapshot; "Rho, wave and give me a wink" → `{"gesture":"wave"}` then the wink; "show me your sleepy face" followed by `{"stop":true}` → the mind sent `{"eyes":{"release":true}}` and never sent the trick's last step. Replies 0.6-0.9 s. Not yet tried: the same by voice, and the owner watching the glass.
 
+**Action field, 7 Nov 2026 (off by default):** with `PEAK_BRAIN_DEVICES=1` the brain also names a device action from
+`mind/devices/devices.yaml` (the desk light's six). 40 cases and a sequence written before tuning (`dev`, held-out
+`dev2`, `devneg`, `devcross`; `devfresh` after). Baseline is the eyes-v1 prompt as it runs. v1 (Devices section, three
+rules, three examples) left every old group equal or better; v2 added a question example and took the held-out
+negations to 100%: 99% strict over 225 steps x 3, actions 96 of 99 right, 0 switched unasked in 486 old calls, replies
+about 100 ms slower (p50 0.7 s), gesture still at 0.26 s. The 12 fresh cases scored 72%: "leave the lamp on tonight"
+switched it on 2 of 3, "can you get the light?" got the example's line back word for word. Ladder in
+`mind/bakeoff/brain/README.md`. End to end over MQTT the same day with three faked events: the right payload on the
+light's own topic 0.6-1.0 s after each, the wave first at 0.3 s. No ESP yet, so no light moved.
+
 ## Vision
 
 Working from an image file, now through the same Qwen3-VL model as the brain (`eyes.js` comparison: the only one of three not to hallucinate a person). On Ollama 0.40.13 a fresh frame takes 5.6 s to describe (1.8 s on 0.24); the `PEAK_VISION_COOLDOWN_S` 10 s loop still works, the `{see}` event just lands later.

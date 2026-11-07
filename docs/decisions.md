@@ -46,6 +46,15 @@ and eyes). Change a row when a decision changes; do not delete the old reason, s
 | Only the character was renamed Rho | The owner asked for the name (5 Nov); keeping the project, topics and `PEAK_` settings avoided a rename of everything else. |
 | Mech Suit as the first body | Chosen over Big Fig, Scout Rover and Quad Walker in the "4 Build Concepts" Claude doc. The drone is deferred: Tello is discontinued. |
 
+## Added 7 Nov 2026
+
+| Decision | Why |
+| --- | --- |
+| Every device in the room (light, projector, screen) is a hive node on the same broker, declared as data in `mind/devices/devices.yaml`, not a Home Assistant behind the mind | The hive design already gives presence by Last Will and one command path; a second controller for three devices would be a second place to configure each. Each device keeps its own firmware's topics; the YAML is the adapter. |
+| The desk light runs lightbar2mqtt unchanged on an ESP32-C3, not an ESPHome component or the Pi | The only ESPHome bar component is for the 1S (02YL). lightbar2mqtt (Arduino, MIT, 156 stars) supports exactly the MJGJD01YL, speaks MQTT, and its config takes any SPI pins. The Pi route (lamperez, Python) would tie the light to the mech and take the SPI pins the NeoPixel wants. |
+| The brain's device actions are a fourth flat enum field, `action`, with absolute presets (bright, dim, warm, cool) | Same shape as `eyes`: old cases score as before, a gesture and a switch can go together, and the 8B handles a short enum. The firmware takes absolute levels, so relative "brighter" is a preset. |
+| Action prompt v2 ships in code with the switch off; the owner turns it on | Gate "no old group below the baseline" cleared; 99% strict, 0 unasked switches; but 72% on the fresh group (a permission read as a request, an example's words copied back). Same precedent as the eyes field. |
+
 ## How a model, prompt or speech engine gets changed
 
 The method the owner asked for on 2 Nov and that every change since has followed:

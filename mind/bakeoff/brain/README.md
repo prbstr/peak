@@ -113,7 +113,7 @@ The Failures section lists each missed case with what the model answered, per ru
 
 ## Add a case
 
-New cases go in a new group written **before** the next round of tuning, so the report's per-group table shows whether a prompt change generalised. Append to `cases.json`: `{ "id": "group.name", "event": { "heard": "..." } | { "see": "..." }, "expect": { "gesture": ["wave", null], "sayRequired": false } }`. `gesture` lists every acceptable answer (`null` = no gesture). The runner refuses a name that is not in `node/gestures.yaml`. Ids are prefixed by group so `--only group` works.
+New cases go in a new group written **before** the next round of tuning, so the report's per-group table shows whether a prompt change generalised. Append to `cases.json`: `{ "id": "group.name", "event": { "heard": "..." } | { "see": "..." }, "expect": { "gesture": ["wave", null], "sayRequired": false } }`. `gesture` lists every acceptable answer (`null` = no gesture). The runner refuses a name that is not in `node/gestures.yaml`. Ids are prefixed by group so `--only group` works. Optional: `"eyes": [tricks or null]` and `"action": [device actions or null]` count toward strict when present; `"silent": true` fails any spoken line. Keep the file at indent 2 when a script rewrites it.
 
 ## Eyes
 
@@ -167,3 +167,31 @@ pattern this file has recorded twice before. Both misses are a wave more or a wa
 the right eyes. So the field is **off by default** and the code carries v1, which loses the fewest calls.
 `PEAK_BRAIN_EYES=1` turns it on. Not tried: a goodnight example whose gesture is null, or a rule instead of an
 example.
+
+## Action field, 7 Nov 2026 (Qwen3-VL 8B, eyes v1 on, 185 cases + 40 sequence steps x 3 runs)
+
+The reply shape grows to `{gesture, eyes, action, say}`, where `action` names a device action from
+`devices/devices.yaml` (the desk light: `light_on`, `light_off`, `light_bright`, `light_dim`, `light_warm`,
+`light_cool`) or is null. 28 cases and `seq.dev` were committed before the prompt changed: tuning group `dev`,
+held-out `dev2`, `devneg` and `devcross`; `devfresh` (12) was written after tuning stopped. A case's `"action"` list
+counts toward strict; "action unasked" counts a device switched in a case that says nothing about devices. Run
+with `PEAK_BRAIN_DEVICES=1` in front. The baseline is the eyes-v1 prompt as it runs in `mind/.env`, so its old misses
+are the four from the eyes table.
+
+| Prompt | Strict | Old groups below 100% | Device groups | Actions right | Unasked (486 old calls) | p50 / p95 ms | Gesture p50 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Baseline, no action field | 87% | `fresh` 91 (`night` 3/3, `stt_not_head`), `eyes` 90 (`fact` 3/3), `trick` 93 (`goodnight` 1/3), `cross` 88 (`still_angry`) | fail by construction | - | - | 600 / 900 | 250 |
+| v1: a Devices section listing each device and its actions, three rules, three examples (on, dim, a negation) | 98% | `fresh` 95 (`stt_not_head` only), `cross` 88; `eyes` and `trick` 100 | `dev` 100, `dev2` 88 (`harsh` → cool), `devneg` 87 (`question` → light_on 2/3), `devcross` 100, `seq` 100 | 94/99 | 0 | 700 / 1000 | 260 |
+| **v2: v1 plus a question example ("Is the lamp on right now?" → words, action null)** | **99%** | `fresh` 94 (`stt_not_head`, `night` 1/3), `cross` 88 | `devneg` 100; `dev2` 88 (`harsh` → cool, a judgment call: "less harsh" is in `light_warm`'s own description) | 96/99 | 0 | 700 / 1000 | 260 |
+| v2 on the 12 `devfresh` cases written afterwards | 72% | - | "you can leave the lamp on tonight" → light_on 2/3; "can you get the light?" → words only, the question example's line copied verbatim 2/3; "bit gloomy in here" → dim or warm 2/3; a dark-room camera scene narrated 3/3 (action null, as it should be) | 29/36 | 0 | | |
+
+The gate was "every old group no lower than the baseline", and both versions clear it; v1 even brings back the two
+eyes-v1 misses the baseline carries. The field costs about 100 ms and 500 prompt tokens per reply; the gesture still
+fires at 0.26 s with 0 early mismatches. The fresh score is the honest one: two of its four misses are a permission
+read as a request and the example's words copied back (the lesson from 3 Nov again), the other two are debatable
+cases. The code default is **off**; `PEAK_BRAIN_DEVICES=1` in `mind/.env` turns it on. Not tried: a "you may leave
+it" example, shorter example lines that are less worth copying, a rule for "can you ..." requests.
+
+Live over MQTT the same day (mind started with the flag, three faked `heard` events, no ESP yet): "turn the light
+off" → `{"state":"OFF"}` on the light's command topic 0.6 s after the event; "wave and make it warmer" → the wave at
+0.31 s, then `{"color_temp":370}`; "is the light on?" → words only, the example's line verbatim.

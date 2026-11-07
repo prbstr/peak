@@ -1,0 +1,39 @@
+// peak's config.h for lightbar2mqtt on the ESP32-C3 (copy to config.h beside Lightbar.ino; config.h is gitignored).
+// Pins: the C3 runs SPI on any GPIO; these avoid the boot pins (2, 8, 9) and USB (18, 19).
+#include "constants.h"
+
+#define RADIO_PIN_CE 10
+#define RADIO_PIN_CSN 7
+#define RADIO_PIN_MOSI 6
+#define RADIO_PIN_MISO 5
+#define RADIO_PIN_SCK 4
+
+// The puck's serial, printed on the serial monitor as "unknown serial: 0x......" when the puck is pressed.
+// The same number in both lists: the ESP sends as the puck, so nothing is re-paired and the puck keeps working.
+constexpr SerialWithName LIGHTBARS[] = {
+    {0x000000, "Desk light"},
+};
+constexpr SerialWithName REMOTES[] = {
+    {0x000000, "Puck"},
+};
+
+// The 2.4 GHz network; the C3 cannot see 5 GHz. Fill these in by hand, never commit them.
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+
+// The Mac mini's broker, anonymous on the home LAN (CLAUDE.md, Environment facts).
+#define MQTT_SERVER "192.168.0.139"
+#define MQTT_PORT 1883
+#define MQTT_USER NULL
+#define MQTT_PASSWORD NULL
+// Topics become peak/desk-light/l2m_<MAC>/...; mind/devices/devices.yaml names them.
+#define MQTT_ROOT_TOPIC "peak/desk-light"
+
+// No Home Assistant here; the mind reads devices.yaml instead.
+#define HOME_ASSISTANT_DISCOVERY false
+#define HOME_ASSISTANT_DISCOVERY_PREFIX "homeassistant"
+#define HOME_ASSISTANT_DEVICE_NAME "Mi Computer Monitor Light Bar"
+
+#define NTP_SERVER "pool.ntp.org"
+#define GMT_OFFSET_SEC 7200
+#define DST_OFFSET_SEC 0

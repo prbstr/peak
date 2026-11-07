@@ -7,7 +7,8 @@ peak/
   mind/            Node.js — runs on the Mac
     orchestrator/  MQTT in → local model via Ollama → MQTT out
     senses/        camera frames → local vision; mic → speech-to-text; PIR and distance → presence
-    tricks/        tricks.yaml: named sequences of eye moves, gestures and words the hive can play on a body
+    tricks/        tricks.yaml: named sequences of eye moves, gestures, words and device actions the hive can play
+    devices/       devices.yaml: things in the room the hive can switch (the desk light), their topics and actions
     voice/         text-to-speech → node speaker
   node/            Python — runs on the Pi
     servod.py      subscribes peak/<node>/cmd, drives PCA9685 with eased moves; reads PIR and ultrasonic, draws the OLED
@@ -17,6 +18,7 @@ peak/
     config.yaml    channel map, ranges, rest angles
     gestures.yaml  named keyframe sequences (wave, point, nod, shrug)
     camd.sh        rpicam-vid → UDP stream to the mind
+  devices/         one folder per device that is not a body: firmware config and wiring (desk-light: an ESP32-C3 + nRF24L01+)
   contracts/       JSON schemas for every MQTT topic
 ```
 

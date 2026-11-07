@@ -62,6 +62,7 @@ const EXAMPLES = [
   [{ heard: 'Rho, turn the light on' }, { gesture: null, action: 'light_on', say: null }],
   [{ heard: 'Too bright, dim it please' }, { gesture: null, action: 'light_dim', say: null }],
   [{ heard: "Don't touch the light" }, { gesture: null, action: null, say: 'Leaving it as it is.' }],
+  [{ heard: 'Is the lamp on right now?' }, { gesture: null, action: null, say: "I can't tell from here, I only hold the switch." }],
 ];
 
 /** Narrow decisions the model got wrong when left to the one wide one. Each line fixed a systematic miss in the
