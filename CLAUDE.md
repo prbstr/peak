@@ -103,12 +103,12 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 | Eyes (OLED) | RoboEyes port, reflexes, `eyes` command and eight tricks running on the Pi at 14 frames a second. The tired-and-sweating strain should be gone since the new supply (7 Nov); `throttled` reads 0x0 in every sense. | The owner has not watched them on the glass |
 | Voice | Speaks through the HomePod mini "Bedroom". | |
 | Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
-| Pi power | Fixed 7 Nov by the owner's new supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run; the supply model is not logged |
+| Pi power | Fixed 7 Nov by the official 5.1 V 2.5 A micro-USB supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run |
 | Persistence | Nothing survives a reboot. Pi: `servod`, `camd.sh`, `audiod.sh` started by hand; `peak-servod.service` not installed. Mac: mind, senses, voice and whisper run as tasks of Claude sessions. | |
 
 ## Next steps
 
-1. **Pi power.** Done 7 Nov 2026: the owner's new supply passed the test (`docs/log.md`, Pi power). Left: note the supply's model and rating there.
+1. **Pi power.** Done 7 Nov 2026 with the official 5.1 V 2.5 A micro-USB supply (`docs/log.md`, Pi power).
 2. **Owner watches the eyes** (60 s): idle and blinks, a hand inside 30 cm, "Rho, give me a wink", `npm run trick -- peekaboo`.
 3. **Teaching by voice.** A brain reply that defines a trick from the existing step kinds, saved with `appendTrick()`. The loader, check and merge exist. Learning on its own waits for Lupin (Stage C).
 4. **Eyes prompt.** v1 loses the wave on "night night" 2 times in 3 and nods while answering "two plus two". Try a goodnight example with a null gesture, or a rule; full bake-off each time.
@@ -120,7 +120,7 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 10. **Brain.** Add `look_at` back (native tool calling is possible now). Decide whether an arrival gets a wave once servos are real. Obstacle stop on the Pi itself (Stage B).
 11. **Housekeeping.** Makefile: `m0` uses plain `python3` and `BROKER_IP` reads `en0` (the Mac is on `en1`). `mind/bakeoff/brain/models.json` still lists removed models. `mind/senses/README.md` still names `gemma4:26b`, `ggml-small.bin` and an unwired voice. `dtparam=i2c_arm_baudrate=400000` for smoother eyes (`sudo`). A router DHCP reservation for the Pi. A broker password before any guest network.
 12. **Parts list.** `SHOPPING.md` is behind: its AliExpress ticks came from the owner's word and differ from the order pages read on 2 Nov (`docs/log.md`, Servos), it shows power layout A as settled, and it lists a USB mic he now has. Reconcile it against the order pages with him.
-13. **Still to buy.** Half-size breadboard, 40 M/F jumpers, M/M jumpers, soldering iron, official Pi supply, speaker for the body, multimeter, a longer camera cable if 200 mm does not reach from head to backpack, and the Technic parts for the mech itself.
+13. **Still to buy.** Half-size breadboard, 40 M/F jumpers, M/M jumpers, soldering iron, speaker for the body, multimeter, a longer camera cable if 200 mm does not reach from head to backpack, and the Technic parts for the mech itself.
 
 ## Roadmap stages
 
