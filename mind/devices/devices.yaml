@@ -28,16 +28,16 @@ desk_light:
     light_bright:
       describe: 'desk light to full brightness. For "brighter", "more light", "I cannot see".'
       topic: 0x8d722/command
-      payload: { brightness: 15 }
+      payload: { state: 'ON', brightness: 15 }
     light_dim:
       describe: 'desk light down low. For "dim it", "too bright", "softer", "turn it down".'
       topic: 0x8d722/command
-      payload: { brightness: 3 }
+      payload: { state: 'ON', brightness: 3 }
     light_warm:
       describe: 'desk light to warm white. For "warmer", "cosier", "less harsh", "evening light".'
       topic: 0x8d722/command
-      payload: { color_temp: 370 }
+      payload: { state: 'ON', color_temp: 370 }
     light_cool:
       describe: 'desk light to cool white. For "cooler", "whiter", "daylight", "crisper".'
       topic: 0x8d722/command
-      payload: { color_temp: 153 }
+      payload: { state: 'ON', color_temp: 153 }
