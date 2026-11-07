@@ -100,3 +100,14 @@ glass, 9 s apart. By voice, with the mind on `PEAK_BRAIN_DEVICES=1`: "Row, light
 light" (inside the attention window) and "Ro, dim the light" → light_dim, five of five brain picks right, 0.6-0.8 s
 each, the bar following. Dropped by the wake gate outside the window: "Bro ..." three times, "Roar!" and "Rome" once
 each. MQTT link flapped once during a radio burst on the first run, not again in three later runs.
+
+**Evening of 7 Nov 2026, the light moved to ESPHome on the ESP32-C6.** On the C3 the Wi-Fi was the weak link (14 drops an
+hour, each radio burst knocking it off the broker) and a persistent session replayed stale toggles; on the C6 with
+lightbar2mqtt the puck was heard but no transmission reached the bar at any power or SPI speed. The owner's pick:
+the `xiaomi_lightbar` ESPHome component (juancase/kriodoxis). First ESP-IDF build 12 min, OTA after. With the node's
+memory set by its calibrate button: off, on, dim, bright, warm, cool each on the glass, the first level move absolute
+and every later one a single relative step; the link held through every burst. By voice, with "bro" added to the wake
+homophones at the owner's word (whisper wrote every Rho as Bro that evening): "Bro, lights off", "Bro, lights on",
+"Bro, dim the lights" all on the glass. Also that evening: `servod` died silently once, `up.sh`'s pgrep guard matched
+itself (now pid files), a `pkill` pattern killed its own ssh line while restarting the mic stream, and one brain call
+took 43 s (Ollama swap) in the middle of a voice window.

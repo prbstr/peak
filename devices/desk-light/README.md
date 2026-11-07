@@ -1,52 +1,59 @@
 # Desk light
 
-The owner's Xiaomi Mi Computer Monitor Light Bar (MJGJD01YL), driven by an ESP32-C3 with an nRF24L01+ that acts as
-the bar's own 2.4 GHz puck remote. The firmware is [lightbar2mqtt](https://github.com/ebinf/lightbar2mqtt) (Arduino,
-MIT), used unchanged: only `config.h` is ours. The step-by-step guide with the wiring drawing is the Claude doc
-"peak — Desk light guide" (link in `CLAUDE.md`). The mind's side is `mind/devices/devices.yaml`.
+The owner's Xiaomi Mi Computer Monitor Light Bar (MJGJD01YL), driven by an **ESP32-C6-WROOM-1 devkit** with an
+nRF24L01+ that speaks the bar's own 2.4 GHz puck protocol. Since the evening of 7 Nov 2026 the firmware is
+**ESPHome** with the `xiaomi_lightbar` external component (juancase, via the kriodoxis fork; MIT): relative steps,
+state that survives a reboot, the puck's presses heard, non-blocking sends, ESPHome's own MQTT with birth and will.
+The mind's side is `mind/devices/devices.yaml`. The step-by-step guide is the Claude doc "peak — Desk light guide"
+(link in `CLAUDE.md`).
 
 | File | What |
 | --- | --- |
-| `config.h.example` | Our `config.h` without the Wi-Fi password: pins, broker, root topic, discovery off. Copy to `config.h` beside the sketch and fill in the two blanks. `config.h` is gitignored. |
-| `Lightbar/` | A clone of the firmware, made at flash time (`git clone https://github.com/ebinf/lightbar2mqtt`), not committed. |
+| `light.yaml` | The ESPHome node: Wi-Fi, OTA, MQTT-only (`peak/desk-light/status` birth/will, no `api:`), SPI pins, the light with the puck's serial, the puck as an event. |
+| `secrets.yaml` | Wi-Fi name and password, the OTA phrase. Gitignored; template in `../c6/secrets.yaml.example`. |
+| `.esphome/` | Build output and the downloaded component. Gitignored. |
+| `config.h.example`, `Lightbar/` | The retired lightbar2mqtt route (Arduino), kept for its lessons below. `Lightbar/` is a clone, gitignored. |
 
-## Wiring, nRF24L01+ to ESP32-C3
+## Wiring, nRF24L01+ to the ESP32-C6 (top row, one run of holes beside 3V3 and GND)
 
-| Radio pin | Board pin |
+| Radio pin | C6 pin |
 | --- | --- |
-| 1 GND | GND |
+| 1 GND | GND (beside 3V3) |
 | 2 VCC | **3V3**, never 5V |
-| 3 CE | GPIO10 |
-| 4 CSN | GPIO7 |
-| 5 SCK | GPIO4 |
-| 6 MOSI | GPIO6 |
-| 7 MISO | GPIO5 |
+| 3 CE | 10 |
+| 4 CSN | 1 |
+| 5 SCK | 6 |
+| 6 MOSI | 7 |
+| 7 MISO | 0 |
 | 8 IRQ | not connected |
 
-The GPIO numbers are the ones in `config.h.example`; they avoid the C3's boot pins (2, 8, 9) and USB (18, 19). Confirm
-them against the board's silkscreen before plugging in.
+Avoided: 4, 5, 8, 9, 15 (boot strapping), 12 and 13 (USB), RX/TX. The component's README asks for a 10 µF capacitor
+across the module's VCC and GND; it worked without one on 7 Nov. Use the C6's **USB** socket, not COM.
 
-## Build and flash (Mac mini)
+## Build and flash (Mac mini, from `devices/`)
 
 ```sh
-brew install arduino-cli
-arduino-cli config init
-arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-arduino-cli core update-index && arduino-cli core install esp32:esp32        # about 1.5 GB
-arduino-cli lib install "Arduino_JSON@0.2.0" "CRC@1.0.3" "PubSubClient@2.8" "RF24@1.4.10"
-git clone https://github.com/ebinf/lightbar2mqtt devices/desk-light/Lightbar   # the folder must be named after Lightbar.ino
-cp devices/desk-light/config.h.example devices/desk-light/Lightbar/config.h   # then fill in WIFI_SSID and WIFI_PASSWORD
-arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc devices/desk-light/Lightbar   # CDCOnBoot=cdc, or Serial goes to UART0 and the USB monitor stays blank
-arduino-cli upload -p /dev/cu.usbmodem* --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc devices/desk-light/Lightbar
-arduino-cli monitor -p /dev/cu.usbmodem* -c baudrate=115200
+.venv/bin/esphome run desk-light/light.yaml --device /dev/cu.usbmodem31101   # first time, over USB (the ESP-IDF toolchain downloads, about 1.5 GB)
+.venv/bin/esphome run desk-light/light.yaml --device desk-light.local         # afterwards, over the air
 ```
 
-First boot prints `Root Topic: peak/desk-light/l2m_<MAC>`; a press of the puck prints `unknown serial: 0x<hex>`. Both
-go into `config.h` (`REMOTES` and `LIGHTBARS`, the same serial) and into `mind/devices/devices.yaml` (`base` and the
-action topics), then flash again. The firmware prints the serial unpadded and uses it lowercase in topics: the owner's
-puck is `0x08D722` in `config.h` and `0x8d722` in the topics. The board is `l2m_E8F60A4E22A8`.
+`esphome` lives in `devices/.venv` (python3.13). The node's log goes to MQTT: `mosquitto_sub -t peak/desk-light/debug`.
 
-## Two patches to the sketch, made at flash time (7 Nov 2026)
+## Topics (ESPHome's own)
+
+| Topic | Payload |
+| --- | --- |
+| `peak/desk-light/status` | `online` / `offline`, retained, Last Will: the hive's convention |
+| `peak/desk-light/light/bar/command` | JSON: `{"state":"ON"}`, `{"state":"ON","brightness":51}` (0 to 255), `{"state":"ON","color_temp":370}` (mireds, 154 cool to 370 warm) |
+| `peak/desk-light/light/bar/state` | retained JSON with the same fields |
+| `peak/desk-light/button/calibrate_on/command`, `.../calibrate_off/command` | `PRESS`: tell the node the bar is on or off without touching it (the bar only hears "flip", so the node keeps a memory) |
+| `peak/desk-light/button/resend/command` | `PRESS`: set brightness and colour again absolutely |
+| `peak/desk-light/debug` | the node's log |
+
+The first level change after a reboot is absolute (dim to the floor, climb to the target); every one after that is a
+relative step, like the puck.
+
+## What was learned on the retired route (lightbar2mqtt on the ESP32-C3 SuperMini, 7 Nov 2026)
 
 | Patch | Why |
 | --- | --- |

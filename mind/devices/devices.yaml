@@ -8,36 +8,36 @@
 #             payload (a string sent as is, or an object sent as JSON). Names share one namespace with gestures
 #             and tricks, because the brain names any of them in one word.
 # A new device is a new entry here; nothing else changes. Its firmware and wiring live in devices/<name>/ at the
-# repo root. The desk light runs lightbar2mqtt (https://github.com/ebinf/lightbar2mqtt): absolute levels only,
-# brightness 0 to 15 and colour in mireds 153 (cool) to 370 (warm), so "brighter" and "dimmer" are presets.
+# repo root. The desk light is an ESPHome node (devices/desk-light/light.yaml); its one light takes ESPHome's MQTT
+# JSON: state ON/OFF, brightness 0 to 255, color_temp in mireds 153 (cool) to 370 (warm). The bar has 16 levels, so
+# "brighter" and "dimmer" are presets.
 desk_light:
   describe: 'the desk light, a Xiaomi light bar above the monitor; an ESP32 acts as its remote.'
-  # The ESP prints its root topic at boot ("peak — Desk light guide", Step 3): peak/desk-light/l2m_<MAC>.
-  base: peak/desk-light/l2m_E8F60A4E22A8
-  status: availability
+  # ESPHome node: peak/desk-light/status is its birth and will, the light answers on light/bar/command
+  base: peak/desk-light
+  status: status
   actions:
     light_on:
       describe: 'switch the desk light on. For "lights on", "turn on the lamp", or when someone says it is dark.'
-      # 0x followed by the puck's serial as the firmware prints it in topics: lowercase, no padding (puck 0x08D722)
-      topic: 0x8d722/command
+      topic: light/bar/command
       payload: { state: 'ON' }
     light_off:
       describe: 'switch the desk light off. For "lights off", "kill the light", "turn off the lamp".'
-      topic: 0x8d722/command
+      topic: light/bar/command
       payload: { state: 'OFF' }
     light_bright:
       describe: 'desk light to full brightness. For "brighter", "more light", "I cannot see".'
-      topic: 0x8d722/command
-      payload: { state: 'ON', brightness: 15 }
+      topic: light/bar/command
+      payload: { state: 'ON', brightness: 255 }
     light_dim:
       describe: 'desk light down low. For "dim it", "too bright", "softer", "turn it down".'
-      topic: 0x8d722/command
-      payload: { state: 'ON', brightness: 3 }
+      topic: light/bar/command
+      payload: { state: 'ON', brightness: 51 }
     light_warm:
       describe: 'desk light to warm white. For "warmer", "cosier", "less harsh", "evening light".'
-      topic: 0x8d722/command
+      topic: light/bar/command
       payload: { state: 'ON', color_temp: 370 }
     light_cool:
       describe: 'desk light to cool white. For "cooler", "whiter", "daylight", "crisper".'
-      topic: 0x8d722/command
-      payload: { state: 'ON', color_temp: 153 }
+      topic: light/bar/command
+      payload: { state: 'ON', color_temp: 154 }  # the component's range is 153.8 to 370.4 mireds

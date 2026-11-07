@@ -1,0 +1,73 @@
+# The desk light as an ESPHome node on the ESP32-C6: the Xiaomi light bar MJGJD01YL driven through an nRF24L01+ that
+# speaks the puck's protocol, by the xiaomi_lightbar external component (juancase, via the kriodoxis fork). It keeps
+# the bar's state across reboots, steps brightness and colour relatively, hears the puck, and exposes one light over
+# ESPHome's own MQTT (no Home Assistant). Flash from devices/: .venv/bin/esphome run desk-light/light.yaml --device <port>
+# Secrets come from secrets.yaml beside this file (copied from ../c6/secrets.yaml.example), never committed.
+esphome:
+  name: desk-light
+  friendly_name: Desk light
+
+esp32:
+  variant: esp32c6
+  # ESP-IDF is the only framework for the C6 and the one the component was tested on
+
+logger:
+  level: DEBUG  # the component logs sent and received packets at DEBUG; the log also goes to MQTT peak/desk-light/debug
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# No api: block on purpose; without Home Assistant it would reboot the node every 15 minutes.
+mqtt:
+  broker: 192.168.0.139
+  topic_prefix: peak/desk-light
+  discovery: false
+  discover_ip: false
+  keepalive: 15s
+  birth_message:
+    topic: peak/desk-light/status
+    payload: online
+  will_message:
+    topic: peak/desk-light/status
+    payload: offline
+
+external_components:
+  - source: github://kriodoxis/esphome-xiaomi-lightbar-nrf24
+    components: [xiaomi_lightbar]
+
+# nRF24L01+ on the C6's top row, one run of holes beside 3V3 and GND (devices/desk-light/README.md)
+spi:
+  clk_pin: GPIO6
+  mosi_pin: GPIO7
+  miso_pin: GPIO0
+
+xiaomi_lightbar:
+  cs_pin: GPIO1
+  ce_pin: GPIO10
+
+light:
+  - platform: xiaomi_lightbar
+    name: Bar
+    id: bar
+    # the puck's own serial, so the bar needs no re-pairing and the puck keeps working
+    serial: 0x08D722
+    restore_mode: RESTORE_DEFAULT_OFF
+    pair:
+      name: Pair
+    resend:
+      name: Resend
+    calibrate_on:
+      name: Calibrate on
+    calibrate_off:
+      name: Calibrate off
+
+# the puck's presses, so the log shows them (and the state can follow them)
+event:
+  - platform: xiaomi_lightbar
+    name: Puck
+    serial: 0x08D722

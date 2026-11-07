@@ -16,7 +16,7 @@ const NAME = /\brho\b/i;
 // Whisper mostly writes a homophone instead, and those are ordinary words ("three in a row", "roll the dice").
 // They count as the name only where a name stands: opening the utterance, after a greeting or not, or closing
 // it after a comma, and set off by punctuation either way. "Roll." alone is how a bare "Rho" came back.
-const SOUNDS_LIKE = 'row|roe|ro|roh|rowe|roll';
+const SOUNDS_LIKE = 'row|roe|ro|roh|rowe|roll|bro'; // bro added 7 Nov 2026 at the owner's word: whisper wrote every Rho that evening as Bro
 const ADDRESSED = new RegExp(`^(?:(?:hey|hi|hello|okay|ok|yo)[\\s,!.]+)?(?:${SOUNDS_LIKE})(?:[,.!?]|$)|,\\s*(?:${SOUNDS_LIKE})[.!?]*$`, 'i');
 const WAKE = { test: text => NAME.test(text) || ADDRESSED.test(text) };
 // stage directions and sound tags, with or without the words around them

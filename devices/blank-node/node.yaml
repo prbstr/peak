@@ -1,0 +1,39 @@
+# A blank hive node in ESPHome: joins Wi-Fi, reports online/offline on peak/<name>/status like a body, and does
+# nothing else yet. The projector (IR) or the screen (relay or 433 MHz) gets added as a few more lines when the parts
+# and the model names are in. The C6 became the desk light on 7 Nov 2026, so the next blank node is the spare
+# ESP32-C3 SuperMini: set variant esp32c3 and wifi output_power 8.5dB (its antenna). Untested as written.
+# Flash from devices/: .venv/bin/esphome run blank-node/node.yaml --device <port>; secrets.yaml beside it, never committed.
+esphome:
+  name: node
+  friendly_name: Blank node
+
+esp32:
+  variant: esp32c3  # the spare SuperMini; esp32c6 for a C6
+
+logger:
+  level: INFO
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 8.5dB  # the C3 SuperMini never joins at full power; drop this line for a C6
+  # no captive portal or fallback AP: a node that cannot reach the broker is simply offline
+
+# Over-the-air updates for later, so the USB cable is only needed once
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# No api: block on purpose. Without Home Assistant an api: block reboots the node every 15 minutes.
+mqtt:
+  broker: 192.168.0.139
+  topic_prefix: peak/node
+  discovery: false
+  discover_ip: false
+  keepalive: 15s
+  birth_message:
+    topic: peak/node/status
+    payload: online
+  will_message:
+    topic: peak/node/status
+    payload: offline

@@ -23,8 +23,8 @@ test('the shipped devices load: six light actions on the desk light, none named 
   assert.deepEqual(Object.keys(DEVICES.devices), ['desk_light']);
   assert.deepEqual(actionNames, ['light_on', 'light_off', 'light_bright', 'light_dim', 'light_warm', 'light_cool']);
   for (const name of actionNames) assert.ok(!gestureNames.includes(name));
-  assert.equal(DEVICES.devices.desk_light.status, 'peak/desk-light/l2m_E8F60A4E22A8/availability');
-  assert.equal(DEVICES.actions.light_off.topic, 'peak/desk-light/l2m_E8F60A4E22A8/0x8d722/command');
+  assert.equal(DEVICES.devices.desk_light.status, 'peak/desk-light/status');
+  assert.equal(DEVICES.actions.light_off.topic, 'peak/desk-light/light/bar/command');
   assert.deepEqual(JSON.parse(DEVICES.actions.light_off.payload), { state: 'OFF' });
 });
 

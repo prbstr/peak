@@ -92,7 +92,7 @@ Pi (mech)                         Mac (mind)
 
 The aim for the eyes and tricks is a set that grows over time: the robot can be taught new tricks and skills, and later learns new things on its own.
 
-## Where things stand (7 Nov 2026, 15:30)
+## Where things stand (7 Nov 2026, 21:00)
 
 | Area | State | Not yet checked |
 | --- | --- | --- |
@@ -100,14 +100,14 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 | Mind, broker, body | Working end to end, Mac and Pi. On the Pi `servod` runs with `PEAK_SIM=1`, started by hand. | |
 | Hearing | Pi USB mic, whisper.cpp `medium.en` on the Mac, wake word "Rho"; for 8 s after it, sentences pass without the name (`PEAK_WAKE_WINDOW_MS`). Transcript 0.4-0.6 s after speech ends. Owner, 5 Nov: "working excellently". | "Bro wave at me" (name run into the request) is missed |
 | Brain | `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes. Every bake-off group at 100% bar one known miss ("can you not your head"). Gesture out at 0.25 s, reply 0.4-0.9 s. Picks tricks since the late restart on 5 Nov. Action field built 7 Nov: 99% strict with it on, 0 unasked switches, 72% on the fresh device cases; off until the owner sets `PEAK_BRAIN_DEVICES=1`. | A trick asked for by voice. Replies took 2-7 s when a photo description was in the queue. |
-| Desk light (device) | **Working on the glass since 7 Nov evening**: on, dim, off by hand and by voice ("Rho, dim the light" in under a second). ESP32-C3 SuperMini + nRF24L01+ (owner soldered the headers), lightbar2mqtt with the flash-time patches in `devices/desk-light/README.md`: Wi-Fi TX power 8.5 dBm, modem sleep off, `CDCOnBoot=cdc`, radio burst hopping over channels 6/15/43/68 at full power (lower power lost off→on), a persistent QoS 1 session, and the on/off memory read back from the broker's retained state (the bar only hears "flip"). Board `l2m_E8F60A4E22A8`, puck `0x08D722`. Powered from the Mac mini's USB-C for now. | `light_bright`, `light_cool` seen on the glass. A USB charger of its own. The puck's button desyncs the firmware's on/off memory (`toggle_internal` resyncs). |
+| Desk light (device) | **Working on the glass and by voice since 7 Nov evening** on the ESP32-C6 under ESPHome with the `xiaomi_lightbar` component (`devices/desk-light/light.yaml`): on, off, dim, bright, warm, cool by hand, "Bro, lights off" and "lights on" by voice. Relative steps, state kept across reboots, the puck heard, no firmware patches. The C3 route (lightbar2mqtt, four flash-time patches) is retired; its lessons are in `devices/desk-light/README.md`. Powered from the Mac mini's USB-C for now. | A USB charger of its own. The C3 SuperMini is spare: the next blank ESPHome node. |
 | Vision | Pi camera, 640x480 at 15 fps, described by the same model in 5.6 s, change-triggered. | A person in frame. The camera is loose on the desk. |
 | Sensors | Distance and PIR in every `sense`; `presence.js` turns arrivals and close approaches into `sensed` events. | MPU6050 (shares the OLED's pins until a breadboard arrives) |
 | Eyes (OLED) | RoboEyes port, reflexes, `eyes` command and eight tricks running on the Pi at 14 frames a second. The tired-and-sweating strain should be gone since the new supply (7 Nov); `throttled` reads 0x0 in every sense. | The owner has not watched them on the glass |
 | Voice | Speaks through the HomePod mini "Bedroom". | |
 | Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
 | Pi power | Fixed 7 Nov by the official 5.1 V 2.5 A micro-USB supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run |
-| Persistence | Nothing survives a reboot, but one command brings it all back: `npm run up` (Mac parts detached, Pi daemons over ssh). `peak-servod.service` not installed. | |
+| Persistence | Nothing survives a reboot, but one command brings it all back: `npm run up` (Mac parts detached, Pi daemons over ssh, judged by pid files). `peak-servod.service` not installed. The Mac parts all died once on 7 Nov evening between 19:46 and 20:35, cause unknown (logs were overwritten by the restart). | |
 
 ## Next steps
 
@@ -124,7 +124,7 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 11. **Housekeeping.** Makefile: `m0` uses plain `python3` and `BROKER_IP` reads `en0` (the Mac is on `en1`). `mind/bakeoff/brain/models.json` still lists removed models. `mind/senses/README.md` still names `gemma4:26b`, `ggml-small.bin` and an unwired voice. `dtparam=i2c_arm_baudrate=400000` for smoother eyes (`sudo`). A router DHCP reservation for the Pi. A broker password before any guest network.
 12. **Parts list.** `SHOPPING.md` is behind: its AliExpress ticks came from the owner's word and differ from the order pages read on 2 Nov (`docs/log.md`, Servos), it shows power layout A as settled, and it lists a USB mic he now has. Reconcile it against the order pages with him.
 13. **Still to buy.** Half-size breadboard, 40 M/F jumpers, M/M jumpers, soldering iron, speaker for the body, multimeter, a longer camera cable if 200 mm does not reach from head to backpack, and the Technic parts for the mech itself.
-14. **Desk light as a hand.** Done 7 Nov (guide: "peak — Desk light guide", https://claude.ai/artifact/DyDc26DcX2hw1SPUigdvbJ; flash notes in `devices/desk-light/README.md`). Left: a USB charger for the ESP so it no longer hangs off the Mac mini; `PEAK_BRAIN_DEVICES=1` in `mind/.env` (the 7 Nov evening mind was started with it by hand); offer the channel-hopping patch upstream to lightbar2mqtt; a `movie_night`-style trick once the projector exists. Next devices on the same pattern: the projector (model decides LAN/PJLink vs IR on the ESP32-C6) and its screen (relay or 433 MHz).
+14. **Desk light as a hand.** Done 7 Nov on the ESP32-C6 under ESPHome (guide: "peak — Desk light guide", https://claude.ai/artifact/DyDc26DcX2hw1SPUigdvbJ; notes in `devices/desk-light/README.md`). Left: a USB charger for the C6 so it no longer hangs off the Mac mini; a 10 µF capacitor across the radio's VCC and GND when the breadboard order comes; the C3 SuperMini as the next blank ESPHome node (`devices/blank-node/`); a `movie_night`-style trick once the projector exists. Next devices on the same pattern: the projector (model decides LAN/PJLink vs IR) and its screen (relay or 433 MHz), each a new ESPHome node and a block in `devices.yaml`.
 
 ## Roadmap stages
 
@@ -221,7 +221,7 @@ Hearing
 - The Pi USB mic rejects 16 kHz: capture at 48 kHz and resample. Select it by name, not card number.
 - Whisper invents sentences on quiet audio. The wake-word gate in `heardFilter.js` is the defence; do not weaken it with drop lists.
 - `PEAK_MIN_DB` has no good fixed value on this mic.
-- Rho sounds like row, roe and roll. The homophones wake it only where a name would stand; "bro" is deliberately not one. On 7 Nov whisper also wrote "Roar!" and "Rome" for it; a pause after the name ("Rho. Dim the light.") helps, and a request inside the 8 s window after a good wake passes even as "Bro".
+- Rho sounds like row, roe, roll and, most of the time on 7 Nov evening, "bro": the owner let "bro" wake it that night (it counts only where a name stands, start of the utterance before a comma). "Roar!" and "Rome" are still dropped; a pause after the name helps, and a request inside the 8 s window after a good wake passes without the name.
 - `hearing.js` must SIGKILL its ffmpeg on exit, or UDP :5001 stays bound.
 - Test speech engines on real Pi-mic clips. Synthetic `say` clips scored 1.1% word errors against 4.5 to 5.6% on real ones.
 
