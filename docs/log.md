@@ -135,6 +135,14 @@ Live since 5 Nov 2026. `servod` on the Pi (started by hand with `PEAK_SIM=1`, se
 
 Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired. `servod` has only run in sim. Orders seen 2 Nov 2026: AliExpress (servos x10, PCA9685 x2, UBEC 3A, Mini560 PRO 5V x5 plus 2 wrong 9V, BMS, holders, switch, USB iron) and Communica (4x INR18650-30HW cells, Pi Camera Module 3 Wide, HC-SR04+, MPU6050, 0.96in I2C OLED, 16-LED WS2812 ring, PIR sensor, vibration motor, Pi heatsinks and fan, resistors, diodes, transistors, F/F jumpers, heat shrink). Not seen in either order, confirm before relying on them: speaker, multimeter, solder/flux, hookup wire, capacitor, fuse, connectors, Pi power supply, 5A UBEC, 2S Type-C charger.
 
+**Cutover to launchd, 8 Nov 2026 09:05.** On the owner's word: `npm run down` stopped the six nohup parts this session
+had started at 07:19 (each by its pid file, checked against its command line), `npm run up` wrote and bootstrapped the
+seven agents. `npm run status`: all seven `running` and `online`, `mech` and `desk-light` online, health ok. The
+mind's settings line names the rails. `kill -9` of vision at 09:06:25: back in 1 s as a new pid, `runs` 2, the log kept
+its earlier lines. Rails live: a `heard` "rho, turn the light off" stamped 10 s old was vetoed (`[mind] veto heard
+event: 10.2 s old (limit 5 s), not answered`) and nothing reached `peak/+/cmd` or the light. Not yet: the Pi units and
+servod's command check (`scripts/deploy-node.sh`, the owner's sudo), newsyslog, a reboot of either machine.
+
 ## Pi service
 
 `peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and
