@@ -150,6 +150,11 @@ active since 09:20:47, one `servod.py` (systemd's), the camera and mic streams r
 unknown servo 'nope'`, `{"servo":"head","deg":"abc"}` → `dropped ... deg must be a finite number`, then
 `{"gesture":"wave"}` played in sim; `sense` carries `motion_alive: true`. `~/.lupin` is now `700`, its files `600`.
 
+**Pi reboot, 8 Nov 2026 09:25.** The owner ran `sudo reboot`. Kernel up 09:25:26; `peak-servod`, `peak-camd`,
+`peak-audiod` active by 09:25:53; `peak/mech/status` online at 09:26:09, 43 s after boot. One `servod.py`,
+`throttled=0x0`. On the Mac, with nothing restarted: vision described the desk again (looks 3.1-3.7 s on the 4B) and
+hearing received the mic stream. Done-when for the Pi in the review's step 1 met.
+
 ## Pi service
 
 `peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and
