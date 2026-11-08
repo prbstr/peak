@@ -174,6 +174,8 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
   }
   const text = [reply.gesture && `*${reply.gesture}*`, reply.eyes && `(${reply.eyes})`, reply.action && `[${reply.action}]`, reply.say].filter(Boolean).join(' ');
   if (text) client.publish('peak/brain/intent', JSON.stringify({ node, text, at: Date.now() }));
+  // what Rho did, in one line: a device switched silently leaves no other trace in the logs (8 Nov spoken test)
+  console.log(`[mind] reply ${text || '(nothing)'}`);
   t.done = Date.now();
   logPerf({ event, at, recv, t, stats, gestureMs, messages, content });
 }
