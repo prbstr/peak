@@ -295,6 +295,24 @@ worktree's venv, and the wheel is now pinned in `requirements-kokoro.txt` so it 
 voice's first start. Left: `scripts/deploy-node.sh` (owner, `sudo`) to take `talk_delay_s: 0.3` to the Pi, which
 still pulses the eyes 2.5 s after each line.
 
+**8 Nov 2026, 12:05, the Pi and a spoken window.** The owner's first `deploy-node.sh` copied `node/` at 11:47 but left
+servod running from 09:52 (it reads `config.yaml` once, at start). servod was restarted through systemd at 12:05:33
+(`Restart=always`, one servod, `talk_delay_s: 0.3`, display on). Then a 60 s window, the owner asked for "wave",
+"lights off", "lights on". Five utterances passed the wake gate (four on "Rho", one in the attention window), each
+0.4 s after speech ended:
+
+| Reply, in order | Gesture out | Reply done | Voice first sound |
+| --- | --- | --- | --- |
+| `*wave*` "Hey there!" | 319 ms | 711 ms | 0.35 s |
+| `[light_on]` | 285 ms | 691 ms | (no line) |
+| `[light_off]` | 309 ms | 705 ms | (no line) |
+| `*wave*` "Hey there!" | 287 ms | 717 ms | 0.21 s |
+| eyes `happy`, no words | 291 ms | 701 ms | (no line) |
+
+Every prompt kept the cached prefix (prompt eval 134-149 ms). The light ended `OFF`: on came before off, the reverse of
+the asked order. Transcripts are not logged (`PEAK_DEBUG` off), so which words gave which reply is the owner's to say.
+The device replies carry no spoken line, so the voice spoke for two of the five.
+
 ## Desk light (device)
 
 **7 Nov 2026, built and lit.** ESP32-C3 SuperMini + nRF24L01+ on seven F/F jumpers (CE 10, CSN 7, SCK 4, MOSI 6, MISO 5,
