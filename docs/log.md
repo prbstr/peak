@@ -143,6 +143,13 @@ its earlier lines. Rails live: a `heard` "rho, turn the light off" stamped 10 s 
 event: 10.2 s old (limit 5 s), not answered`) and nothing reached `peak/+/cmd` or the light. Not yet: the Pi units and
 servod's command check (`scripts/deploy-node.sh`, the owner's sudo), newsyslog, a reboot of either machine.
 
+**The owner's sudo steps, 8 Nov 2026 09:19-09:22.** `/etc/newsyslog.d/peak.conf` installed (7 parts, 10 MB, 7 kept,
+signal 31). `scripts/deploy-node.sh` put the units on the Pi: `peak-servod`, `peak-camd`, `peak-audiod` enabled and
+active since 09:20:47, one `servod.py` (systemd's), the camera and mic streams running, `NRestarts=0`, `mech` online,
+`/etc/logrotate.d/peak` in place. servod's command check on the real body: `{"servo":"nope","deg":1}` → `dropped ...
+unknown servo 'nope'`, `{"servo":"head","deg":"abc"}` → `dropped ... deg must be a finite number`, then
+`{"gesture":"wave"}` played in sim; `sense` carries `motion_alive: true`. `~/.lupin` is now `700`, its files `600`.
+
 ## Pi service
 
 `peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and
