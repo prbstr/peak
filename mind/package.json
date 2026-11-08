@@ -17,7 +17,7 @@
     "whisper": "whisper-server -m ${PEAK_WHISPER_GGML:-$HOME/.cache/whisper.cpp/ggml-medium.en.bin} --host 127.0.0.1 --port 8178 -l en --no-timestamps",
     "vision": "node senses/vision.js",
     "presence": "node senses/presence.js",
-    "voice": "sh -c 'set -a; [ -f .env ] && . ./.env; set +a; exec voice/.venv/bin/python -u voice/homepod.py'",
+    "voice": "sh -c 'set -a; [ -f .env ] && . ./.env; set +a; if [ \"${PEAK_VOICE_BACKEND:-homepod}\" = kokoro ]; then exec voice/.venv-kokoro/bin/python -u voice/local.py; else exec voice/.venv/bin/python -u voice/homepod.py; fi'",
     "record": "node scripts/record.js",
     "trick": "node scripts/trick.js",
     "device": "node scripts/device.js",
