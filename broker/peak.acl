@@ -12,12 +12,16 @@ topic write peak/+/event
 topic read peak/+/event
 topic read peak/+/sense
 topic readwrite peak/mind/+/status
+# Rho's speaking flag and the line it is saying: hearing drops Rho's own words (senses/halfDuplex.js)
+topic read peak/mind/speaking
+topic read peak/mind/said
 
-# the voice: every say on a body's cmd, its own status, and the speaking flag for half-duplex hearing
+# the voice: every say on a body's cmd, its own status, and the speaking flag and line for half-duplex hearing
 user voice
 topic read peak/+/cmd
 topic readwrite peak/mind/voice/status
 topic readwrite peak/mind/speaking
+topic readwrite peak/mind/said
 
 # the body on the Pi: its commands in, its readings and presence out, the mind's status for the dead-man switch
 user mech

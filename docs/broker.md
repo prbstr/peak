@@ -11,8 +11,8 @@ broker with no error to the client, so a new topic needs a line there first.
 | User | Who | Writes | Reads | Password lives in |
 | --- | --- | --- | --- | --- |
 | `mind` | orchestrator, health, `npm run trick/device/pub/sub` | `peak/#` | `peak/#` | `mind/.env` `PEAK_MQTT_PASSWORD_MIND` |
-| `senses` | hearing, vision, presence | `peak/+/event`, `peak/mind/+/status` | `peak/+/event`, `peak/+/sense` | `mind/.env` `PEAK_MQTT_PASSWORD_SENSES` |
-| `voice` | `homepod.py`, the Kokoro backend | `peak/mind/voice/status`, `peak/mind/speaking` | `peak/+/cmd` | `mind/.env` `PEAK_MQTT_PASSWORD_VOICE` |
+| `senses` | hearing, vision, presence | `peak/+/event`, `peak/mind/+/status` | `peak/+/event`, `peak/+/sense`, `peak/mind/speaking`, `peak/mind/said` | `mind/.env` `PEAK_MQTT_PASSWORD_SENSES` |
+| `voice` | `homepod.py`, the Kokoro backend | `peak/mind/voice/status`, `peak/mind/speaking`, `peak/mind/said` | `peak/+/cmd` | `mind/.env` `PEAK_MQTT_PASSWORD_VOICE` |
 | `mech` | `servod.py` on the Pi | `peak/mech/sense`, `peak/mech/status` | `peak/mech/cmd`, `peak/mind/+/status` | Pi `~/peak/peak.env` |
 | `desk-light` | the ESP32-C6 (ESPHome) | `peak/desk-light/#` | `peak/desk-light/#` | `devices/desk-light/secrets.yaml` `mqtt_password` |
 | `owner` | your `mosquitto_sub` / `mosquitto_pub` | `peak/#` | `peak/#`, `$SYS/#` | `~/.config/mosquitto_sub`, `~/.config/mosquitto_pub` |

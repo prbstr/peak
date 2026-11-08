@@ -96,6 +96,33 @@ robot...", "and solve puzzles.", no wake word needed inside the window) and the 
 the third echo fell outside the window and was dropped. The stop dropped the queued self-reply, so neither was spoken.
 Half-duplex hearing is now the first fix, ahead of the Mac reboot.
 
+**Half-duplex hearing, 8 Nov 21:09-21:18.** First by time (`peak/mind/speaking` plus an 0.8 s tail, `senses/halfDuplex.js`,
+the senses user allowed to read it, `scripts/broker-auth.sh acl` reloading the ACL by SIGHUP). Window 21:11: the
+story's echo dropped, a bare "Stop!" cut the story in 1 ms, but "Rho, wave at me" said the moment "Four." ended was
+dropped twice as Rho's own. Five `say` lines through the Mac speaker then timed the echo: its last loud frame reached
+hearing from 0.5 s before to 0.9 s after `false`, and the echo of a fifth line came more than 0.8 s after (it fell to
+the wake gate as "Don't wave at me."). So the judge became words: the voice publishes each line on `peak/mind/said`,
+and what hearing catches during a line or up to 2 s after is dropped when at least half its words are the line's
+(sound-alikes of Rho count as Rho). The same five lines again: every echo dropped (100% Rho's words; "Four." came back
+"Fool!" and fell to the wake gate). 112 mind tests.
+
+| Window 21:17 | Heard as | Result |
+| --- | --- | --- |
+| "Rho, tell me a long story about a robot", then "Stop!" | "stop" | Lane stop 7 ms after hearing, story cut 3.5 s in |
+| "Rho, what's two plus two?" | "Bro, what's 2+2?" | "Four." |
+| "Rho, wave at me" the moment "Four." ended | "Throw away that meat." | Passed (0% Rho's words), but whisper garbled it; the brain answered the garble. Same garble as 21:11 ("Throw a wave at me.") |
+| (Rho's reply about a trash bin) | three pieces | All three dropped as Rho's own (83-100%) |
+| "Rho, tell me a joke" | "Bro, tell me a joke." | Passed (20%) |
+| "Rho, lights off" while the joke played | "Bro, life's off." | Passed over Rho's voice (33%); whisper misheard "lights" |
+| "Rho, lights on" | "Road lights on." | Lane `light_on` in 1 ms ("road" counts as the name since 20:49) |
+
+No self-reply in the window; six echoes dropped; every request of the owner's reached the mind. What is left is
+whisper's accuracy on speech said over or right after Rho's voice.
+
+Network check, 21:19 (`lsof -i` on every running part): the only connections off the Mac's loopback are the broker's
+to the Pi (192.168.0.226) and the desk light (192.168.0.150), and the Pi's UDP audio and video streams. Nothing reaches
+the internet while Rho runs.
+
 ## Brain
 
 `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes, 5.3 GB resident. Prompt tuned 3 Nov 2026: **100% strict** on the 97-step bake-off (was 94%), 95% on 22 cases written after tuning, 100% valid JSON. The orchestrator streams the reply and fires the gesture at 0.24 s, before the spoken line (0.4 s). Known miss: "can you not your head" (STT for nod) gets no nod. Live test 3 Nov 2026: wave, nod (from "not if you can hear me"), look_left, look_right and a words-only weather answer, all correct, gesture command 255-324 ms after each event, full reply 0.4-0.7 s.

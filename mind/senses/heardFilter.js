@@ -23,6 +23,13 @@ const ADDRESSED = new RegExp(`^(?:(?:hey|hi|hello|okay|ok|yo)[\\s,!.]+)?(?:${SOU
 const STOPS = 'stop|freeze|halt';
 const STOP_CALL = new RegExp(`^(?:rho|${SOUNDS_LIKE})[\\s,.!?]+(?:${STOPS})(?:[\\s,.!?]+(?:${STOPS}|it|that|now))*[\\s.!?]*$|^(?:${STOPS})[\\s,.!?]+(?:rho|${SOUNDS_LIKE})[\\s.!?]*$`, 'i');
 const WAKE = { test: text => NAME.test(text) || ADDRESSED.test(text) || STOP_CALL.test(text) };
+// While Rho speaks, a stop with or without the name cuts it off (halfDuplex.js lets only this through)
+const BARE_STOP = new RegExp(`^(?:${STOPS})(?:[\\s,.!?]+(?:${STOPS}|it|that|now))*[\\s.!?]*$`, 'i');
+/** True when the whole utterance is a stop: "Bro stop", "Rho, stop!", "Stop, stop." */
+export const isStop = raw => {
+  const text = raw.replace(TAGS, ' ').replace(/\s+/g, ' ').trim();
+  return STOP_CALL.test(text) || BARE_STOP.test(text);
+};
 // stage directions and sound tags, with or without the words around them
 const TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*/g;
 // invented on near-silence, or echoes of the server's own prompt hint

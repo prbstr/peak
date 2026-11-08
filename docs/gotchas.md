@@ -100,8 +100,12 @@ Given when the parts were chosen; none of it has been tested, because the AliExp
   Rho's own lines: `hearing.log` that day dropped "Hey, good to see you." (4), "Lights off, sleep well." (2) and "That
   looks like a soldiering iron." (2) for having no wake word. A line with the name in it ("I'm Rho") would pass the gate
   and wake Rho itself. Music in the room also comes back as lyrics (`♪ ... ♪`), dropped the same way. Silero VAD cannot
-  help: both are speech. The fix is half-duplex: `hearing.js` drops what it hears while `peak/mind/speaking` is set
-  (the Kokoro voice publishes it; the senses' broker user cannot read it yet, `broker/peak.acl`).
+  help: both are speech. Live on 8 Nov 20:51 Rho answered its own story twice inside the attention window. Fixed 21:16
+  by `senses/halfDuplex.js`, judged by words, not by time: the Pi-to-Mac audio is late by an uneven amount (an echo
+  ended from 0.5 s before to more than 0.9 s after `speaking` went false), so a deaf time long enough for every echo
+  (0.8 s tail, 21:11) also dropped the owner's "Rho, wave at me" said the moment "Four." ended. Now an utterance during a
+  line or up to 2 s after it is Rho's own when half its words or more are the line's (`peak/mind/said`); a stop always
+  passes. A new broker topic needs its ACL line first: `scripts/broker-auth.sh acl` reloads it without a restart.
 
 
 ### A spoken stop dropped by the wake gate (8 Nov 2026)

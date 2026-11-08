@@ -10,11 +10,13 @@
 //   PEAK_DUMP_DIR       also save each utterance as a wav here (for mind/bakeoff)
 //   PEAK_WAKE           off = publish every clean utterance; default on = only after "Rho" (heardFilter.js)
 //   PEAK_WAKE_WINDOW_MS how long after the wake word follow-up sentences still pass (default 8000)
+//   PEAK_HALF_DUPLEX    0 = also hear Rho's own voice; default on = drop Rho's own words while it speaks and just after (halfDuplex.js)
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { connect, logExits, publishEvent, run } from './lib.js';
-import { createHeardFilter } from './heardFilter.js';
+import { createHeardFilter, isStop } from './heardFilter.js';
+import { createHalfDuplex } from './halfDuplex.js';
 
 const DEVICE = process.env.PEAK_AUDIO_DEVICE ?? '0';
 const SOURCE = process.env.PEAK_AUDIO_SOURCE;
@@ -30,6 +32,8 @@ const PREROLL_FRAMES = 3; // kept from before speech starts so the first syllabl
 const MIN_SPEECH_MS = 300; // shorter bursts are clicks and bumps, not words
 const MAX_UTTERANCE_MS = 12000; // flush mid-sentence rather than wait for a pause that never comes
 const heard = createHeardFilter(); // wake-word gate and noise filter; see heardFilter.js
+const HALF_DUPLEX = (process.env.PEAK_HALF_DUPLEX ?? '1') !== '0';
+const self = createHalfDuplex(); // when Rho itself was speaking
 
 logExits('hearing');
 
@@ -66,27 +70,37 @@ const transcribe = async pcm => {
 
 // One transcription at a time; while one runs at most one utterance waits and a newer one replaces it.
 let busy = false, waiting = null;
-const handle = async (client, pcm, endedAt) => {
-  if (busy) { waiting = { pcm, endedAt }; return; }
+const handle = async (client, pcm, endedAt, loud = { from: endedAt - pcm.length / 2 / RATE * 1000, to: endedAt }) => {
+  if (busy) { waiting = { pcm, endedAt, loud }; return; }
+
   busy = true;
   if (DUMP) writeFileSync(join(DUMP, `${new Date(endedAt).toISOString().replace(/[:.]/g, '-')}.wav`), wav(pcm));
   const text = await transcribe(pcm);
   if (process.env.PEAK_DEBUG) console.log(`[hearing] ${(pcm.length / RATE / 2).toFixed(1)}s utterance → "${text}"`);
   const latency = ((Date.now() - endedAt) / 1000).toFixed(1);
-  if (text) {
+  // a stop is always heard, with or without the name, even over Rho's own voice; otherwise Rho's own words are dropped
+  const self_ = text && HALF_DUPLEX ? self.judge(loud.from, loud.to, text) : { echo: false };
+  if (text && isStop(text) && self_.why) {
+    console.log(`[hearing] ${latency}s after speech ended (a stop while Rho spoke)`); publishEvent(client, { heard: text });
+  } else if (self_.echo) {
+    console.log(`[hearing] dropped "${text}" (Rho's own voice: ${self_.why})`);
+  } else if (text) {
     const { text: clean, why } = heard.consider(text);
-    if (clean) { console.log(`[hearing] ${latency}s after speech ended (${why})`); publishEvent(client, { heard: clean }); }
+    const near = self_.why ? `; near Rho's line, ${self_.why}` : '';
+    if (clean) { console.log(`[hearing] ${latency}s after speech ended (${why}${near})`); publishEvent(client, { heard: clean }); }
     else console.log(`[hearing] dropped "${text}" (${why})`);
   }
   busy = false;
-  if (waiting) { const w = waiting; waiting = null; handle(client, w.pcm, w.endedAt); }
+  if (waiting) { const w = waiting; waiting = null; handle(client, w.pcm, w.endedAt, w.loud); }
 };
 
 /** Feed 100 ms frames; calls onUtterance(pcm) at each pause after speech. */
 const segmenter = onUtterance => {
-  let pending = Buffer.alloc(0), preroll = [], speech = [], speechMs = 0, quietMs = 0;
+  // loudFrom/loudTo: when the first and last loud frame arrived, for the half-duplex check (a frame covers the
+  // FRAME_MS before its arrival)
+  let pending = Buffer.alloc(0), preroll = [], speech = [], speechMs = 0, quietMs = 0, loudFrom = 0, loudTo = 0;
   const flush = () => {
-    if (speechMs >= MIN_SPEECH_MS) onUtterance(Buffer.concat([...preroll, ...speech]));
+    if (speechMs >= MIN_SPEECH_MS) onUtterance(Buffer.concat([...preroll, ...speech]), { from: loudFrom - FRAME_MS, to: loudTo });
     preroll = []; speech = []; speechMs = 0; quietMs = 0;
   };
   return chunk => {
@@ -96,7 +110,7 @@ const segmenter = onUtterance => {
       const loud = frameDb(frame) >= MIN_DB;
       if (speech.length === 0 && !loud) { preroll.push(frame); if (preroll.length > PREROLL_FRAMES) preroll.shift(); continue; }
       speech.push(frame);
-      if (loud) { speechMs += FRAME_MS; quietMs = 0; } else quietMs += FRAME_MS;
+      if (loud) { if (!speechMs) loudFrom = Date.now(); loudTo = Date.now(); speechMs += FRAME_MS; quietMs = 0; } else quietMs += FRAME_MS;
       if (quietMs >= SILENCE_MS || speech.length * FRAME_MS >= MAX_UTTERANCE_MS) flush();
     }
   };
@@ -118,7 +132,14 @@ const startRecorder = onData => {
 };
 
 const client = connect();
+// the voice's speaking flag, and its status so a voice that died mid-line does not leave hearing deaf
+client.on('message', (topic, payload) => {
+  if (topic === 'peak/mind/speaking') self.speaking(String(payload) === 'true');
+  else if (topic === 'peak/mind/said') self.said(String(payload));
+  else if (topic === 'peak/mind/voice/status' && String(payload) === 'offline') self.voiceGone();
+});
 client.on('connect', async () => {
+  if (HALF_DUPLEX) client.subscribe(['peak/mind/speaking', 'peak/mind/said', 'peak/mind/voice/status']);
   if (process.env.PEAK_AUDIO_FILE) {
     const { stdout } = await run('ffmpeg', ['-loglevel', 'error', '-i', process.env.PEAK_AUDIO_FILE, '-ar', String(RATE), '-ac', '1', '-f', 's16le', 'pipe:1']);
     const text = await transcribe(stdout);
@@ -126,6 +147,6 @@ client.on('connect', async () => {
     if (clean) publishEvent(client, { heard: clean }); else console.log(`[hearing] dropped "${text}" (${why})`);
     return client.end();
   }
-  console.log(`[hearing] listening on ${SOURCE ?? `Mac audio device ${DEVICE}`}, whisper at ${WHISPER}, speech above ${MIN_DB} dB`);
-  startRecorder(segmenter(pcm => handle(client, pcm, Date.now())));
+  console.log(`[hearing] listening on ${SOURCE ?? `Mac audio device ${DEVICE}`}, whisper at ${WHISPER}, speech above ${MIN_DB} dB, ${HALF_DUPLEX ? 'Rho\'s own words dropped' : 'half-duplex off'}`);
+  startRecorder(segmenter((pcm, loud) => handle(client, pcm, Date.now(), loud)));
 });

@@ -44,7 +44,8 @@ pieces.
 **`peak/mind/speaking`** is retained: `true` from the first piece until the last sample has left the speaker, then
 `false`; `false` again on every connect. It is meant for a half-duplex hearing gate. A `kill -9` mid-line leaves it
 `true` (the Last Will can carry only one topic), so a gate must count it only while `peak/mind/voice/status` is
-`online`.
+`online`. **`peak/mind/said`** (not retained) carries the line's text just before `true`. `senses/halfDuplex.js` uses
+both: what hearing catches during a line or up to 2 s after it is dropped when half its words or more are the line's.
 
 **Ollama slows it.** Kokoro shares the GPU with Ollama. While the desk camera's 4B model describes frames back to
 back, the first sound took 0.4-0.8 s instead of 0.1-0.35 s, and once 2.0 s (the first line after five idle minutes,

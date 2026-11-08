@@ -3,8 +3,8 @@
 
 Listens for {"say": "..."} on peak/+/cmd like homepod.py, makes speech with Kokoro (82M, on the GPU through mlx-audio)
 one sentence at a time and plays each sentence as soon as it is made, so the first sound does not wait for the whole
-line (a long first sentence is cut in two). Publishes a retained peak/mind/speaking, "true" while a line plays and "false" after, for a half-duplex
-hearing gate. Run from mind/ with PEAK_VOICE_BACKEND=kokoro: npm run voice
+line (a long first sentence is cut in two). Publishes a retained peak/mind/speaking, "true" while a line plays and "false" after, and the line itself on
+peak/mind/said as it starts, for the half-duplex hearing gate. Run from mind/ with PEAK_VOICE_BACKEND=kokoro: npm run voice
   PEAK_KOKORO_VOICE    Kokoro voice; the first letter is the accent, a US, b UK (default bm_george)
   PEAK_KOKORO_SPEED    speaking rate (default 1.0)
   PEAK_KOKORO_MODEL    Hugging Face repo or folder (default mlx-community/Kokoro-82M-bf16)
@@ -25,6 +25,7 @@ MQTT_PASSWORD = os.environ.get("PEAK_MQTT_PASSWORD") or None
 MAX_SAY_CHARS = 200  # matches contracts/cmd.schema.json
 STATUS_TOPIC = "peak/mind/voice/status"
 SPEAKING_TOPIC = "peak/mind/speaking"
+SAID_TOPIC = "peak/mind/said"  # the line's text as it starts, so hearing can tell Rho's own words (senses/halfDuplex.js)
 # The line is made in pieces and each piece plays as soon as it is made, so the first sound waits only for the first
 # piece: one piece per sentence, and a first sentence longer than FIRST_PIECE_CHARS is cut in two (cut()) (a
 # 92-character sentence took 0.65 s to its first sound in one piece on 8 Nov; kokoro_bench.py has the table)
@@ -203,7 +204,9 @@ def main():
         c.publish(STATUS_TOPIC, "online", qos=1, retain=True)
         c.publish(SPEAKING_TOPIC, "false", qos=1, retain=True)
 
-    def speaking(on):
+    def speaking(on, text=None):
+        if on:
+            client.publish(SAID_TOPIC, text, qos=1)
         client.publish(SPEAKING_TOPIC, "true" if on else "false", qos=1, retain=True)
 
     client.on_connect = on_connect
@@ -228,7 +231,7 @@ def main():
                 if stops[0] != epoch:
                     break
                 if not started:
-                    speaking(True)
+                    speaking(True, text)
                     started = True
                 elif player.drained.is_set():  # the speaker ran dry before this piece was made: a pause was heard
                     gaps += 1
