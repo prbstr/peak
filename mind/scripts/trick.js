@@ -3,6 +3,7 @@
 //   npm run trick -- peekaboo [node]   plays one (node defaults to mech)
 import 'dotenv/config';
 import mqtt from 'mqtt';
+import { BROKER, brokerAuth } from '../lib/broker.js';
 import { createTrickPlayer, loadTricks } from '../orchestrator/tricks.js';
 
 const [name, node = 'mech'] = process.argv.slice(2);
@@ -12,7 +13,7 @@ if (!name || !tricks[name]) {
   for (const [n, t] of Object.entries(tricks)) console.log(`${n.padEnd(12)} ${t.describe}${t.learned ? ' (learned)' : ''}`);
   process.exit(name ? 1 : 0);
 }
-const c = mqtt.connect(process.env.PEAK_BROKER ?? 'mqtt://localhost:1883');
+const c = mqtt.connect(BROKER, brokerAuth('mind'));
 c.on('connect', async () => {
   const logged = { publish: (topic, payload) => { console.log(`→ ${topic} ${payload}`); c.publish(topic, payload); } };
   await createTrickPlayer(logged, { tricks }).play(node, name);

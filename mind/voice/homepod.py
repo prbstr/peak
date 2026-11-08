@@ -85,6 +85,11 @@ async def main():
     # when this process dies. A broker that is down or goes away is retried, 1 s doubling to 30 s, never fatal.
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.will_set(STATUS_TOPIC, "offline", qos=1, retain=True)
+    # the broker user (docs/broker.md): run-part.sh sets PEAK_MQTT_USER/PASSWORD; `npm run voice` has the .env one.
+    # No password means no login, the anonymous broker of before 8 Nov.
+    password = os.environ.get("PEAK_MQTT_PASSWORD") or os.environ.get("PEAK_MQTT_PASSWORD_VOICE")
+    if password:
+        client.username_pw_set(os.environ.get("PEAK_MQTT_USER") or "voice", password)
 
     def on_connect(c, u, flags, rc, props=None):
         if rc.is_failure:

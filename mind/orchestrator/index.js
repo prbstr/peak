@@ -12,12 +12,13 @@ import { createTrickPlayer } from './tricks.js';
 import { createDeviceHub } from './devices.js';
 import { EVENT_MAX_AGE_MS, ACTION_MAX_AGE_MS, age, allowed, apply, capDoing, kindOf, stale } from './policy.js';
 import { KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
+import { brokerAuth } from '../lib/broker.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
 
 /** The mind's own presence, like a body's: retained online on connect, offline by the broker's Last Will. */
 const STATUS_TOPIC = 'peak/mind/mind/status';
-const client = mqtt.connect(BROKER, { will: { topic: STATUS_TOPIC, payload: 'offline', retain: true, qos: 1 } });
+const client = mqtt.connect(BROKER, { ...brokerAuth('mind'), will: { topic: STATUS_TOPIC, payload: 'offline', retain: true, qos: 1 } });
 /** Devices in the room (the desk light): the brain's `action` field and a trick's action step go through here. */
 const hub = createDeviceHub(client);
 const player = createTrickPlayer(client, { tricks: TRICKS, run: name => hub.run(name) });

@@ -25,6 +25,9 @@ ota:
 # No api: block on purpose; without Home Assistant it would reboot the node every 15 minutes.
 mqtt:
   broker: 192.168.0.139
+  # its broker user (docs/broker.md); scripts/broker-passwords.sh writes mqtt_password into secrets.yaml
+  username: desk-light
+  password: !secret mqtt_password
   topic_prefix: peak/desk-light
   discovery: false
   discover_ip: false

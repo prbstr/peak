@@ -1,6 +1,7 @@
 // Shared bits for the senses. Senses publish events only, never raw frames or audio.
 import 'dotenv/config';
 import mqtt from 'mqtt';
+import { brokerAuth, brokerUrl, roleOf } from '../lib/broker.js';
 import { spawn } from 'node:child_process';
 
 export const NODE = process.env.PEAK_NODE ?? 'mech';
@@ -16,7 +17,8 @@ export const backoffMs = (n, minMs = 1000, maxMs = 30_000) => Math.min(maxMs, mi
  *  retried with backoff (1 s doubling to 30 s by default), never a reason to exit. */
 export const connect = (part = process.env.PEAK_PART, { minMs = 1000, maxMs = 30_000 } = {}) => {
   const topic = part ? `peak/mind/${part}/status` : null;
-  const client = mqtt.connect(process.env.PEAK_BROKER ?? 'mqtt://localhost:1883', {
+  const client = mqtt.connect(brokerUrl(), {
+    ...brokerAuth(roleOf(part)),
     reconnectPeriod: minMs,
     ...(topic && { will: { topic, payload: 'offline', retain: true, qos: 1 } }),
   });

@@ -381,6 +381,9 @@ def run_cmd(cmd):
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"peak-{NODE}")
 client.will_set(STATUS_TOPIC, "offline", retain=True)
+# the broker user (docs/broker.md), from ~/peak/peak.env through the unit's EnvironmentFile. No password, no login.
+if os.environ.get("PEAK_MQTT_PASSWORD"):
+    client.username_pw_set(os.environ.get("PEAK_MQTT_USER") or NODE, os.environ["PEAK_MQTT_PASSWORD"])
 client.on_connect = on_connect
 client.on_disconnect = on_disconnect
 client.on_message = on_message

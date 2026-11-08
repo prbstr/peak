@@ -1,0 +1,36 @@
+# Who may publish and subscribe where on Rho's broker (docs/broker.md). One user per role; nobody anonymous.
+# scripts/broker-auth.sh on copies this to /opt/homebrew/etc/mosquitto/peak.acl. A publish outside these lines is
+# dropped by the broker without an error to the client, so a new topic needs a line here first.
+
+# the mind, health and the hand scripts (npm run trick / device / pub): everything under peak/
+user mind
+topic readwrite peak/#
+
+# hearing, vision, presence: events out, the readings and events they listen to, their own status
+user senses
+topic write peak/+/event
+topic read peak/+/event
+topic read peak/+/sense
+topic readwrite peak/mind/+/status
+
+# the voice: every say on a body's cmd, its own status, and the speaking flag for half-duplex hearing
+user voice
+topic read peak/+/cmd
+topic readwrite peak/mind/voice/status
+topic readwrite peak/mind/speaking
+
+# the body on the Pi: its commands in, its readings and presence out, the mind's status for the dead-man switch
+user mech
+topic read peak/mech/cmd
+topic write peak/mech/sense
+topic readwrite peak/mech/status
+topic read peak/mind/+/status
+
+# the desk light's ESP32-C6 (ESPHome): its own subtree
+user desk-light
+topic readwrite peak/desk-light/#
+
+# the owner's own mosquitto_sub / mosquitto_pub (~/.config/mosquitto_sub and _pub hold the login)
+user owner
+topic readwrite peak/#
+topic read $SYS/#

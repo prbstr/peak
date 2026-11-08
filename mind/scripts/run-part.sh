@@ -18,6 +18,15 @@ set +a
 # launchd starts jobs with PATH=/usr/bin:/bin:/usr/sbin:/sbin; the plist adds node's and Homebrew's directories
 PATH="${PATH}:/opt/homebrew/bin:/opt/homebrew/sbin"
 export PATH PEAK_PART="$part"
+# the part's broker user (docs/broker.md): the mind and health log in as mind, the senses as senses, the voice as
+# voice, each with its PEAK_MQTT_PASSWORD_<ROLE> from .env. None set: no login, the anonymous broker still works.
+case "$part" in
+  hearing|vision|presence) role=senses pw=${PEAK_MQTT_PASSWORD_SENSES:-} ;;
+  voice)                   role=voice pw=${PEAK_MQTT_PASSWORD_VOICE:-} ;;
+  *)                       role=mind pw=${PEAK_MQTT_PASSWORD_MIND:-} ;;
+esac
+if [ -n "$pw" ]; then export PEAK_MQTT_USER="$role" PEAK_MQTT_PASSWORD="$pw"; fi
+unset pw
 LOGS="${PEAK_LOGS:-$HOME/Library/Logs/peak}"
 mkdir -p "$LOGS"
 # pid file for newsyslog: it signals the part after a rotation so launchd reopens the log (docs/supervision.md)

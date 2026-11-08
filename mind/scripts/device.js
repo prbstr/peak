@@ -3,11 +3,12 @@
 //   npm run device -- light_off    publishes one
 import 'dotenv/config';
 import mqtt from 'mqtt';
+import { BROKER, brokerAuth } from '../lib/broker.js';
 import { DEVICES, createDeviceHub } from '../orchestrator/devices.js';
 
 const [name] = process.argv.slice(2);
 if (name && !DEVICES.actions[name]) { console.error(`no action called ${name}`); process.exit(1); }
-const c = mqtt.connect(process.env.PEAK_BROKER ?? 'mqtt://localhost:1883');
+const c = mqtt.connect(BROKER, brokerAuth('mind'));
 const hub = createDeviceHub(c);
 c.on('connect', () => {
   if (!hub.statusTopics.length) return finish();
