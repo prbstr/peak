@@ -21,6 +21,7 @@ HOST = os.environ.get("PEAK_SPEAKER_HOST")
 VOICE = os.environ.get("PEAK_VOICE", "Daniel")
 BROKER = urlparse(os.environ.get("PEAK_BROKER", "mqtt://localhost:1883"))
 MAX_SAY_CHARS = 200  # matches contracts/cmd.schema.json
+STATUS_TOPIC = "peak/mind/voice/status"
 CLIP = Path(tempfile.mkdtemp(prefix="peak-voice-")) / "line.wav"
 
 
@@ -80,10 +81,24 @@ async def main():
         if isinstance(say, str) and say.strip():
             loop.call_soon_threadsafe(hear, say[:MAX_SAY_CHARS])
 
+    # Presence like a body's (node/servod.py): retained "online" on every connect, "offline" by the broker's Last Will
+    # when this process dies. A broker that is down or goes away is retried, 1 s doubling to 30 s, never fatal.
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.on_connect = lambda c, u, flags, rc, props=None: c.subscribe("peak/+/cmd")
+    client.will_set(STATUS_TOPIC, "offline", qos=1, retain=True)
+
+    def on_connect(c, u, flags, rc, props=None):
+        if rc.is_failure:
+            print(f"[voice] broker refused: {rc}")
+            return
+        c.subscribe("peak/+/cmd")
+        c.publish(STATUS_TOPIC, "online", qos=1, retain=True)
+
+    client.on_connect = on_connect
     client.on_message = on_message
-    client.connect(BROKER.hostname or "localhost", BROKER.port or 1883, 60)
+    client.reconnect_delay_set(min_delay=1, max_delay=30)
+    # connect_async: the first attempt is made by the loop thread and retried like any later one, so a broker that
+    # is not up yet at login does not end the voice
+    client.connect_async(BROKER.hostname or "localhost", BROKER.port or 1883, 60)
     client.loop_start()
     print(f"[voice] speaking peak/+/cmd lines on {SPEAKER!r} as {VOICE}")
 

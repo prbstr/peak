@@ -40,7 +40,7 @@ Start:
 
 1. `git status` and `git log -5`. Another session may have committed since this file was loaded into your context; re-read a file before you edit it, and commit only your own files.
 2. See what is running before you start anything: `pgrep -fl "orchestrator/index.js|senses/|voice/homepod|whisper-server"` on the Mac, `mosquitto_sub -t peak/mech/status -C 1 -W 3` for the body. Two minds answer every event twice.
-3. Since 7 Nov evening the Mac processes are started detached by `npm run up` (pids and logs in `mind/run/`) and outlive any session; `npm run status` shows them. A session may still have started one by hand as its own background task. Do not stop a process another session started unless the owner says so in this chat; `npm run down` stops them all, so use it only on his word.
+3. Since 7 Nov evening the Mac processes are started detached by `npm run up` (pids and logs in `mind/run/`) and outlive any session; `npm run status` shows them. Since lane A (8 Nov, `docs/supervision.md`) `npm run up` loads them as LaunchAgents `sh.peak.<part>` instead, logging to `~/Library/Logs/peak/`; until the cutover after that branch is merged the running parts may still be the old nohup copies. A part launchd runs comes back by itself after a kill, so stop one with `npm run down -- <part>`, never `kill`. A session may still have started one by hand as its own background task. Do not stop a process another session started unless the owner says so in this chat; `npm run down` stops them all, so use it only on his word.
 4. A faked `heard` event is spoken aloud on the HomePod in the bedroom while the voice process runs. Mind the hour.
 
 End, when anything changed:
@@ -91,6 +91,7 @@ Pi (mech)                         Mac (mind)
 - **`eyes` command.** The mind can take the eyes over on `peak/<node>/cmd` (`contracts/cmd.schema.json`, `$defs.eyes`): `mood`, `look`, `anim`, `open`, `curious`, `shape`, `ms`. When `ms` runs out, or on `{"eyes":{"release":true}}` or a stop, the reflexes have them back. Unknown fields are ignored, never an error.
 - **Tricks.** `mind/orchestrator/tricks.js` checks every trick against the command contract and `gestures.yaml` (at most 16 steps and 30 s) and plays the steps over MQTT; a newer trick or a stop takes over. Built in: happy, angry, sleepy, confused, laugh, surprised, wink, peekaboo. `mind/tricks/learned.yaml` is merged in at load and `appendTrick()` writes to it; nothing calls that yet. It is the door for teaching by voice and for Lupin.
 - **Voice.** `mind/voice/homepod.py` speaks each `say` with macOS `say`, streamed to the HomePod mini over AirPlay, about 2.5 s after the command.
+- **Supervision.** Each Mac part is a LaunchAgent `sh.peak.<part>` (`mind/launchd/`, written by `scripts/install-agents.sh`) that runs `scripts/run-part.sh <part>`: `.env` loaded, then `exec` the part. launchd restarts it after any exit but a clean one, at most every 10 s, and appends its output to `~/Library/Logs/peak/<part>.log`. Each part holds a retained `peak/mind/<part>/status` (`online` on connect, `offline` by Last Will; `connect(part)` in `senses/lib.js`, set by `PEAK_PART`) and retries the broker with backoff 1-30 s. `orchestrator/health.js` (agent `sh.peak.health`) publishes a retained `peak/mind/health` every 30 s and whisper's status from an HTTP probe. On the Pi, systemd units `peak-servod`, `peak-camd`, `peak-audiod` (installed by the owner, `scripts/deploy-node.sh`). The whole picture: `docs/supervision.md`.
 
 The aim for the eyes and tricks is a set that grows over time: the robot can be taught new tricks and skills, and later learns new things on its own.
 
@@ -109,17 +110,17 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 | Voice | Speaks through the HomePod mini "Bedroom". | |
 | Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
 | Pi power | Fixed 7 Nov by the official 5.1 V 2.5 A micro-USB supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run |
-| Persistence | Nothing survives a reboot, but one command brings it all back: `npm run up` (Mac parts detached, Pi daemons over ssh, judged by pid files). `peak-servod.service` not installed. The Mac parts all died once on 7 Nov evening between 19:46 and 20:35, cause unknown (logs were overwritten by the restart). | |
+| Persistence | **Built 8 Nov on branch `claude/lane-a-supervision-cb4cba`, not yet cut over:** LaunchAgents for the seven Mac parts with appended logs, Last Wills, broker backoff and `health.js`; systemd units for servod, camd and audiod. Tested on a throwaway agent and a private broker (`docs/log.md`, Supervision). Until the cutover: nothing survives a reboot, `npm run up` brings it back. The Mac parts all died once on 7 Nov evening between 19:46 and 20:35, cause unknown (logs were overwritten by the restart). | The cutover of the real parts; the owner's sudo steps (newsyslog, `scripts/deploy-node.sh`); a Mac and a Pi reboot |
 | Desk rig (printed) | **Designed 8 Nov 2026, nothing printed yet.** `hardware/desk-rig/rig.scad`: a carrier on the arm's VESA plate that leans 30° so the shelf is level while the head rests on its face-down stop (gravity sets pitch, the parallelogram keeps it through the lift), a pod under the shelf for the camera, GY-521 and a vial, the sonar on an outrigger on an 8 mm grid, Rho on a glued real 4x8 plate up top, the mic in a ring on a 150 mm bar, two horns to lift by. 8 parts, about 330 g PETG, STLs and renders committed. Guide: "peak — Desk rig guide". Needs 2 kg of ballast at the head (the arm's gas spring lifts 2 kg minimum; today's 0.2 kg head is why the arm floats to its top). | The arm's stop angle and repeatability (`STOP_DEG`), the X-plate span, the mic's neck, the OLED and sonar variants: all measured before printing. The coupon fit. A live run. |
 
 ## Next steps
 
-0. **The merged review plan, 8 Nov 2026.** One order for ARCH's review, the reliability plan and the strategy review, with Monday's corrections; the plan file is `~/.claude/plans/ok-a-review-has-buzzing-fern.md` on the owner's Mac. Session 1 done 8 Nov morning (perf line, history-trim fix, vision on the 4B, exit lines, docs). Lupin's write gate, fail-closed profile and backups run in a session in `../lupin`. Next, in order: lane A supervision (launchd, Last Wills, health) and lane B safety rails (`policy.js`, `validate_cmd`) in parallel worktrees; broker auth with the Pi units; Kokoro voice on the Mac speaker; `held1`, the fast lane with a spoken stop, the brain on its own Ollama instance (moved up by the 8 Nov evictions), Silero VAD; recovery (dead-man hold, runbook, UPS). Frozen until the servos land: projector, NeoPixel, rig software, teach-by-voice.
+0. **The merged review plan, 8 Nov 2026.** One order for ARCH's review, the reliability plan and the strategy review, with Monday's corrections; the plan file is `~/.claude/plans/ok-a-review-has-buzzing-fern.md` on the owner's Mac. Session 1 done 8 Nov morning (perf line, history-trim fix, vision on the 4B, exit lines, docs). Lupin's write gate, fail-closed profile and backups run in a session in `../lupin`. Next, in order: lane A supervision (launchd, Last Wills, health; built 8 Nov, cutover and the owner's sudo steps in `docs/supervision.md`) and lane B safety rails (`policy.js`, `validate_cmd`) in parallel worktrees; broker auth with the Pi units; Kokoro voice on the Mac speaker; `held1`, the fast lane with a spoken stop, the brain on its own Ollama instance (moved up by the 8 Nov evictions), Silero VAD; recovery (dead-man hold, runbook, UPS). Frozen until the servos land: projector, NeoPixel, rig software, teach-by-voice.
 1. **Pi power.** Done 7 Nov 2026 with the official 5.1 V 2.5 A micro-USB supply (`docs/log.md`, Pi power).
 2. **Owner watches the eyes** (60 s): idle and blinks, a hand inside 30 cm, "Rho, give me a wink", `npm run trick -- peekaboo`.
 3. **Teaching.** By hand since 7 Nov late: `npm run teach -- "text" --gesture wave --eyes sleepy --say "..."` appends a lesson to `mind/examples/learned.yaml` and a running mind uses it on its next event; measured in `mind/bakeoff/brain/README.md`. Left: the live test once the mind is restarted (60 s, a paraphrase of a lesson); teaching by voice ("Rho, when I say X, do Y" becomes a brain reply that defines a lesson or a trick, saved with `appendExample()` or `appendTrick()`); learning on its own waits for Lupin (Stage C).
 4. **Eyes prompt.** The goodnight wave came back with the bed lesson (7 Nov late, `fresh.night` 3 of 3); v1 still nods while answering "two plus two". Try a lesson before a rule; full bake-off each time.
-5. **Survive a reboot.** Units for `camd.sh` and `audiod.sh`; `peak-servod.service` needs `Environment=PEAK_SIM=1` until the PCA9685 is wired. All need the owner's `sudo`.
+5. **Survive a reboot.** Built 8 Nov (lane A): LaunchAgents on the Mac, units for servod (with `PEAK_SIM=1`), camd and audiod on the Pi. Left: the cutover (`npm run down`, then `npm run up`, on the owner's word), the owner's two sudo steps in `docs/supervision.md`, then a reboot of each machine and a 60 s live window.
 6. **When the servos arrive.** Measure UBEC and Mini560 outputs with a multimeter, decide the power layout (`docs/decisions.md`), wire the PCA9685 (V+ from the buck, never the Pi), tune `node/config.yaml` ranges, drop `PEAK_SIM`.
 7. **Rest of the body's I/O.** MPU6050 pose in `sense`; NeoPixel ring and vibrator motor as commands. Needs a breadboard, M/F jumpers and a soldering iron; the NeoPixel also needs SPI on, `core_freq=250` and the neopixel-spi package.
 8. **Desk camera.** Build the bake-off's winner into the senses: MediaPipe hand gate, 1080p stream, hand crop, "desk" prompt, a quiet `doing` event that the brain keeps as context instead of answering. Score again on a held-out recording in a lit room.
@@ -145,7 +146,11 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 
 | Task | Command |
 | --- | --- |
-| Start all of Rho | `npm run up` (whisper, mind, hearing, vision, presence, voice as detached processes with logs in `mind/run/`; starts the Pi daemons over ssh if the body is offline; `-- mind voice` for some parts). `npm run status` lists them; `npm run down` stops the Mac side, `-- body` the Pi too. Since 7 Nov evening. |
+| Start all of Rho | `npm run up` (whisper, mind, hearing, vision, presence, voice, health as LaunchAgents `sh.peak.<part>`, writing a missing plist first; refuses a part already running outside launchd; starts a Pi daemon over ssh only if its systemd unit is not enabled; `-- mind voice` for some parts). `npm run status` shows launchd state, restarts, MQTT status and last log line per part, the bodies, `peak/mind/health` and the mind's settings line; `npm run down` boots the Mac parts out (and stops old nohup copies by their `run/` pid files), `-- body` the Pi's hand-started daemons too. Since 8 Nov (lane A). |
+| Logs of the Mac parts | `~/Library/Logs/peak/<part>.log`, appended; each start adds a `[run-part] ... starting` line. Rotated by newsyslog once the owner installs `/etc/newsyslog.d/peak.conf` (`docs/supervision.md`) |
+| Write, print or remove the LaunchAgents | `sh scripts/install-agents.sh` (all seven; again after a node upgrade under nvm), `--dry-run`, `--uninstall <part>`, `--selftest x` (a throwaway agent that exits 3 every 20 s, to prove KeepAlive), `--newsyslog` (the rotation rules, for `sudo tee`) |
+| Run one part in the foreground as its agent would | `sh scripts/run-part.sh <part>` (`PEAK_ENV_FILE` picks another settings file, `PEAK_LOGS` the pid-file folder) |
+| Restart one Mac part now | `launchctl kickstart -k gui/$(id -u)/sh.peak.<part>` |
 | Run the mind alone, in the foreground | `npm start` |
 | Whisper server (hearing needs it) | `npm run whisper` (port 8178, `~/.cache/whisper.cpp/ggml-medium.en.bin`; `PEAK_WHISPER_GGML` picks another model) |
 | Hearing, Pi mic | Pi: `PEAK_MIND=192.168.0.139 ~/peak/node/audiod.sh`; Mac: `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing` |
@@ -166,7 +171,7 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 | Body on the Pi, no servos wired | On the Pi: `PEAK_SIM=1 PEAK_BROKER=twentyones-Mac-mini.local ~/peak/.venv/bin/python -u ~/peak/node/servod.py` |
 | Start a Pi daemon over ssh | `ssh lupin@mech.local 'PEAK_MIND=192.168.0.139 setsid nohup ~/peak/node/camd.sh > ~/peak/camd.log 2>&1 < /dev/null &'` (one plain command, no `cd &&`). Pids in `~/peak/*.pid`. |
 | Copy `node/` to the Pi without the service | `rsync -a --delete --exclude __pycache__ node/ lupin@mech.local:~/peak/node/` |
-| Deploy with the systemd unit | `scripts/deploy-node.sh [host]` (needs `sudo` on the Pi) |
+| Deploy with the systemd units | `scripts/deploy-node.sh [host]`: copies `node/`, stops hand-started daemons, installs and restarts `peak-servod`, `peak-camd`, `peak-audiod` and `/etc/logrotate.d/peak`. The owner runs it (`sudo` on the Pi). Pi logs stay in `~/peak/<daemon>.log`, appended |
 | Watch what the Pi sends | `mosquitto_sub -t 'peak/mech/#' -v` |
 | Send a command | `mosquitto_pub -t peak/mech/cmd -m '{"gesture":"wave"}'` |
 | Move the eyes by hand | `mosquitto_pub -t peak/mech/cmd -m '{"eyes":{"mood":"happy","look":"ne","ms":3000}}'` |
@@ -263,6 +268,11 @@ OLED
 
 Voice
 - pyatv needs `srptools<2`, and a scan limited to `Protocol.RAOP`, or the HomePod refuses the connection.
+
+Supervision
+- A LaunchAgent with `KeepAlive {SuccessfulExit false}` restarts a crash or a kill, never an exit 0: a part that should come back must not exit 0 on its own.
+- newsyslog cannot copy-and-truncate. The rotation rules send signal 31 so launchd restarts the part on a fresh log; without it the part keeps writing into `.0`.
+- launchd's PATH is `/usr/bin:/bin:/usr/sbin:/sbin`, and node lives under nvm: the plists carry node's directory, so rerun `install-agents.sh` after a node upgrade.
 
 Tests and the shell
 - `node --test <dir>` runs `orchestrator/index.js` and hangs on MQTT. `npm test` names the files; keep it so.

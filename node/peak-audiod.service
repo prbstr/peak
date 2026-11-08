@@ -1,0 +1,24 @@
+# peak microphone stream to the mind (16 kHz PCM over UDP :5001). Run on the Pi by systemd instead of by hand over ssh.
+# Installed by scripts/deploy-node.sh (the owner runs it: it needs sudo on the Pi); docs/supervision.md has the lines.
+# Once enabled, npm run up on the Mac never starts it by hand.
+[Unit]
+Description=peak microphone stream to the mind (16 kHz PCM over UDP :5001)
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+# The Mac's LAN address: audiod.sh sends to it over UDP. Change it in /home/lupin/peak/peak.env (PEAK_MIND=...), no sudo.
+Environment=PEAK_MIND=192.168.0.139
+EnvironmentFile=-/home/lupin/peak/peak.env
+ExecStart=/home/lupin/peak/node/audiod.sh
+ExecStartPost=/bin/sh -c 'echo $$MAINPID > /home/lupin/peak/audiod.pid'
+StandardOutput=append:/home/lupin/peak/audiod.log
+StandardError=inherit
+Restart=always
+RestartSec=3
+User=lupin
+SupplementaryGroups=audio
+
+[Install]
+WantedBy=multi-user.target

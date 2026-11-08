@@ -79,15 +79,39 @@ const DESK_PROMPT = process.env.PEAK_DESK_PROMPT
 const DESK_PAUSE_MS = Number(process.env.PEAK_DESK_PAUSE_S ?? 8) * 1000;
 const HANDS_PYTHON = process.env.PEAK_HANDS_PYTHON ?? fileURLToPath(new URL('./.venv/bin/python', import.meta.url));
 
-/** hands.py as a child: one request line out, one JSON line back, in order. */
+const HANDS_RESTARTS = 3; // a minute; one more death in that minute ends vision, and launchd restarts the whole sense
+
+/** hands.py as a child: one request line out, one JSON line back, in order. A hands.py that dies is started again,
+ *  up to HANDS_RESTARTS times a minute; a question it never answered gets "no hands". */
 const startHands = () => {
-  const child = spawn(HANDS_PYTHON, ['-u', fileURLToPath(new URL('./hands.py', import.meta.url))], { stdio: ['pipe', 'pipe', 'pipe'] });
-  // mediapipe's own start-up chatter (W0000/I0000/INFO lines) is noise; hands.py's lines start with [hands]
-  createInterface({ input: child.stderr }).on('line', l => { if (!/^(W|I)0000|^INFO|^WARNING: All log/.test(l)) console.error(l); });
-  const waiting = [];
-  createInterface({ input: child.stdout }).on('line', l => waiting.shift()?.(JSON.parse(l)));
-  child.on('exit', code => { console.error(`[vision] hands.py exited (${code})`); process.exit(1); });
-  process.on('exit', () => child.kill());
+  const restarts = [];
+  let child, waiting = [], exiting = false;
+  const begin = () => {
+    child = spawn(HANDS_PYTHON, ['-u', fileURLToPath(new URL('./hands.py', import.meta.url))], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const mine = waiting = [];
+    // mediapipe's own start-up chatter (W0000/I0000/INFO lines) is noise; hands.py's lines start with [hands]
+    createInterface({ input: child.stderr }).on('line', l => { if (!/^(W|I)0000|^INFO|^WARNING: All log/.test(l)) console.error(l); });
+    createInterface({ input: child.stdout }).on('line', l => {
+      let answer; try { answer = JSON.parse(l); } catch { console.error(`[vision] hands.py said: ${l.slice(0, 120)}`); return; }
+      mine.shift()?.(answer);
+    });
+    child.stdin.on('error', () => {}); // a write to a hands.py that just died; its exit handler deals with it
+    child.on('exit', (code, signal) => {
+      for (const resolve of mine.splice(0)) resolve({ hands: 0 });
+      if (exiting) return;
+      const now = Date.now();
+      while (restarts.length && now - restarts[0] > 60_000) restarts.shift();
+      if (restarts.length >= HANDS_RESTARTS) {
+        console.error(`[vision] hands.py exited (${code ?? signal}), the ${HANDS_RESTARTS + 1}th time in a minute: giving up`);
+        process.exit(1);
+      }
+      restarts.push(now);
+      console.error(`[vision] hands.py exited (${code ?? signal}); restart ${restarts.length} of ${HANDS_RESTARTS} this minute`);
+      begin();
+    });
+  };
+  process.on('exit', () => { exiting = true; child.kill(); });
+  begin();
   return { ask: line => new Promise(resolve => { waiting.push(resolve); child.stdin.write(`${line}\n`); }) };
 };
 
