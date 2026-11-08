@@ -59,7 +59,11 @@ const main = () => {
   const client = connect('health');
   const statuses = new Map();
   let lastLine = '', lastWhisper = '';
-  client.on('connect', () => client.subscribe(['peak/mind/+/status', 'peak/+/status']));
+  client.on('connect', () => {
+    // a broker restart loses whisper's retained status, so the next tick publishes it again
+    lastWhisper = '';
+    client.subscribe(['peak/mind/+/status', 'peak/+/status']);
+  });
   client.on('message', (topic, payload) => statuses.set(topic, String(payload)));
 
   const tick = async () => {

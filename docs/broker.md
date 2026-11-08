@@ -50,3 +50,22 @@ The way back: `scripts/broker-auth.sh off`.
 | `run-part.sh presence` with a `senses` password | logged in, `peak/mind/presence/status` online |
 | `mosquitto_sub` with / without `~/.config/mosquitto_sub` | in / "not authorised" |
 | Python (paho) as `voice` | logged in |
+
+## Switched on, 8 Nov 2026 09:58
+
+The owner ran `scripts/broker-passwords.sh` (six users in the hashed file; each password checked in place by key name
+only), the Mac parts were restarted (each started as its user: mind and health `mind`, hearing, vision and presence
+`senses`, voice `voice`), the light was re-flashed over the air (7 s upload, back online with its state), the owner ran
+`scripts/deploy-node.sh` (servod with the login code, one servod), then `scripts/broker-auth.sh on`.
+
+| Check, live | Result |
+| --- | --- |
+| Anonymous client | refused: Not authorized |
+| Every Mac part, `mech`, `desk-light` | back online within seconds (health: "broker back after 1 attempt") |
+| `npm run trick -- wink` (as `mind`) | eyes command delivered |
+| `mosquitto_pub` a nod (as `owner`, from `~/.config/mosquitto_pub`) | 30 simulated servo steps on the Pi |
+| `npm run device -- light_bright` (as `mind`) | published; the light reports on at 255 |
+
+One gap found and fixed: health published whisper's retained status only when it changed, so the broker restart left it
+empty; it now publishes again after every reconnect.
+

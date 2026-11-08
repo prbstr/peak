@@ -173,6 +173,10 @@ ended on at brightness 255, up from 51 before the window. The mind did not log w
 were confirmed by the owner, who watched the light go off and back on; it logs `[mind] reply ...` for every reply since commit `fc69876`. "Goodnight" (one word)
 and "Roll away with me" (no wake word) were dropped by the gate. No veto fired.
 
+**Broker logins on, 8 Nov 2026 09:58.** Six users with an access list per role (`docs/broker.md`, which has the live
+checks). Anonymous clients refused; every part, the body and the desk light logged back in; a trick, an owner `nod` and
+a light action went through. Health now republishes whisper's status after a broker restart.
+
 ## Pi service
 
 `peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and
