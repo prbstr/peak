@@ -155,6 +155,24 @@ unknown servo 'nope'`, `{"servo":"head","deg":"abc"}` → `dropped ... deg must 
 `throttled=0x0`. On the Mac, with nothing restarted: vision described the desk again (looks 3.1-3.7 s on the 4B) and
 hearing received the mic stream. Done-when for the Pi in the review's step 1 met.
 
+**Spoken window on the new setup, 8 Nov 2026 09:27-09:28.** Mac on launchd, Pi on its units, rails live, vision
+looking at the desk. The owner said five requests; whisper wrote the name as "Bro" or "Ro" and every one woke Rho.
+
+| Request (as transcribed) | Transcript after speech | Gesture | Whole reply | Prompt eval, prefix |
+| --- | --- | --- | --- | --- |
+| "Bro, wave at me!" | 1.5 s | wave, 0.76 s | 1.2 s | 473 ms, kept |
+| "Bro, lights off!" | 1.0 s | null, 1.24 s | 2.3 s | 526 ms, kept (output 11 tok/s) |
+| "Bro, lights on" | 0.4 s | null, 1.24 s | 1.6 s | 1,095 ms, cut |
+| "Ro, make the lights brighter." | 0.4 s | null, 0.40 s | 0.8 s | 233 ms, kept |
+| "Bro, make the lights warm." | 0.4 s | null, 0.32 s | 0.7 s | 139 ms, kept |
+
+The first two ran while the 4B was describing the desk: prompt eval 0.5 s on a kept prefix and output at 11 tokens a
+second against 39 quiet, so the GPU is shared even when both models fit. The voice spoke only "Hello there!" (speech
+0.6 s, done 3.4 s on the HomePod): the light examples teach `say: null`, so switching is silent by design. The light
+ended on at brightness 255, up from 51 before the window. The mind did not log which action it sent, so off and on
+are the owner's to confirm; it logs `[mind] reply ...` for every reply since commit `fc69876`. "Goodnight" (one word)
+and "Roll away with me" (no wake word) were dropped by the gate. No veto fired.
+
 ## Pi service
 
 `peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and
