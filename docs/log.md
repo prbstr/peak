@@ -170,7 +170,7 @@ The first two ran while the 4B was describing the desk: prompt eval 0.5 s on a k
 second against 39 quiet, so the GPU is shared even when both models fit. The voice spoke only "Hello there!" (speech
 0.6 s, done 3.4 s on the HomePod): the light examples teach `say: null`, so switching is silent by design. The light
 ended on at brightness 255, up from 51 before the window. The mind did not log which action it sent, so off and on
-are the owner's to confirm; it logs `[mind] reply ...` for every reply since commit `fc69876`. "Goodnight" (one word)
+were confirmed by the owner, who watched the light go off and back on; it logs `[mind] reply ...` for every reply since commit `fc69876`. "Goodnight" (one word)
 and "Roll away with me" (no wake word) were dropped by the gate. No veto fired.
 
 ## Pi service
