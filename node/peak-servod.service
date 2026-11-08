@@ -1,14 +1,28 @@
-# sudo cp peak-servod.service /etc/systemd/system/ && sudo systemctl enable --now peak-servod
+# The body's daemon: servos (simulated until the PCA9685 is wired), sensors, the OLED eyes.
+# Installed by scripts/deploy-node.sh (the owner runs it: it needs sudo on the Pi); docs/supervision.md has the lines.
+# Once enabled, npm run up on the Mac never starts a second servod by hand.
 [Unit]
 Description=peak servo node
+Wants=network-online.target
 After=network-online.target
+# never give up restarting: a Wi-Fi drop at boot must not leave the body down for good
+StartLimitIntervalSec=0
 
 [Service]
 # The Mac by mDNS name; a fixed IP breaks when the router hands out a new lease
 Environment=PEAK_BROKER=twentyones-Mac-mini.local
 Environment=PEAK_NODE=mech
+# No PCA9685 wired yet: without this servod exits on its first I2C write. Remove when the servos are real.
+Environment=PEAK_SIM=1
+# Optional overrides, editable without sudo
+EnvironmentFile=-/home/lupin/peak/peak.env
 WorkingDirectory=/home/lupin/peak/node
-ExecStart=/home/lupin/peak/.venv/bin/python servod.py
+ExecStart=/home/lupin/peak/.venv/bin/python -u servod.py
+# the pid file the Mac's commands use (kill -USR1 for oled.png; npm run up's double-servod check)
+ExecStartPost=/bin/sh -c 'echo $$MAINPID > /home/lupin/peak/servod.pid'
+# the same log the hand-started servod wrote, appended, never truncated
+StandardOutput=append:/home/lupin/peak/servod.log
+StandardError=inherit
 Restart=always
 RestartSec=3
 User=lupin

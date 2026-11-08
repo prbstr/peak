@@ -1,0 +1,13 @@
+# The body's logs: servod, camd, audiod (systemd appends to them, StandardOutput=append:).
+# Installed by scripts/deploy-node.sh as /etc/logrotate.d/peak. copytruncate is safe here because systemd opened each
+# file in append mode: after the cut the daemon keeps writing at the new end, and nothing has to restart.
+/home/lupin/peak/*.log {
+    su lupin lupin
+    size 10M
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

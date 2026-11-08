@@ -1,0 +1,24 @@
+# peak camera stream to the mind (H264 over UDP :5000). Run on the Pi by systemd instead of by hand over ssh.
+# Installed by scripts/deploy-node.sh (the owner runs it: it needs sudo on the Pi); docs/supervision.md has the lines.
+# Once enabled, npm run up on the Mac never starts it by hand.
+[Unit]
+Description=peak camera stream to the mind (H264 over UDP :5000)
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+# The Mac's LAN address: camd.sh sends to it over UDP. Change it in /home/lupin/peak/peak.env (PEAK_MIND=...), no sudo.
+Environment=PEAK_MIND=192.168.0.139
+EnvironmentFile=-/home/lupin/peak/peak.env
+ExecStart=/home/lupin/peak/node/camd.sh
+ExecStartPost=/bin/sh -c 'echo $$MAINPID > /home/lupin/peak/camd.pid'
+StandardOutput=append:/home/lupin/peak/camd.log
+StandardError=inherit
+Restart=always
+RestartSec=3
+User=lupin
+SupplementaryGroups=video
+
+[Install]
+WantedBy=multi-user.target

@@ -113,7 +113,43 @@ Parts ordered (AliExpress, delivery about early to mid Dec 2026). Nothing wired.
 
 ## Pi service
 
-`peak-servod.service` exists but is not installed on the Pi.
+`peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and
+`scripts/deploy-node.sh` installs all three (Supervision below).
+
+## Supervision
+
+**8 Nov 2026, 07:36-07:45, lane A of the merged review plan** (`docs/supervision.md`). Built LaunchAgent templates for
+the seven Mac parts (whisper, mind, hearing, vision, presence, voice, health), `run-part.sh`, `install-agents.sh`,
+launchd wrappers for `up`/`down`/`status`, a retained Last Will per part in `connect()` and `homepod.py`, broker backoff
+1-30 s, a `hands.py` restart limit in vision, `health.js`, and systemd units for camd and audiod beside servod's. Tested
+without touching the running Rho (its parts were started by another session; no `sh.peak.<part>` agent was loaded):
+
+- Throwaway agent `sh.peak.test-a` (run-part.sh `selftest`: logs, sleeps 20 s, exits 3): `kill -9` at 07:36:50, back
+  at 07:36:53, which is 10 s after its previous start (the throttle); exits 3 at 07:37:13, 33, 53, each restarted at
+  once; every earlier line still in `~/Library/Logs/peak/selftest.log`. `launchctl print` showed `runs = 5`,
+  `last terminating signal = Killed: 9` after the kill. Booted out and the plist deleted.
+- Rotation path, `sh.peak.test-b`: the log renamed to `.0` as newsyslog does, then signal 31 (SIGUSR2): `last
+  terminating signal = User defined signal 2`, restarted 10 s after its start on a fresh `selftest.log`, the old lines
+  in `.0`. Node and Python both end with status 159 on SIGUSR2 (killed, so launchd restarts them). newsyslog itself
+  needs root and is not run.
+- Own broker, `mosquitto -p 1884`: presence started by `run-part.sh` (pid of the shell = pid of node, so exec works)
+  set `peak/mind/presence/status online`; after `kill -9`, `offline` with the retain flag. Voice the same. Broker
+  stopped 07:40:11 and started again 07:40:31: presence logged "broker back after 5 attempts" (waits 1, 2, 4, 8, 16 s)
+  and both were `online` again by 07:40:42.
+- Vision with a fake `hands.py` that dies after 1 s: restarts 1, 2 and 3 of 3, then "the 4th time in a minute: giving
+  up", exit 1, status `offline`.
+- `health.js` every 5 s on the test broker: `ok: false, down: [mind, hearing, vision]` (not started there), Ollama up
+  (7 models, 10 ms), whisper up (15 ms by HTTP), bodies from retained test statuses; after `kill -9` of presence the
+  next summary added it to `down`. `npm run status` against the test broker printed all of it, and the live mind's
+  `[mind] settings` line from `run/mind.log`.
+- `npm run up -- mind vision` with the live hand-started parts: both refused ("already running outside launchd",
+  pids named), nothing bootstrapped. `npm run down -- vision`: named the hand-started pid, killed nothing.
+- `systemd-analyze verify` of the three unit files on the Pi in a temp dir: clean. `logrotate -d` of
+  `node/peak.logrotate`: parses. Nothing installed on the Pi; `systemctl is-enabled` reports all three `not-found`.
+- `npm test`: 78 pass (72 before, plus `senses/lib.test.js` and `orchestrator/health.test.js`).
+
+Not yet: the cutover of the real parts, the owner's sudo steps (newsyslog, `scripts/deploy-node.sh`), a Mac reboot,
+a Pi reboot, a live window.
 
 ## Pi power
 

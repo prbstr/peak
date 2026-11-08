@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Rho's health: retained peak/mind/health every 30 s: each part's status, whisper and Ollama probes.
+     A template: scripts/install-agents.sh fills in the mind folder, the log folder and PATH, and writes ~/Library/LaunchAgents/sh.peak.health.plist.
+     No settings here: run-part.sh reads mind/.env. Restarted after any exit but a clean one (a kill -9 or a crash
+     counts), at most once every 10 s. stdout and stderr are appended to @LOGS@/health.log. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>sh.peak.health</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>@MIND@/scripts/run-part.sh</string>
+    <string>health</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@MIND@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@PATH@</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>ProcessType</key>
+  <string>Standard</string>
+  <key>StandardOutPath</key>
+  <string>@LOGS@/health.log</string>
+  <key>StandardErrorPath</key>
+  <string>@LOGS@/health.log</string>
+</dict>
+</plist>
