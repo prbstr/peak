@@ -225,6 +225,55 @@ Unstable (undervoltage). Needs a better supply. 5 Nov 2026 with the camera strea
 
 **Speaks through the HomePod mini since 5 Nov 2026** (`npm run voice`): the owner heard the test line, then two brain replies went out ("Got it." finished 3.2 s after the command, the connection kept open between lines). One line at a time, a newer one replaces a waiting one. On the Pi `say` still goes to espeak-ng, silent in sim and with no speaker attached; once a speaker is on the body, both would talk. Untested with the mic: the HomePod's own words will reach it, and a line containing "Peak" could wake the hearing gate.
 
+**Kokoro on the Mac speaker, 8 Nov 2026 09:30-10:05** (branch `voice-kokoro`, `mind/voice/local.py`; the live Rho
+kept the HomePod). Kokoro 82M (`mlx-community/Kokoro-82M-bf16`) through mlx-audio 0.6.4, voice `bm_george`, on the
+Mac mini's own speakers (stream latency 13 ms). Downloads: venv 585 MB, model 340 MB, spaCy `en_core_web_sm` 13 MB.
+`misaki[en]` failed to build on Python 3.13 (its transformer extra wants an old thinc); the five packages it needs
+went in by hand. misaki looks for espeak-ng only in one Homebrew folder and, without it, crashed on a name missing from
+its dictionary; pointing phonemizer at the `espeakng-loader` wheel's copy fixed it with no `brew`.
+
+Bench (`kokoro_bench.py --play --runs 3`, median of 3 per line, first sound by the audio device's clock, with the live
+Rho running beside it). Kokoro pads each piece with 0.27 s of silence in front and 0.52 s behind; both rows are trimmed
+to 30 ms in front. "Pieces" is what `local.py` does: one per sentence, a first sentence over 60 characters cut once.
+
+| Line | Chars | First sound, whole line (s) | First sound, pieces (s) | RTF, pieces |
+| --- | --- | --- | --- | --- |
+| Hey! Good to see you. | 21 | 0.17 | 0.10 | 0.079 |
+| Lights off. Sleep well. | 23 | 0.21 | 0.11 | 0.082 |
+| Two plus two is four. Easy one. | 31 | 0.49 | 0.17 | 0.078 |
+| I'm Rho. My GeekServos are still on their way, ... | 64 | 0.51 | 0.11 | 0.093 |
+| That looks like a soldering iron. Careful, ... (3 sentences) | 105 | 0.52 | 0.19 | 0.063 |
+| Sure, I'll keep the desk light on for you until ... (1 sentence) | 88 | 0.38 | 0.26 | 0.076 |
+| All 18 runs: p50 / max | | 0.38 / 0.83 | **0.14 / 0.27** | 0.076 |
+
+Memory: GPU (MLX) 313 MB resident after load, 1.1 GB peak while making a line in pieces (2.1 GB peak for a 105-character
+line in one piece), freed after each line; process RSS 90-350 MB. Load 0.2 s from cache, first line 1.2-3.2 s cold,
+so `local.py` warms on a line of its own before it subscribes. An earlier bench run back to back with no playback, the
+GPU never idle: first audio 0.06 s p50. On the CPU (`mx.cpu`) it gave no result in five minutes and was stopped.
+Gate (first sound within 0.5 s): passed.
+
+Live, on a private broker (`mosquitto -p 1884`, `PEAK_VOICE_BACKEND=kokoro PEAK_BROKER=mqtt://localhost:1884 npm run
+voice`), `say` commands published by hand, played on the Mac speaker:
+
+- Five lines 9 s apart (09:50): first sound 0.18, 0.11, 0.15, 0.10 s, then 0.83 s for the 88-character single
+  sentence; `peak/mind/speaking` went `true` 0.1-0.8 s after each publish and `false` 2.3-5.6 s later.
+- Newest wins: a long line, then two more 0.5 s apart. The first played, the second was never spoken, the third played
+  after `waited 5.1s behind the line before`. Same result at 09:43.
+- 20 lines 8 s apart (09:57-10:00), each matched against Ollama's request log: 13 with Ollama idle, first sound p50
+  0.17 s, max 0.35 s; 7 while a `/api/chat` ran (the desk camera's 4B describing frames back to back), p50 0.42 s,
+  max 2.03 s (the first line after five idle minutes, swap 11.2 of 12.3 GB used). All 20: p50 0.21 s, p90 0.44 s.
+  No gap between pieces in any line.
+- Between 09:51:15 and 09:51:42, when the 4B had just reloaded and described frames continuously, three lines took 0.70,
+  0.79 and 0.83 s, with speech-making at 1.6 s instead of 0.3 s: Kokoro's many small GPU kernels queue behind
+  llama-server's. That is the gate's open risk.
+- `kill -TERM` printed `[voice] exiting on SIGTERM` and the Last Will set `peak/mind/voice/status offline`. A `kill -9`
+  mid-line left `peak/mind/speaking` retained at `true` with the status `offline`: a hearing gate has to read both.
+
+`talk_delay_s` in `node/config.yaml` set to 0.3 (the live median 0.21 s rounded up). It is right only with
+`PEAK_VOICE_BACKEND=kokoro`; with the HomePod it must go back to 2.5, or the eyes pulse two seconds before the voice.
+Not yet done: the switch of the running Rho (the LaunchAgent runs `run-part.sh`, which starts `homepod.py` directly),
+`scripts/deploy-node.sh` to take the new `talk_delay_s` to the Pi, and the owner hearing the voice.
+
 ## Desk light (device)
 
 **7 Nov 2026, built and lit.** ESP32-C3 SuperMini + nRF24L01+ on seven F/F jumpers (CE 10, CSN 7, SCK 4, MOSI 6, MISO 5,
