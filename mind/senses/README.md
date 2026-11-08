@@ -12,6 +12,6 @@ Vision only calls the model when a 16x16 grayscale thumbnail changes enough, the
 
 Notes:
 - Pi mic: plug in a USB mic, check it with `arecord -l`, then on the Pi run `PEAK_MIND=<mac-ip> PEAK_ALSA=plughw:1,0 node/audiod.sh` and on the Mac `PEAK_AUDIO_SOURCE=udp://0.0.0.0:5001 npm run hearing`.
-- Hearing needs a resident whisper.cpp server: `brew install whisper.cpp`, put `ggml-small.bin` (from the whisper.cpp HF repo) in `~/.cache/whisper.cpp/`, then `npm run whisper` in a second terminal. Audio is cut into utterances at pauses (`PEAK_SILENCE_MS`, default 700 ms) and sent to the server as soon as you stop talking; the log prints the latency per utterance.
-- `gemma4:26b` is about 19 GB loaded. On a 24 GB Mac it pushes the brain model out of memory; use a smaller vision model if both must stay resident.
-- Voice output is still unwired (`../voice`).
+- Hearing needs a resident whisper.cpp server: `brew install whisper.cpp`, put `ggml-medium.en.bin` (from the whisper.cpp HF repo) in `~/.cache/whisper.cpp/`, then `npm run whisper` in a second terminal. Audio is cut into utterances at pauses (`PEAK_SILENCE_MS`, default 700 ms) and sent to the server as soon as you stop talking; the log prints the latency per utterance.
+- Vision runs on `qwen3-vl:4b-instruct` (3.4 GB loaded) beside the 8B brain (5.7 GB). On a 24 GB Mac that is already short of memory the two can evict each other; see `docs/gotchas.md`.
+- Voice is `mind/voice/homepod.py`: every `say` on `peak/+/cmd`, spoken on the HomePod mini (`npm run voice`).

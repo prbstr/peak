@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node --test orchestrator/*.test.js senses/*.test.js",
     "bakeoff:brain": "node bakeoff/brain/run.js",
+    "perf": "node scripts/perf.js",
     "start": "node orchestrator/index.js",
     "up": "sh scripts/up.sh",
     "down": "sh scripts/down.sh",

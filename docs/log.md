@@ -61,6 +61,21 @@ the mind in `mind/run/` is the pre-bank code and belongs to another session; a r
 The desk camera's descriptions (6.5 s each, same model) made the first attempts 80 min a run and live replies 10 s;
 after it stopped a run took 10 to 12 min.
 
+**Prompt cache and the history trim, 8 Nov 2026 07:19-07:31.** Measured with the new `[perf]` line (one per reply,
+`npm run perf`) by publishing faked `heard` events through the running mind and the real body (servos simulated),
+voice process down so nothing was spoken. Chat requests only, no device or gesture words.
+
+| Run | Events | Prefix kept | Prompt eval (hit / miss) | Gesture out p50 | Reply p50 |
+| --- | --- | --- | --- | --- | --- |
+| Before, history trimmed a turn per event | 20 | 10 of 19 | 157-188 ms / 1,873-1,991 ms | 2.0 s | 2.6 s |
+| After, cut back to 10 messages past 20 | 24 | 19 of 23 | same / about 1.1 s to the gesture after a cut | 0.32 s | 1.0 s |
+| After, with the 4B describing crops back to back | 20 | | events 1-6 brain reloaded each time, 5.7-9.0 s; then hits | 0.37 s (events 7-20) | 1.5 s (events 7-20) |
+
+The cut calls show `cached n_tokens = 2130` in the Ollama log: only the system prompt was reused. The first event of
+each run loaded the brain cold (5.7-5.9 s) because OpenClaw's coder model had evicted it at 07:20:31 with 2.4 GiB of
+system memory free. The 4B and the brain evicted each other every 8 s from 07:24:20 to 07:26:09 (`system_limited`);
+the Mac had 17.6 of 18.4 GB swap in use. Mind tests 72 of 72.
+
 ## Vision
 
 Working from an image file, now through the same Qwen3-VL model as the brain (`eyes.js` comparison: the only one of three not to hallucinate a person). On Ollama 0.40.13 a fresh frame takes 5.6 s to describe (1.8 s on 0.24); the `PEAK_VISION_COOLDOWN_S` 10 s loop still works, the `{see}` event just lands later.
@@ -72,6 +87,11 @@ Working from an image file, now through the same Qwen3-VL model as the brain (`e
 **Desk camera built into Rho, 7 Nov 2026 late:** `vision.js` desk mode (hands.py + crop + `{"doing"}`), kept by the mind as context for the next heard event. Live: "Bro, what am I holding?" while holding the ESP32-C3 got "You're connecting a micro USB cable to a Raspberry Pi Zero." (the board was misnamed; the plumbing worked). Brain bake-off with 8 new desk cases: 24/24, older groups unchanged. Cost: the brain queues behind a look. `bakeoff/desk/contend.js`, 10 probes each: gesture median 0.72 s quiet against 4.8 s (max 7.6 s) during looks. `OLLAMA_NUM_PARALLEL=2` was tried and reverted: Ollama 0.40.13 logs "model architecture does not currently support parallel requests" for qwen3vl and starts one slot regardless. Ollama also starts this model with `--image-min-tokens 1024`, which is why no image costs less than about 1,100 tokens.
 
 **A second model for the desk, 7 Nov 2026 late:** `qwen3-vl:4b-instruct` describing the crops beside the 8B brain: the brain's gesture during looks 0.80 s median, 1.1 s worst, against 3.5 s and 6.1 s when the 8B does both (20 questions each, unique crops). Accuracy 12.5 of 19 against the 8B's 13; `qwen3-vl:2b-instruct` 9 of 19. `gemma3:4b` never loaded under `OLLAMA_MAX_LOADED_MODELS=2`. Table in `mind/bakeoff/desk/README.md`.
+
+**Vision on the 4B, 8 Nov 2026 07:19.** `PEAK_VISION_MODEL=qwen3-vl:4b-instruct` in `mind/.env` and as the code default,
+as measured on 7 Nov. Vision had been down since 7 Nov 22:09 with nothing in its log; restarted with `npm run up`. Every
+Mac part now logs the signal or exit code it ends on. Live with a look loop of 145 descriptions during 20 replies:
+see the Brain section's 8 Nov table.
 
 ## Sensors
 

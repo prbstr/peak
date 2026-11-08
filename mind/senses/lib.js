@@ -12,9 +12,18 @@ export const connect = () => {
   return client;
 };
 
-export const publishEvent = (client, event) => {
-  client.publish(`peak/${NODE}/event`, JSON.stringify(event));
-  console.log(`[senses] → ${JSON.stringify(event)}`);
+/** Publish an event for a body (this sense's own by default). Every event carries `at`, the Unix time in ms it was
+ *  published, so the mind can tell a fresh event from a stale one and time each stage (contracts/event.schema.json). */
+export const publishEvent = (client, event, node = NODE) => {
+  const stamped = { ...event, at: event.at ?? Date.now() };
+  client.publish(`peak/${node}/event`, JSON.stringify(stamped));
+  console.log(`[senses] ${node} → ${JSON.stringify(stamped)}`);
+};
+
+/** Log how a sense ends, so a silent death leaves a line in its log. */
+export const logExits = name => {
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { console.log(`[${name}] exiting on ${sig}`); process.exit(0); });
+  process.on('exit', code => console.log(`[${name}] exited (code ${code})`));
 };
 
 /** Run a command, resolve with { code, stdout, stderr } (stdout as Buffer). Never rejects on non-zero exit. */

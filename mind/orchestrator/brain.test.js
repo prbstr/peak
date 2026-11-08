@@ -87,6 +87,24 @@ test('trimHistory drops whole turns and never splits a user/assistant pair', () 
   }
 });
 
+test('trimHistory leaves the history alone until it passes max, then cuts back to keep in one go', () => {
+  // an unchanged prefix is what Ollama's prompt cache reuses: one cut every few turns, never one per event
+  const history = [];
+  const cuts = [];
+  for (let i = 0; i < 30; i++) {
+    history.push({ role: 'user', content: `u${i}` });
+    const before = history.length;
+    trimHistory(history, 20, 10);
+    if (history.length < before) cuts.push(i);
+    assert.ok(history.length <= 20);
+    assert.equal(history[0].role, 'user');
+    assert.equal(history.at(-1).content, `u${i}`);
+    history.push({ role: 'assistant', content: `a${i}` });
+  }
+  // 21 messages cut to the last 9 (a whole number of turns ending in the new user turn), then 6 events to grow back
+  assert.deepEqual(cuts, [10, 16, 22, 28]);
+});
+
 test('earlyGesture reads the first field as soon as it closes, and not before', () => {
   assert.equal(earlyGesture('{"gest'), undefined);
   assert.equal(earlyGesture('{"gesture": "wa'), undefined);

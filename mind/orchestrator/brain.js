@@ -14,6 +14,11 @@ export const MIN_CONFIDENCE = Number(process.env.PEAK_MIN_CONFIDENCE ?? 0);
 /** Matches contracts/cmd.schema.json and MAX_SAY_CHARS in servod. */
 export const SAY_MAX = 200;
 export const HISTORY_MAX = 20;
+/** When the history passes HISTORY_MAX messages it is cut back to this many in one go, then left to grow again.
+ *  Ollama's prompt cache reuses only an unchanged prefix: cutting one turn per event changed the prefix every time,
+ *  so every reply re-read the whole history (prompt eval 1.9 s against 0.16 s, 8 Nov 2026, docs/log.md). One cut
+ *  every six turns keeps the rest of the calls on the cache. */
+export const HISTORY_KEEP = 10;
 /** With PEAK_BRAIN_EYES=1 the brain may also pick a trick for the eyes (tricks/tricks.yaml). Off by default: two
  *  versions of the eyes prompt each cost an old bake-off case (bakeoff/brain/README.md, 5 Nov 2026). Without it
  *  the prompt and the reply shape are exactly what they were before the eyes existed. */
@@ -140,8 +145,9 @@ export function buildMessages(history, node, event, hive = new Map(), seen = nul
 }
 
 /** Drop whole turns from the front so a user turn is never separated from its answer. */
-export function trimHistory(history, max = HISTORY_MAX) {
-  while (history.length > max) {
+export function trimHistory(history, max = HISTORY_MAX, keep = HISTORY_KEEP) {
+  if (history.length <= max) return history;
+  while (history.length > keep) {
     const next = history.findIndex((m, i) => i > 0 && m.role === 'user');
     if (next === -1) break;
     history.splice(0, next);

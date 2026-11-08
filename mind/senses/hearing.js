@@ -13,7 +13,7 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { connect, publishEvent, run } from './lib.js';
+import { connect, logExits, publishEvent, run } from './lib.js';
 import { createHeardFilter } from './heardFilter.js';
 
 const DEVICE = process.env.PEAK_AUDIO_DEVICE ?? '0';
@@ -31,8 +31,7 @@ const MIN_SPEECH_MS = 300; // shorter bursts are clicks and bumps, not words
 const MAX_UTTERANCE_MS = 12000; // flush mid-sentence rather than wait for a pause that never comes
 const heard = createHeardFilter(); // wake-word gate and noise filter; see heardFilter.js
 
-process.on('SIGINT', () => process.exit(0));
-process.on('SIGTERM', () => process.exit(0));
+logExits('hearing');
 
 const frameDb = frame => {
   let sum = 0;

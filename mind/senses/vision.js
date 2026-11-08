@@ -5,7 +5,8 @@
 //     brain never waits behind a description. Evidence: bakeoff/desk/README.md.
 //   scene: the camera faces the room. Only when the scene changes, the whole frame is described as {"see": "..."}.
 //   PEAK_VISION_SOURCE  ffmpeg input: udp://0.0.0.0:5000 (Pi, default), "avfoundation:<n>" for a Mac camera, or an image/video file
-//   PEAK_VISION_MODEL   Ollama model with vision (default huihui_ai/qwen3-vl-abliterated:8b-instruct, same as the brain)
+//   PEAK_VISION_MODEL   Ollama model with vision (default qwen3-vl:4b-instruct since 8 Nov 2026: beside the brain, not
+//                       sharing its runner, so a look no longer holds up a reply; scored in bakeoff/desk/README.md)
 //   PEAK_VISION_EVERY_S seconds between looks (default 3 for scene, 1 for desk: a desk look itself takes about 6 s)
 //   PEAK_DESK_PAUSE_S   desk: seconds to stop looking after something is heard (default 8)
 //   PEAK_DESK_PROMPT    desk: the question asked of each crop
@@ -16,13 +17,13 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { connect, publishEvent, run, sleep } from './lib.js';
+import { connect, logExits, publishEvent, run, sleep } from './lib.js';
 import { chat, loadOptions, thinkFlag } from '../lib/ollama.js';
 
 const MODE = process.env.PEAK_VISION_MODE ?? 'desk';
 
 const SOURCE = process.env.PEAK_VISION_SOURCE ?? 'udp://0.0.0.0:5000';
-const MODEL = process.env.PEAK_VISION_MODEL ?? 'huihui_ai/qwen3-vl-abliterated:8b-instruct';
+const MODEL = process.env.PEAK_VISION_MODEL ?? 'qwen3-vl:4b-instruct';
 const EVERY_MS = Number(process.env.PEAK_VISION_EVERY_S ?? (MODE === 'desk' ? 1 : 3)) * 1000;
 const CHANGE_THRESHOLD = Number(process.env.PEAK_CHANGE ?? 12); // mean 0-255 difference on a 16x16 grayscale thumbnail
 const COOLDOWN_MS = Number(process.env.PEAK_VISION_COOLDOWN_S ?? 10) * 1000;
@@ -32,8 +33,7 @@ const ONCE = process.env.PEAK_VISION_ONCE === '1'; // describe one frame and exi
 
 const dir = mkdtempSync(join(tmpdir(), 'peak-vision-'));
 process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
-process.on('SIGINT', () => process.exit(0));
-process.on('SIGTERM', () => process.exit(0));
+logExits('vision');
 
 const inputArgs = SOURCE.startsWith('avfoundation:')
   ? ['-f', 'avfoundation', '-framerate', '30', '-i', SOURCE.split(':')[1]]

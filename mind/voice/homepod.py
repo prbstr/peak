@@ -8,7 +8,7 @@ it to the speaker. The Mac's own sound output is not touched. Run from mind/: np
   PEAK_VOICE         macOS voice, see `say -v '?'` (default Daniel)
   PEAK_BROKER        mqtt://host:port (default mqtt://localhost:1883)
 """
-import asyncio, json, os, subprocess, tempfile, time
+import asyncio, json, os, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -104,8 +104,19 @@ async def main():
         print(f"[voice] {text!r}: speech {made:.1f}s, done at {time.monotonic() - t0:.1f}s")
 
 
+def _exit_on(sig, _frame):
+    # a silent death once cost a night's evidence (7 Nov): every way out leaves a line
+    print(f"[voice] exiting on {signal.Signals(sig).name}", flush=True)
+    sys.exit(0)
+
+
 if __name__ == "__main__":
+    for s in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(s, _exit_on)
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        pass
+        print("[voice] exiting on SIGINT", flush=True)
+    except Exception as e:
+        print(f"[voice] crashed: {e!r}", flush=True)
+        raise

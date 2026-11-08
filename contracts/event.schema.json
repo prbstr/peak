@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "peak/<node>/event",
+  "description": "Published by a sense on the Mac: something worth a thought (heard, see, sensed) or quiet context (doing). The mind strips `at` before the brain sees the event, so the prompt is unchanged.",
+  "type": "object",
+  "properties": {
+    "heard": { "type": "string", "description": "speech aimed at Rho, after the wake-word gate (hearing.js)" },
+    "see": { "type": "string", "description": "what the camera noticed, scene mode (vision.js)" },
+    "sensed": { "type": "string", "description": "what the body's own sensors felt (presence.js)" },
+    "doing": { "type": "string", "description": "what the hands at the desk are doing; context kept for the next heard event, never answered (vision.js desk mode)" },
+    "at": { "type": "integer", "description": "Unix time in ms when the sense published it. Optional: an event without it (a hand mosquitto_pub) counts as fresh." }
+  },
+  "minProperties": 1
+}
