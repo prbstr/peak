@@ -10,6 +10,7 @@ import { MODEL, TEMPERATURE, TRICKS, DEVICES, askBrain, buildMessages, trimHisto
 import { K as EXAMPLES_K, PICK as EXAMPLES_PICK, pickExamples, warmExamples } from './examples.js';
 import { createTrickPlayer } from './tricks.js';
 import { createDeviceHub } from './devices.js';
+import { EVENT_MAX_AGE_MS, ACTION_MAX_AGE_MS, age, allowed, apply, capDoing, kindOf, stale } from './policy.js';
 import { KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
@@ -38,7 +39,8 @@ let waiting = null;
 // What this mind is really running with, so a log answers "was devices on?" without guessing at .env.
 console.log(`[mind] settings: eyes ${Object.keys(TRICKS).length ? 'on' : 'off'}, devices ${Object.keys(DEVICES.actions).length ? 'on' : 'off'}, `
   + `examples_k ${EXAMPLES_K}${EXAMPLES_K > 0 ? ` (${EXAMPLES_PICK})` : ' (all)'}, temperature ${TEMPERATURE}, keep_alive ${KEEP_ALIVE}, `
-  + `num_ctx ${loadOptions().num_ctx}, ollama ${OLLAMA}, vision model ${process.env.PEAK_VISION_MODEL ?? '(vision.js default)'}`);
+  + `num_ctx ${loadOptions().num_ctx}, ollama ${OLLAMA}, vision model ${process.env.PEAK_VISION_MODEL ?? '(vision.js default)'}, `
+  + `rails: events ${EVENT_MAX_AGE_MS} ms, actions ${ACTION_MAX_AGE_MS} ms and heard only, no gesture for sensed`);
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { console.log(`[mind] exiting on ${sig}`); process.exit(0); });
 process.on('exit', code => console.log(`[mind] exited (code ${code})`));
 
@@ -72,16 +74,20 @@ client.on('message', (topic, payload) => {
   }
   // what the desk camera sees the hands doing is context, not something to answer: kept for the next thing heard
   if (kind === 'event' && typeof data.doing === 'string') {
-    desk.set(node, { text: data.doing, at: Date.now() });
-    return console.log(`[mind] desk: ${data.doing}`);
+    const text = capDoing(data.doing);
+    desk.set(node, { text, at: Date.now() });
+    return console.log(`[mind] desk: ${text}`);
   }
   // events are things worth thinking about: a face seen, a word heard, a bump
   // `at` is when the sense published it: kept for timing (and the age rails to come), never shown to the brain,
   // so the prompt is exactly what it was before events carried a time.
   if (kind === 'event') {
-    const { at, ...event } = data;
+    const { at: sent, ...event } = data;
+    const at = Number.isFinite(sent) ? sent : null;
+    // an event that arrives too old is not answered, and must not push out a fresher one that is waiting
+    if (stale(event, at, Date.now())) return vetoStale(event, at);
     if (waiting) console.log(`[mind] busy, replaced the waiting event${perfKind(waiting.event)}`);
-    waiting = { node, event, at: Number.isFinite(at) ? at : null, recv: Date.now() };
+    waiting = { node, event, at, recv: Date.now() };
     drain();
   }
 });
@@ -101,8 +107,23 @@ async function drain() {
   }
 }
 
+function vetoStale(event, at) {
+  console.log(`[mind] veto ${kindOf(event)} event: ${(age(at, Date.now()) / 1000).toFixed(1)} s old (limit ${EVENT_MAX_AGE_MS / 1000} s), not answered`);
+}
+
+/** Log each veto once: the early gesture is checked before the reply is whole, and again with it. */
+function logVetoes(vetoes, logged) {
+  for (const v of vetoes) {
+    if (logged.has(v.field)) continue;
+    logged.add(v.field);
+    console.log(`[mind] veto ${v.field}: ${v.why}`);
+  }
+}
+
 async function think(node, event, { at = null, recv = Date.now() } = {}) {
   const t = { start: Date.now() };
+  // a busy brain (or an evicted model reloading) can leave an event waiting past its moment
+  if (stale(event, at, t.start)) return vetoStale(event, at);
   // the examples for this event: the whole bank, or the nearest few (PEAK_EXAMPLES_K in .env; examples.js)
   const picked = await pickExamples(event, { filter: visibleExample });
   const messages = buildMessages(history, node, event, hive, desk.get(node), Date.now(), picked.examples);
@@ -112,13 +133,17 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
 
   // The gesture is the first field of the reply, so it goes to the body as soon as it is complete, while the
   // spoken line is still being generated (about half the reply time; see LESSONS.md, lesson 1).
+  // The rails apply here too: this publish happens before the reply is parsed.
   let early = null;
-  const { reply, content, stats, confidence, gestureMs } = await askBrain({
+  const logged = new Set();
+  const { reply: raw, content, stats, confidence, gestureMs } = await askBrain({
     messages,
     onGesture: (gesture, ms) => {
       early = gesture;
-      if (gesture) runTool(client, node, 'gesture', { name: gesture });
-      console.log(`[mind] gesture ${gesture} at ${ms}ms`);
+      const vetoes = allowed(event, at, { gesture }, Date.now());
+      logVetoes(vetoes, logged);
+      if (gesture && !vetoes.length) runTool(client, node, 'gesture', { name: gesture });
+      console.log(`[mind] gesture ${gesture} at ${ms}ms${vetoes.length ? ' (vetoed)' : ''}`);
     },
   });
   t.brainEnd = Date.now();
@@ -126,7 +151,11 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
   console.log(`[mind] brain ${formatStats(stats)} gesture at ${gestureMs}ms, confidence ${confidence?.toFixed(2) ?? '-'}, examples ${picked.examples.length} ${picked.how}${picked.ms ? ` ${picked.ms}ms` : ''}`);
   // a load after the first call means Ollama evicted the brain (another model took the slot)
   if (stats.loadMs > 1000) console.warn('[mind] brain was reloaded (evicted?)');
-  if (!reply) return console.error('[mind] unparseable reply:', content);
+  if (!raw) return console.error('[mind] unparseable reply:', content);
+  // the action's age is judged now, after the brain, when it would actually switch something
+  const vetoes = allowed(event, at, raw, Date.now());
+  logVetoes(vetoes, logged);
+  const reply = apply(raw, vetoes);
 
   // the grammar makes the early gesture and the parsed one identical; this is the belt to that brace
   if (reply.gesture && reply.gesture !== early) await runTool(client, node, 'gesture', { name: reply.gesture });
@@ -136,7 +165,11 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
   // A trick may bring its own gesture and line. The reply's win, and with something close in front of the body
   // (a sensed event) no arm swings at all. It plays on its own time; the next event does not wait for it.
   if (reply.eyes) {
-    const skip = [(reply.gesture || 'sensed' in event) && 'gesture', reply.say && 'say'].filter(Boolean);
+    // a trick's own action step obeys the same rail as the reply's action: speech only, and not too late
+    const trickAction = TRICKS[reply.eyes]?.steps?.find(step => 'action' in step)?.action;
+    const actionVeto = trickAction ? allowed(event, at, { action: trickAction }, Date.now()) : [];
+    for (const v of actionVeto) console.log(`[mind] veto trick ${reply.eyes} action step: ${v.why}`);
+    const skip = [(reply.gesture || 'sensed' in event) && 'gesture', reply.say && 'say', actionVeto.length && 'action'].filter(Boolean);
     player.play(node, reply.eyes, { skip }).catch(e => console.error('[mind] trick failed:', e.message));
   }
   const text = [reply.gesture && `*${reply.gesture}*`, reply.eyes && `(${reply.eyes})`, reply.action && `[${reply.action}]`, reply.say].filter(Boolean).join(' ');

@@ -9,6 +9,7 @@
     "distance_cm": { "type": "number", "description": "ultrasonic range; absent when nothing echoes" },
     "motion": { "type": "boolean", "description": "PIR sees movement" },
     "throttled": { "type": "string", "description": "Pi power flags as hex (vcgencmd get_throttled); bit 0 = undervoltage now" },
-    "pos": { "type": "object", "additionalProperties": { "type": "number" } }
+    "pos": { "type": "object", "additionalProperties": { "type": "number" } },
+    "motion_alive": { "type": "boolean", "description": "servod's motion thread is running; false means the body senses but can no longer move" }
   }
 }
