@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .DS_Store
 .venv/
+.venv-kokoro/
 mind/bakeoff/clips/
 node/eyes_preview.png
 node/eyes_preview.gif

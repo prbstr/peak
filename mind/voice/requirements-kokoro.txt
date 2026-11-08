@@ -1,7 +1,7 @@
 # Kokoro on the Mac's own speaker (local.py, kokoro_bench.py). From mind/:
 #   python3.13 -m venv voice/.venv-kokoro && voice/.venv-kokoro/bin/pip install -r voice/requirements-kokoro.txt
-# First start downloads the model (mlx-community/Kokoro-82M-bf16, about 340 MB with all voices) and spaCy's
-# en_core_web_sm (13 MB). Versions as measured on 8 Nov 2026.
+# First start downloads the model (mlx-community/Kokoro-82M-bf16, about 340 MB with all voices). spaCy's English model
+# (13 MB) is the last line below. Versions as measured on 8 Nov 2026.
 mlx-audio==0.6.4
 mlx==0.32.4
 # misaki is Kokoro's phonemiser. Not misaki[en]: that extra pulls spacy-curated-transformers, whose build wants an old
@@ -15,3 +15,6 @@ espeakng-loader==0.2.4
 sounddevice==0.5.6
 paho-mqtt>=2.0
 psutil
+# spaCy's English model, installed here so the voice never fetches it on its first start (8 Nov: GitHub answered 504
+# on this URL for minutes; a fetch at start-up would have left Rho without a voice)
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl

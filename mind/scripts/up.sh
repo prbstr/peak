@@ -22,7 +22,7 @@ wants() { case " $WANT " in *" $1 "*) return 0;; esac; return 1; }
 pattern() {
   case $1 in
     whisper) echo "whisper-server" ;; mind) echo "orchestrator/index.js" ;; health) echo "orchestrator/health.js" ;;
-    voice) echo "voice/homepod.py" ;; *) echo "senses/$1.js" ;;
+    voice) echo "voice/[a-z]*\.py" ;; *) echo "senses/$1.js" ;;
   esac
 }
 agent_pid() { launchctl print "$DOMAIN/sh.peak.$1" 2>/dev/null | awk '/^\tpid = /{print $3}'; }

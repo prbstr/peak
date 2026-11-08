@@ -12,8 +12,8 @@ one line at a time with one more waiting (a newer line replaces it), and hold a 
 
 Set `talk_delay_s` in `node/config.yaml` to match (0.3 for kokoro, 2.5 for homepod), or the eyes pulse out of step.
 
-The LaunchAgent does not go through `npm run voice`: `scripts/run-part.sh` runs `homepod.py` itself, so switching the
-running Rho to Kokoro also needs that line to follow `PEAK_VOICE_BACKEND`.
+The LaunchAgent does not go through `npm run voice`: `scripts/run-part.sh` reads `PEAK_VOICE_BACKEND` the same way.
+To switch the running Rho, change the line in `mind/.env`, then `launchctl kickstart -k gui/$(id -u)/sh.peak.voice`.
 
 ## Kokoro on the Mac speaker
 

@@ -39,9 +39,9 @@ Several Claude sessions work in this checkout, sometimes at the same moment, and
 Start:
 
 1. `git status` and `git log -5`. Another session may have committed since this file was loaded into your context; re-read a file before you edit it, and commit only your own files.
-2. See what is running before you start anything: `pgrep -fl "orchestrator/index.js|senses/|voice/homepod|whisper-server"` on the Mac, `mosquitto_sub -t peak/mech/status -C 1 -W 3` for the body. Two minds answer every event twice.
+2. See what is running before you start anything: `pgrep -fl "orchestrator/index.js|senses/|voice/|whisper-server"` on the Mac, `mosquitto_sub -t peak/mech/status -C 1 -W 3` for the body. Two minds answer every event twice.
 3. Since 7 Nov evening the Mac processes are started detached by `npm run up` (pids and logs in `mind/run/`) and outlive any session; `npm run status` shows them. Since lane A (8 Nov, `docs/supervision.md`) `npm run up` loads them as LaunchAgents `sh.peak.<part>` instead, logging to `~/Library/Logs/peak/`; until the cutover after that branch is merged the running parts may still be the old nohup copies. A part launchd runs comes back by itself after a kill, so stop one with `npm run down -- <part>`, never `kill`. A session may still have started one by hand as its own background task. Do not stop a process another session started unless the owner says so in this chat; `npm run down` stops them all, so use it only on his word.
-4. A faked `heard` event is spoken aloud on the HomePod in the bedroom while the voice process runs. Mind the hour.
+4. A faked `heard` event is spoken aloud while the voice process runs: on the Mac mini's speaker since 8 Nov (Kokoro), on the HomePod in the bedroom when `PEAK_VOICE_BACKEND=homepod`. Mind the hour.
 
 End, when anything changed:
 
@@ -78,7 +78,8 @@ Pi (mech)                         Mac (mind)
  camd.sh    -- UDP :5000 H264 --> senses/vision.js (Ollama vision) -- peak/mech/event ->
  servod.py  -- peak/mech/sense -> senses/presence.js (PIR, distance) -- peak/mech/event ->
  OLED       <-- servod.py draws two eyes (eyes.py, a port of RoboEyes) and moves them by reflex (screen.py)
-                                  voice/homepod.py -- AirPlay --> HomePod mini (speaks every {"say"} on peak/+/cmd)
+                                  voice/local.py (Kokoro) --> Mac mini speaker (speaks every {"say"} on peak/+/cmd)
+                                  voice/homepod.py -- AirPlay --> HomePod mini (the other backend, PEAK_VOICE_BACKEND=homepod)
 ```
 
 - **Broker.** One Mosquitto on the Mac (brew service, `*:1883`). Logins required since 8 Nov 09:58 (`scripts/broker-auth.sh on`; `off` goes back to anonymous): six users (mind, senses, voice, mech, desk-light, owner), each held to its topics by `broker/peak.acl` (`docs/broker.md`). Bodies are clients only.
@@ -91,12 +92,12 @@ Pi (mech)                         Mac (mind)
 - **Eyes.** `servod` draws them with no help from the mind. Reflexes, highest claim first: broker offline = shut; something closer than 30 cm = wide eyes once; `look_left` / `look_right` = eyes held to that side; a spoken line = eyes pulsing, starting `talk_delay_s` after the command; bad power or heat = tired lids and sweat (`strain: false` in `node/config.yaml` switches that off); otherwise wander and blink.
 - **`eyes` command.** The mind can take the eyes over on `peak/<node>/cmd` (`contracts/cmd.schema.json`, `$defs.eyes`): `mood`, `look`, `anim`, `open`, `curious`, `shape`, `ms`. When `ms` runs out, or on `{"eyes":{"release":true}}` or a stop, the reflexes have them back. Unknown fields are ignored, never an error.
 - **Tricks.** `mind/orchestrator/tricks.js` checks every trick against the command contract and `gestures.yaml` (at most 16 steps and 30 s) and plays the steps over MQTT; a newer trick or a stop takes over. Built in: happy, angry, sleepy, confused, laugh, surprised, wink, peekaboo. `mind/tricks/learned.yaml` is merged in at load and `appendTrick()` writes to it; nothing calls that yet. It is the door for teaching by voice and for Lupin.
-- **Voice.** `mind/voice/homepod.py` speaks each `say` with macOS `say`, streamed to the HomePod mini over AirPlay, about 2.5 s after the command.
+- **Voice.** Two backends, picked by `PEAK_VOICE_BACKEND` in `mind/.env` (`homepod` in code, `kokoro` in `.env` since 8 Nov): `mind/voice/local.py` speaks each `say` with Kokoro 82M on the GPU through mlx-audio, out of the Mac mini's own speaker, first sound 0.21 s median; `mind/voice/homepod.py` uses macOS `say` streamed to the HomePod mini over AirPlay, about 2.5 s after the command. `talk_delay_s` in `node/config.yaml` must match the backend (0.3 for kokoro, 2.5 for homepod) or the eyes pulse out of step. Details in `mind/voice/README.md`.
 - **Supervision.** Each Mac part is a LaunchAgent `sh.peak.<part>` (`mind/launchd/`, written by `scripts/install-agents.sh`) that runs `scripts/run-part.sh <part>`: `.env` loaded, then `exec` the part. launchd restarts it after any exit but a clean one, at most every 10 s, and appends its output to `~/Library/Logs/peak/<part>.log`. Each part holds a retained `peak/mind/<part>/status` (`online` on connect, `offline` by Last Will; `connect(part)` in `senses/lib.js`, set by `PEAK_PART`) and retries the broker with backoff 1-30 s. `orchestrator/health.js` (agent `sh.peak.health`) publishes a retained `peak/mind/health` every 30 s and whisper's status from an HTTP probe. On the Pi, systemd units `peak-servod`, `peak-camd`, `peak-audiod` (installed by the owner, `scripts/deploy-node.sh`). The whole picture: `docs/supervision.md`.
 
 The aim for the eyes and tricks is a set that grows over time: the robot can be taught new tricks and skills, and later learns new things on its own.
 
-## Where things stand (8 Nov 2026, 07:45)
+## Where things stand (8 Nov 2026, 11:55)
 
 | Area | State | Not yet checked |
 | --- | --- | --- |
@@ -108,7 +109,7 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 | Vision | Pi camera over the desk on the spare monitor arm (camera turned 90°) since 7 Nov evening. Desk mode built into `vision.js` 7 Nov late: a hand tracker gates the looks, a crop around the hands is described and published as a quiet `doing` event the brain keeps for the next thing heard (13 of 19 busy moments right in the desk bake-off). Since 8 Nov the crops go to `qwen3-vl:4b-instruct` beside the brain, not the brain's own model: with 145 looks running during 20 replies, gesture out 0.33-0.44 s once both models were loaded. | Brain and 4B need about 9 GiB together; on 8 Nov they evicted each other for 2 minutes while the Mac was short (replies 13-20 s). A brighter room; a held-out recording. Vision was down 7 Nov 22:09 to 8 Nov 07:19 with no line in its log; every part now logs how it exits. |
 | Sensors | Distance and PIR in every `sense`; `presence.js` turns arrivals and close approaches into `sensed` events. | MPU6050 (shares the OLED's pins until a breadboard arrives) |
 | Eyes (OLED) | RoboEyes port, reflexes, `eyes` command and eight tricks running on the Pi at 14 frames a second. The tired-and-sweating strain should be gone since the new supply (7 Nov); `throttled` reads 0x0 in every sense. | The owner has not watched them on the glass |
-| Voice | Speaks through the HomePod mini "Bedroom". | |
+| Voice | Kokoro on the Mac mini's speaker since 8 Nov (`PEAK_VOICE_BACKEND=kokoro`): first sound 0.21 s median live against about 2.5 s on the HomePod, which stays as the other backend. | Slower while the 4B describes frames (shared GPU). The Pi's `talk_delay_s` 0.3 needs `scripts/deploy-node.sh`. |
 | Servos, PCA9685, battery | Ordered on AliExpress, due early to mid December 2026. Nothing wired; `node/pca9685.py` has never met the real chip. | Everything |
 | Pi power | Fixed 7 Nov by the official 5.1 V 2.5 A micro-USB supply: `throttled=0x0` after a reboot, 0 undervoltage samples in 30 s with camera, mic, `servod`, a wave and an eyes trick running, CPU 700-1200 MHz, 47 °C. | Hours-long run |
 | Persistence | **Mac on launchd since 8 Nov 09:05, Pi on systemd since 09:20** (`peak-servod` with `PEAK_SIM=1`, `peak-camd`, `peak-audiod`, all enabled; one servod; servod logs to `~/peak/servod.log`): LaunchAgents for the seven Mac parts with appended logs, Last Wills, broker backoff and `health.js`; systemd units for servod, camd and audiod. Tested on a throwaway agent and a private broker (`docs/log.md`, Supervision). On the Mac a crash or `kill -9` is back in about 1 s with its log kept (vision, 09:06); a Mac reboot not yet tried. A Pi reboot (09:25) brought the body online 43 s after the kernel started, one servod, both streams reaching the Mac, no `npm run up`. The Mac parts all died once on 7 Nov evening between 19:46 and 20:35, cause unknown (logs were overwritten by the restart). | A Mac reboot (FileVault password once). |
@@ -116,7 +117,7 @@ The aim for the eyes and tricks is a set that grows over time: the robot can be 
 
 ## Next steps
 
-0. **The merged review plan, 8 Nov 2026.** One order for ARCH's review, the reliability plan and the strategy review, with Monday's corrections; the plan file is `~/.claude/plans/ok-a-review-has-buzzing-fern.md` on the owner's Mac. Session 1 done 8 Nov morning (perf line, history-trim fix, vision on the 4B, exit lines, docs). Lupin's write gate, fail-closed profile and backups run in a session in `../lupin`. Lupin's five fixes and its daily backup committed 8 Nov (lupin `9de538e`..`8075b49`; the owner's `chmod -R go-rwx ~/.lupin` left). Lanes A (supervision) and B (safety rails) built in parallel worktrees and merged into `main` 8 Nov. The Mac side was cut over to launchd 8 Nov 09:05 with the rails live, the Pi units and servod's command check at 09:20, newsyslog and lupin's `chmod` done. The Pi survived a reboot (online 43 s after boot). A spoken window passed at 09:28 (five requests heard, answered in 0.7-2.3 s; the owner saw the light go off and on, and it ended at full after "brighter"). Broker logins on since 8 Nov 09:58 (`docs/broker.md`): anonymous clients refused, every part, the body and the light logged in; persistence on. Next, in order: a Mac reboot; Kokoro voice on the Mac speaker; `held1`, the fast lane with a spoken stop, the brain on its own Ollama instance (moved up by the 8 Nov evictions), Silero VAD; recovery (dead-man hold, runbook, UPS). Frozen until the servos land: projector, NeoPixel, rig software, teach-by-voice.
+0. **The merged review plan, 8 Nov 2026.** One order for ARCH's review, the reliability plan and the strategy review, with Monday's corrections; the plan file is `~/.claude/plans/ok-a-review-has-buzzing-fern.md` on the owner's Mac. Session 1 done 8 Nov morning (perf line, history-trim fix, vision on the 4B, exit lines, docs). Lupin's write gate, fail-closed profile and backups run in a session in `../lupin`. Lupin's five fixes and its daily backup committed 8 Nov (lupin `9de538e`..`8075b49`; the owner's `chmod -R go-rwx ~/.lupin` left). Lanes A (supervision) and B (safety rails) built in parallel worktrees and merged into `main` 8 Nov. The Mac side was cut over to launchd 8 Nov 09:05 with the rails live, the Pi units and servod's command check at 09:20, newsyslog and lupin's `chmod` done. The Pi survived a reboot (online 43 s after boot). A spoken window passed at 09:28 (five requests heard, answered in 0.7-2.3 s; the owner saw the light go off and on, and it ended at full after "brighter"). Broker logins on since 8 Nov 09:58 (`docs/broker.md`): anonymous clients refused, every part, the body and the light logged in; persistence on. Kokoro voice merged and switched on 8 Nov 11:50 (the Pi's `talk_delay_s` 0.3 waits on `scripts/deploy-node.sh`). Next, in order: a Mac reboot; `held1`, the fast lane with a spoken stop, the brain on its own Ollama instance (moved up by the 8 Nov evictions), Silero VAD; recovery (dead-man hold, runbook, UPS). Frozen until the servos land: projector, NeoPixel, rig software, teach-by-voice.
 1. **Pi power.** Done 7 Nov 2026 with the official 5.1 V 2.5 A micro-USB supply (`docs/log.md`, Pi power).
 2. **Owner watches the eyes** (60 s): idle and blinks, a hand inside 30 cm, "Rho, give me a wink", `npm run trick -- peekaboo`.
 3. **Teaching.** By hand since 7 Nov late: `npm run teach -- "text" --gesture wave --eyes sleepy --say "..."` appends a lesson to `mind/examples/learned.yaml` and a running mind uses it on its next event; measured in `mind/bakeoff/brain/README.md`. Left: the live test once the mind is restarted (60 s, a paraphrase of a lesson); teaching by voice ("Rho, when I say X, do Y" becomes a brain reply that defines a lesson or a trick, saved with `appendExample()` or `appendTrick()`); learning on its own waits for Lupin (Stage C).
@@ -159,7 +160,7 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 | Vision, Pi camera | Pi: `PEAK_MIND=192.168.0.139 ~/peak/node/camd.sh`; Mac: `npm run vision` |
 | Vision, one frame from a file | `PEAK_VISION_ONCE=1 PEAK_VISION_SOURCE=<image> npm run vision` |
 | Presence (PIR and distance into events) | `npm run presence` |
-| Voice on the HomePod | `npm run voice` (first time: `python3.13 -m venv voice/.venv && voice/.venv/bin/pip install -r voice/requirements.txt`) |
+| Voice | `npm run voice` runs the backend `PEAK_VOICE_BACKEND` names (first time, from `mind/`: `python3.13 -m venv voice/.venv-kokoro && voice/.venv-kokoro/bin/pip install -r voice/requirements-kokoro.txt` for kokoro, `voice/.venv` with `voice/requirements.txt` for homepod). `voice/.venv-kokoro/bin/python voice/kokoro_bench.py --play` times first sound |
 | Mind tests | `npm test` |
 | Node tests | `cd node && ../.venv/bin/python -m unittest test_eyes test_oled test_screen test_pca9685` (on the Pi: `~/peak/.venv/bin/python`) |
 | Time each stage of the mind's replies | `npm run perf` reads the `[perf]` lines in `run/mind.log` (or the logs named): p50/p95 per stage, cache misses, whether the prefix was kept (`--last N` for the latest N) |
@@ -186,7 +187,7 @@ Mac commands run from `mind/` unless they start with `scripts/` or `mosquitto_`.
 | What drawing the eyes costs | Start `servod` with `PEAK_FACE_STATS=1` (`full` sends whole frames, to compare) |
 | Render the desk rig's printed parts | `hardware/desk-rig/render.sh` (OpenSCAD nightly; writes `stl/`, `png/`, `ballast.dxf` in two seconds). Measured sizes are the parameters at the top of `rig.scad` |
 
-Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` (the brain) and `PEAK_VISION_MODEL` (`qwen3-vl:4b-instruct` since 8 Nov, so a look never holds the brain's runner), `PEAK_BRAIN_EYES` (1 since 5 Nov), `PEAK_BRAIN_DEVICES` (1 since 7 Nov), `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B), `PEAK_EXAMPLES_K` (0 = every example in the prompt, the measured default; N = the N nearest by `PEAK_EXAMPLES_PICK`, embed or lexical). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
+Settings live in `mind/.env` (gitignored; `.env.example` is the template). The ones that matter: `PEAK_MODEL` (the brain) and `PEAK_VISION_MODEL` (`qwen3-vl:4b-instruct` since 8 Nov, so a look never holds the brain's runner), `PEAK_BRAIN_EYES` (1 since 5 Nov), `PEAK_BRAIN_DEVICES` (1 since 7 Nov), `PEAK_VOICE_BACKEND` (`kokoro` since 8 Nov; `homepod` uses `PEAK_SPEAKER`), `PEAK_SPEAKER` (`Bedroom`), `PEAK_SPEAKER_HOST`, `PEAK_VOICE` (Daniel), `PEAK_MIN_DB` (-30), `PEAK_MIN_CONFIDENCE` (0 = off; 0.6 suits the 9B), `PEAK_EXAMPLES_K` (0 = every example in the prompt, the measured default; N = the N nearest by `PEAK_EXAMPLES_PICK`, embed or lexical). For tests: `PEAK_WAKE=off` passes every clean utterance, `PEAK_DEBUG=1` logs dropped ones, `PEAK_DUMP_DIR=<dir>` saves each utterance as a WAV. Presence thresholds: `PEAK_QUIET_S` (60), `PEAK_NEAR_CM` (30), `PEAK_NEAR_COOLDOWN_S` (10). The head of each sense file lists the rest.
 
 ## Environment facts
 
@@ -270,6 +271,8 @@ OLED
 
 Voice
 - pyatv needs `srptools<2`, and a scan limited to `Protocol.RAOP`, or the HomePod refuses the connection.
+- Kokoro's venv must hold spaCy's `en_core_web_sm` (pinned in `requirements-kokoro.txt`); left to download at the voice's first start, a GitHub 504 kills the voice.
+- Switching the voice backend means changing `talk_delay_s` on the Pi too (0.3 kokoro, 2.5 homepod).
 
 Supervision
 - A LaunchAgent with `KeepAlive {SuccessfulExit false}` restarts a crash or a kill, never an exit 0: a part that should come back must not exit 0 on its own.
@@ -305,6 +308,7 @@ One line each. Evidence in `docs/decisions.md`.
 | Jev not used, only its lessons | Hosted, closed and not abliterated |
 | whisper.cpp server with `medium.en` | Stays loaded; as accurate as anything tried on the real mic |
 | Voice through the HomePod mini for now | The body has no speaker; Piper on the body is the plan |
+| Kokoro on the Mac speaker is the voice, the HomePod a backend kept beside it | First sound 0.21 s against 2.5 s; local, Apache-2.0, 313 MB on the GPU (8 Nov) |
 | Sensors and OLED inside `servod` | One daemon, one status, and the distance reading sits where the obstacle stop needs it |
 | Servos through `node/pca9685.py`, not `adafruit_servokit` | Blinka does not build on the Pi 3B. Without `PEAK_SIM=1` and with no chip wired, `servod` exits on its first I2C write |
 | RoboEyes port, repo GPL-3, no third-party art | Owner chose the look; the licence follows the library |

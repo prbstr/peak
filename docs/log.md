@@ -278,6 +278,23 @@ voice`), `say` commands published by hand, played on the Mac speaker:
 Not yet done: the switch of the running Rho (the LaunchAgent runs `run-part.sh`, which starts `homepod.py` directly),
 `scripts/deploy-node.sh` to take the new `talk_delay_s` to the Pi, and the owner hearing the voice.
 
+**8 Nov 2026, 11:50, the switch.** Branch merged into `main` (93 mind tests, 87 node tests pass). `run-part.sh`'s voice
+line now follows `PEAK_VOICE_BACKEND`, and `up.sh`/`down.sh` find either backend by `voice/[a-z]*\.py`.
+`PEAK_VOICE_BACKEND=kokoro` added to `mind/.env`; `launchctl kickstart -k` on `sh.peak.voice`: `local.py` warm in
+1.5 s on 'Mac mini Speakers', `peak/mind/voice/status online` under the `voice` login.
+
+| Check | First sound |
+| --- | --- |
+| Silent bench in `main`'s new venv, 12 lines in pieces | 0.08 s median, 0.12 s max (MLX peak 2.1 GB) |
+| `{"say":"Hello. I speak from the Mac now."}` by hand | 0.14 s |
+| Faked `heard` "rho, wave at me" through the mind (gesture 342 ms, brain 0.8 s, prefix kept) | 0.12 s |
+
+Output volume 44, not muted, built-in speaker. The owner has not yet said he heard it. Building the venv in `main`:
+GitHub answered 504 for spaCy's `en_core_web_sm` wheel for several minutes, so the package was copied from the
+worktree's venv, and the wheel is now pinned in `requirements-kokoro.txt` so it installs with the venv, not at the
+voice's first start. Left: `scripts/deploy-node.sh` (owner, `sudo`) to take `talk_delay_s: 0.3` to the Pi, which
+still pulses the eyes 2.5 s after each line.
+
 ## Desk light (device)
 
 **7 Nov 2026, built and lit.** ESP32-C3 SuperMini + nRF24L01+ on seven F/F jumpers (CE 10, CSN 7, SCK 4, MOSI 6, MISO 5,

@@ -89,3 +89,11 @@ Given when the parts were chosen; none of it has been tested, because the AliExp
 - **Trimming the brain's history one turn per event defeated the prompt cache** (8 Nov 2026). `trimHistory` kept the last 20 messages, so from the eleventh event on it dropped the oldest turn every time. llama-server then matched only the system prompt (`cached n_tokens = 2130` in the Ollama log) and re-read all the history after it: prompt eval 1.87-1.99 s against 0.16-0.19 s, gesture out 2.0 s against 0.32 s, over 20 faked events through the live mind. This is the 4.5 s live median of 7 Nov. Now the history is cut back to the last 10 messages once it passes 20: one slower call (1.1 s to the gesture) in six.
 - **On a Mac short of memory, two models evict each other** (8 Nov 2026). With 17.6 GB of swap in use, Ollama found 5-10 GiB free and would not hold the brain (6.3 GiB predicted) and the 4B desk model (2.7 GiB) together: from 07:24:20 to 07:26:09 each load evicted the other, every 8 s, and replies took 13-20 s. Once both fitted, gestures came out in 0.33-0.44 s with 145 looks running. OpenClaw's coder model evicts the brain the same way (07:20:31). The protection planned is the brain on its own Ollama instance; until then, read `system_limited` and `evicting` in `/opt/homebrew/var/log/ollama.log` before blaming the code.
 - **A process that turned SIGTERM into a silent `exit(0)` left no trace** (7 Nov 22:09, vision). Every Mac part now logs `exiting on SIGTERM` or `exited (code N)`.
+
+## Added 8 Nov 2026, the Kokoro switch
+
+- **Kokoro fetched spaCy's English model at its first start.** misaki loads `en_core_web_sm` and, when it is missing,
+  pip-installs it from GitHub's release URL on the spot. On 8 Nov at 11:49 that URL answered 504 for minutes. A voice
+  started then would have died at start-up and launchd would have restarted it into the same failure. The wheel is now
+  a line in `mind/voice/requirements-kokoro.txt`, so it comes with the venv or the venv build fails where you can see it.
+

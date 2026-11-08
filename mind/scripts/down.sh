@@ -21,7 +21,7 @@ for a in "$@"; do [ "$a" = body ] || parts="$parts $a"; done
 pattern() {
   case $1 in
     whisper) echo "whisper-server" ;; mind) echo "orchestrator/index.js" ;; health) echo "orchestrator/health.js" ;;
-    voice) echo "voice/homepod.py" ;; *) echo "senses/$1.js" ;;
+    voice) echo "voice/[a-z]*\.py" ;; *) echo "senses/$1.js" ;;
   esac
 }
 

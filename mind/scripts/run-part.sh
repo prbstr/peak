@@ -40,7 +40,9 @@ case "$part" in
   hearing)  export PEAK_AUDIO_SOURCE="${PEAK_AUDIO_SOURCE:-udp://0.0.0.0:5001}"; exec node senses/hearing.js ;;
   vision)   exec node senses/vision.js ;;
   presence) exec node senses/presence.js ;;
-  voice)    exec voice/.venv/bin/python -u voice/homepod.py ;;
+  voice)    # PEAK_VOICE_BACKEND (mind/voice/README.md): kokoro speaks on the Mac's own speaker, homepod over AirPlay
+            if [ "${PEAK_VOICE_BACKEND:-homepod}" = kokoro ]; then exec voice/.venv-kokoro/bin/python -u voice/local.py
+            else exec voice/.venv/bin/python -u voice/homepod.py; fi ;;
   health)   exec node orchestrator/health.js ;;
   selftest) echo "[selftest] alive in $(pwd), PATH has node: $(command -v node || echo none)"; sleep 20
             echo "[selftest] exiting 3"; exit 3 ;;
