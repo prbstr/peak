@@ -18,7 +18,7 @@ held-out numbers.
 
 | File | Written | By | Cases | sha256 |
 | --- | --- | --- | --- | --- |
-| `heldout/held1.json` | 8 Nov 2026, 12:20 | a fresh agent given only the gesture, trick and action names with their one-line meanings, the event shape and the case format; it read no file | 30: 12 device actions (all six), 8 gestures and tricks, 10 chat and negation | `52f30069a32870be32727bd486cc5a093023cd709f677adfbacced4daf700289` |
+| `heldout/held1.json` | 8 Nov 2026, 12:10 | a fresh agent given only the gesture, trick and action names with their one-line meanings, the event shape and the case format; it read no file | 30: 12 device actions (all six), 8 gestures and tricks, 10 chat and negation | `52f30069a32870be32727bd486cc5a093023cd709f677adfbacced4daf700289` |
 
 The fast lane's templates (`orchestrator/fastlane.js`) were written before `held1` was read: that file's sha256 then was
 `398c9b511894c03a7c8859e0a8a1d389199eb2405f3094adc9d86d9e02ad4373`.

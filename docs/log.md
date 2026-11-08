@@ -50,7 +50,7 @@ Working from the Pi mic via a resident whisper.cpp server (`npm run whisper`, po
 
 **Rho live, 20:20, owner's verdict "working excellently":** whisper wrote the name as "Ro" twice ("Hey Ro, wave at me.", "Ro, what are your skills and capabilities?") and a bare one as "Roll"; all three woke it, and "How you doing?" passed inside the attention window. One miss: the name run straight into the request came back as "Bro wave at me" and was dropped; "bro" is deliberately not a wake spelling. Brain replies were 0.5-0.7 s in this run, 2.4 s for a 48-token answer.
 
-**8 Nov 2026, 12:50-13:10, Silero VAD in whisper-server (merged plan, session 6).** `ggml-silero-v5.1.2.bin`
+**8 Nov 2026, 12:38-12:48, Silero VAD in whisper-server (merged plan, session 6).** `ggml-silero-v5.1.2.bin`
 (885 KB, sha256 `29940d98...ea2cf`) in `~/.cache/whisper.cpp`. `mind/bakeoff/vad.js` replays saved wavs as `hearing.js`
 sends them. Speech: the 20 Pi-mic phrase clips of 2 Nov. Noise: 2 min of the room cut by `hearing.js` at -45 dB (10
 clips; without VAD whisper wrote "[Music]" 7 times, "[fire crackling]" twice, "[static]" once).
@@ -63,7 +63,7 @@ clips; without VAD whisper wrote "[Music]" 7 times, "[fire crackling]" twice, "[
 
 With 30 ms of padding VAD cut wake words off the front: "Peek. Stop moving." came back "Stop moving.", "Hey Peak, what
 do you see?" as "Epic, what do you see?". 300 ms was chosen after seeing that, on the same clips (recorded when the
-wake word was Peak): not a held-out result. On since 13:00 (`PEAK_WHISPER_VAD=1`, `run-part.sh whisper`). The plan's
+wake word was Peak): not a held-out result. On since 12:46 (`PEAK_WHISPER_VAD=1`, `run-part.sh whisper`). The plan's
 `PEAK_MIN_DB` -45 was tried live and reverted within minutes: the Pi mic's idle never fell below -45, so hearing cut the
 room into back-to-back 12 s segments (six in a row in whisper's log), and a request would have waited up to 12 s for
 its segment to end. It stays -30. VAD's gain is therefore smaller than planned: noise that crosses -30 comes back
@@ -121,7 +121,7 @@ each run loaded the brain cold (5.7-5.9 s) because OpenClaw's coder model had ev
 system memory free. The 4B and the brain evicted each other every 8 s from 07:24:20 to 07:26:09 (`system_limited`);
 the Mac had 17.6 of 18.4 GB swap in use. Mind tests 72 of 72.
 
-**8 Nov 2026, 12:20-12:45, held1 and the fast lane (merged plan, session 6).** `held1`: 30 cases written by a fresh
+**8 Nov 2026, 12:08-12:24, held1 and the fast lane (merged plan, session 6).** `held1`: 30 cases written by a fresh
 agent that saw only the gesture, trick and action names and the case format, committed with its sha256 before any run
 (`mind/bakeoff/brain/HELDOUT.md`). The fast lane's templates were written before `held1` was read and not changed after.
 
@@ -142,7 +142,7 @@ a brain reply stopped the body (`[sim] stop: all servos released`) and the brain
 and "Turn the lights on, Rho." switched the light 10 ms after `at`; "Rho, don't turn the lights on." went to the brain
 ("Leaving it dark.", no action). Mind tests 102 of 102.
 
-**8 Nov 2026, 12:27-12:50, the brain on its own Ollama.** `mind/bakeoff/brainhost.js`, 20 real brain calls ("Rho, wave
+**8 Nov 2026, 12:25-12:44, the brain on its own Ollama.** `mind/bakeoff/brainhost.js`, 20 real brain calls ("Rho, wave
 at me") per phase at random moments; looks = the 4B describing a photo back to back on Homebrew's Ollama (about 300 per
 run); openclaw = as looks, after `qwen2.5-coder:7b-instruct` was loaded there with a 3 min keep-alive. Before the test
 the Mac had 9.1 of 10 GB swap in use.
@@ -163,7 +163,7 @@ back under launchd in under 12 s, its llama-server runner died with it (no orpha
 keep-alive "Forever" (3.8 s load, 10.6 s for the first call). Full bake-off on it with the fast lane: 98% tuned with
 every group as run 4, `held1` 93%, 0 unasked actions, 147/147 lane answers right, 0 reloads, p50 0.7 s.
 
-**8 Nov 2026, 13:15, the voice obeys a stop.** `voice/local.py` on `{"stop": true}` empties its queue, clears the
+**8 Nov 2026, 12:48, the voice obeys a stop.** `voice/local.py` on `{"stop": true}` empties its queue, clears the
 speaker's buffer and stops making the rest of the line. A 150-character line stopped 1.2 s after it was sent ended at
 1.4 s with "cut by a stop" in the voice log. The HomePod backend does not stop (AirPlay has its own 2 s buffer).
 
