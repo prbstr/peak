@@ -86,7 +86,15 @@ the rest mostly sung lyrics from music in the room), 8 inventions ("you").
 Fixed at 20:49: `heardFilter.js` lets a sound-alike name next to a stop word through with or without punctuation
 ("Bro stop", "Rho stop.", "Stop, Bro!"), but not "Bro stop being so dramatic" or a bare "Stop."; "road" joins the
 sound-alikes where a name stands ("Road, tell me..." wakes, "Road works ahead" does not); the fast lane strips "road"
-too. 105 mind tests pass; hearing and the mind restarted. **Not yet tested by voice.**
+too. 105 mind tests pass; hearing and the mind restarted.
+
+**Stop window, 8 Nov 20:51** (owner: "Rho, tell me a long story about a robot", then "Rho stop"): heard as "Bro stop.",
+fast lane `stop` in 1 ms, 4 ms after hearing published it; the voice logged `stop: line cut` the same second and the
+story ended 10 s in (`cut by a stop`). The spoken stop works. **New: Rho talked to itself.** Inside the 8 s attention
+window after the request, the Pi mic heard Rho's own story from the Mac speaker as two requests ("Once there was a
+robot...", "and solve puzzles.", no wake word needed inside the window) and the brain answered both (1.2 s, 1.0 s);
+the third echo fell outside the window and was dropped. The stop dropped the queued self-reply, so neither was spoken.
+Half-duplex hearing is now the first fix, ahead of the Mac reboot.
 
 ## Brain
 
