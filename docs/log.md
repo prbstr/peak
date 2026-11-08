@@ -311,7 +311,8 @@ servod running from 09:52 (it reads `config.yaml` once, at start). servod was re
 
 Every prompt kept the cached prefix (prompt eval 134-149 ms). The light ended `OFF`: on came before off, the reverse of
 the asked order. Transcripts are not logged (`PEAK_DEBUG` off), so which words gave which reply is the owner's to say.
-The device replies carry no spoken line, so the voice spoke for two of the five.
+The device replies carry no spoken line, so the voice spoke for two of the five. The owner, 12:10: the voice came from
+the Mac and the eyes pulsed with it ("both in step").
 
 ## Desk light (device)
 
