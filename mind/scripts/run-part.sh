@@ -34,8 +34,15 @@ echo $$ > "$LOGS/$part.pid"
 echo "[run-part] $(date '+%Y-%m-%d %H:%M:%S') starting $part (pid $$)"
 
 case "$part" in
-  whisper)  exec whisper-server -m "${PEAK_WHISPER_GGML:-$HOME/.cache/whisper.cpp/ggml-medium.en.bin}" \
-              --host 127.0.0.1 --port 8178 -l en --no-timestamps ;;
+  # PEAK_WHISPER_VAD=1: Silero VAD inside whisper-server (8 Nov, docs/log.md Hearing). Noise comes back empty in about
+  # 30 ms instead of a sound tag in 370 ms. 300 ms of padding round speech: the default 30 ms cut wake words off.
+  whisper)  vad=""
+            if [ "${PEAK_WHISPER_VAD:-0}" = 1 ]; then
+              vad="--vad --vad-model ${PEAK_WHISPER_VAD_MODEL:-$HOME/.cache/whisper.cpp/ggml-silero-v5.1.2.bin} -vp 300"
+            fi
+            # shellcheck disable=SC2086 # $vad is several flags
+            exec whisper-server -m "${PEAK_WHISPER_GGML:-$HOME/.cache/whisper.cpp/ggml-medium.en.bin}" \
+              --host 127.0.0.1 --port 8178 -l en --no-timestamps $vad ;;
   mind)     exec node orchestrator/index.js ;;
   hearing)  export PEAK_AUDIO_SOURCE="${PEAK_AUDIO_SOURCE:-udp://0.0.0.0:5001}"; exec node senses/hearing.js ;;
   vision)   exec node senses/vision.js ;;

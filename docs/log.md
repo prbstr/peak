@@ -50,6 +50,27 @@ Working from the Pi mic via a resident whisper.cpp server (`npm run whisper`, po
 
 **Rho live, 20:20, owner's verdict "working excellently":** whisper wrote the name as "Ro" twice ("Hey Ro, wave at me.", "Ro, what are your skills and capabilities?") and a bare one as "Roll"; all three woke it, and "How you doing?" passed inside the attention window. One miss: the name run straight into the request came back as "Bro wave at me" and was dropped; "bro" is deliberately not a wake spelling. Brain replies were 0.5-0.7 s in this run, 2.4 s for a 48-token answer.
 
+**8 Nov 2026, 12:50-13:10, Silero VAD in whisper-server (merged plan, session 6).** `ggml-silero-v5.1.2.bin`
+(885 KB, sha256 `29940d98...ea2cf`) in `~/.cache/whisper.cpp`. `mind/bakeoff/vad.js` replays saved wavs as `hearing.js`
+sends them. Speech: the 20 Pi-mic phrase clips of 2 Nov. Noise: 2 min of the room cut by `hearing.js` at -45 dB (10
+clips; without VAD whisper wrote "[Music]" 7 times, "[fire crackling]" twice, "[static]" once).
+
+| Server | Speech WER | Exact | Speech p50 / max | Noise: words back | Noise p50 |
+| --- | --- | --- | --- | --- | --- |
+| no VAD (as before) | 4.5% | 16/20 | 366 / 454 ms | 0 (tags only) | 374 ms |
+| VAD, defaults (30 ms padding) | 7.9% | 14/20 | 372 / 848 ms | 0 | 25 ms |
+| VAD, `-vp 300` | 4.5% | 16/20 | 371 / 445 ms | 0 | 33 ms |
+
+With 30 ms of padding VAD cut wake words off the front: "Peek. Stop moving." came back "Stop moving.", "Hey Peak, what
+do you see?" as "Epic, what do you see?". 300 ms was chosen after seeing that, on the same clips (recorded when the
+wake word was Peak): not a held-out result. On since 13:00 (`PEAK_WHISPER_VAD=1`, `run-part.sh whisper`). The plan's
+`PEAK_MIN_DB` -45 was tried live and reverted within minutes: the Pi mic's idle never fell below -45, so hearing cut the
+room into back-to-back 12 s segments (six in a row in whisper's log), and a request would have waited up to 12 s for
+its segment to end. It stays -30. VAD's gain is therefore smaller than planned: noise that crosses -30 comes back
+empty in about 30 ms instead of a tag in 370, so whisper is free sooner for the next utterance. Today's `hearing.log`
+before it: 489 drops, 390 of them sound tags, 87 with no wake word (8 of those Rho's own voice from the Mac speaker,
+the rest mostly sung lyrics from music in the room), 8 inventions ("you").
+
 ## Brain
 
 `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes, 5.3 GB resident. Prompt tuned 3 Nov 2026: **100% strict** on the 97-step bake-off (was 94%), 95% on 22 cases written after tuning, 100% valid JSON. The orchestrator streams the reply and fires the gesture at 0.24 s, before the spoken line (0.4 s). Known miss: "can you not your head" (STT for nod) gets no nod. Live test 3 Nov 2026: wave, nod (from "not if you can hear me"), look_left, look_right and a words-only weather answer, all correct, gesture command 255-324 ms after each event, full reply 0.4-0.7 s.
@@ -141,6 +162,10 @@ theirs. Made permanent at 12:34 as `sh.peak.ollama-brain` (`run-part.sh ollama-b
 back under launchd in under 12 s, its llama-server runner died with it (no orphan), and the brain loaded again with
 keep-alive "Forever" (3.8 s load, 10.6 s for the first call). Full bake-off on it with the fast lane: 98% tuned with
 every group as run 4, `held1` 93%, 0 unasked actions, 147/147 lane answers right, 0 reloads, p50 0.7 s.
+
+**8 Nov 2026, 13:15, the voice obeys a stop.** `voice/local.py` on `{"stop": true}` empties its queue, clears the
+speaker's buffer and stops making the rest of the line. A 150-character line stopped 1.2 s after it was sent ended at
+1.4 s with "cut by a stop" in the voice log. The HomePod backend does not stop (AirPlay has its own 2 s buffer).
 
 ## Vision
 

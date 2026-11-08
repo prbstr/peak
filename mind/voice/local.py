@@ -142,6 +142,12 @@ class Player:
             self.buf.append(audio)
             self.drained.clear()
 
+    def clear(self):
+        """Silence now: whatever was added and not yet played is thrown away."""
+        with self.lock:
+            self.buf.clear()
+            self.drained.set()
+
     def wait_heard(self):
         """Block until everything added has left the speaker."""
         self.drained.wait()
@@ -158,12 +164,25 @@ def main():
 
     # One line is spoken at a time and one more may wait; a newer line replaces it, like every queue in peak.
     waiting, wake = [], threading.Condition()
+    # {"stop": true} on any cmd topic (the spoken stop, or the emergency stop) cuts the line being spoken, drops the one
+    # waiting, and ends the making of the rest; stops[0] counts them so the speaking loop sees one arrive mid-line
+    stops = [0]
 
     def on_message(c, u, msg):
         try:
-            say = json.loads(msg.payload).get("say")
+            data = json.loads(msg.payload)
         except Exception:
             return
+        if not isinstance(data, dict):
+            return
+        if data.get("stop"):
+            with wake:
+                waiting.clear()
+                stops[0] += 1
+            player.clear()
+            print("[voice] stop: line cut", flush=True)
+            return
+        say = data.get("say")
         if isinstance(say, str) and say.strip():
             with wake:
                 waiting[:] = [(say[:MAX_SAY_CHARS], time.monotonic())]
@@ -203,9 +222,11 @@ def main():
             text, heard_at = waiting.pop()
         t0 = time.monotonic()
         player.start_line()
-        started, gaps = False, 0
+        started, gaps, epoch = False, 0, stops[0]
         try:
             for audio in pieces(model, text):
+                if stops[0] != epoch:
+                    break
                 if not started:
                     speaking(True)
                     started = True
@@ -222,6 +243,7 @@ def main():
         waited = t0 - heard_at
         print(f"[voice] {text!r}: first sound {first}, speech {made:.2f}s, done at {time.monotonic() - t0:.1f}s"
               + (f", {gaps} gap(s) between pieces" if gaps else "")
+              + (", cut by a stop" if stops[0] != epoch else "")
               + (f", waited {waited:.1f}s behind the line before" if waited > 0.05 else ""), flush=True)
 
 
