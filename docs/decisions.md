@@ -72,3 +72,14 @@ The method the owner asked for on 2 Nov and that every change since has followed
 10. Run end to end over MQTT, then a 60 s live window with the owner.
 11. Record the result, including what did not work, then commit locally and ask before pushing.
 
+
+## Added 8 Nov 2026
+
+| Decision | Why |
+| --- | --- |
+| Desk rig: one printed carrier on the arm's VESA plate, leaning so the shelf is level while the head rests on its face-down stop; the camera in a flat pod under the shelf; the sonar on an outrigger on an 8 mm grid; Rho on a glued real plate on top; the mic on a bar (8 Nov 2026) | Three designs were judged (a one-piece shelf on a vertical plate, a Technic-pitch pegboard, a stop-seated pod on a carrier). The stop-seated one won on mechanics (84 vs 79 vs 71): its pitch is a gravity well, not friction, and the pod is printed face-down so every pocket floor is parallel to the datum. The pegboard's 8 mm grid, fit coupon, pinned Rho and PIR visor were grafted in; the one-piece lost on print orientation (100 mm walls, a ring in mid-air). The push-pull trim screws of the winner were replaced by shim washers: fewer inserts, and the GY-521 is the level anyway. Full story in `docs/log.md`, Desk rig. |
+| Nothing printed carries brick clutch; real plates glue into printed pockets and real pins go into coupon-tuned Ø4.9 holes | Shop FDM is ±0.1-0.2 mm, the whole clutch budget, and cannot be re-tuned per print; Brickset found printed clutch "nowhere near" real. |
+| Keep the HC-SR04+ for height, temperature-corrected with a DS18B20 in free air; no time-of-flight sensor | ±3-5 mm expected against ±20-25 mm by the VL53L1X datasheet, which is also marginal on a dark desk; the sonar is wired already. |
+| 2 kg of ballast at the arm's head: strap weights now, a laser-cut steel plate later | The arm's gas spring lifts at least 2 kg; the head carries 0.2 kg today and floats to its top stop, so no height can be set. |
+| Keep the Trust Mantis in a rigid foam-lined ring | 4.5 % word errors already; omnidirectional, so no orientation gain; no thread to mount by. A band shock mount only if thumps show. |
+| OpenSCAD, one parametric file, rendered by a script; STLs committed | Text, diff-able, every measured dimension a named parameter; the owner edits a number and re-renders rather than opening a GUI CAD. |

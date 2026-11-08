@@ -19,6 +19,7 @@ peak/
     gestures.yaml  named keyframe sequences (wave, point, nod, shrug)
     camd.sh        rpicam-vid → UDP stream to the mind
   devices/         one folder per device that is not a body: firmware config and wiring (desk-light: an ESP32-C3 + nRF24L01+)
+  hardware/        things to print or cut: desk-rig (the carrier on the monitor arm; OpenSCAD source, STLs, renders, a ballast DXF)
   contracts/       JSON schemas for every MQTT topic
 ```
 
