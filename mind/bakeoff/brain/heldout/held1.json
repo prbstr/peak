@@ -1,0 +1,152 @@
+[
+  {
+    "id": "held1.lights_off_direct",
+    "event": {"heard": "Rho, lights off."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_off"]}
+  },
+  {
+    "id": "held1.row_dark_in_here",
+    "event": {"heard": "Row, it's really dark in here."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_on"]}
+  },
+  {
+    "id": "held1.bro_eyes_burning",
+    "event": {"heard": "Bro, that's way too bright, my eyes are burning."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_dim"]}
+  },
+  {
+    "id": "held1.roe_cosier_evening",
+    "event": {"heard": "Roe, can we get something a bit cosier for the evening?"},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_warm"]}
+  },
+  {
+    "id": "held1.daylight_to_focus",
+    "event": {"heard": "Rho, give me proper daylight, I need to focus."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_cool"]}
+  },
+  {
+    "id": "held1.row_crank_it_up",
+    "event": {"heard": "Row, I can barely read this. Crank it up."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_bright"]}
+  },
+  {
+    "id": "held1.followup_now_off",
+    "event": {"heard": "Okay, now turn it off."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_off"]}
+  },
+  {
+    "id": "held1.followup_bit_dimmer",
+    "event": {"heard": "Actually, um, a bit dimmer please."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_dim"]}
+  },
+  {
+    "id": "held1.bro_switch_on_filler",
+    "event": {"heard": "Bro, switch the light on, um, please."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_on"]}
+  },
+  {
+    "id": "held1.terse_warmer",
+    "event": {"heard": "Rho, warmer."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_warm"]}
+  },
+  {
+    "id": "held1.ro_kill_lights_heading_out",
+    "event": {"heard": "Ro, kill the lights, I'm heading out."},
+    "expect": {"gesture": [null, "nod", "wave"], "sayRequired": false, "action": ["light_off"]}
+  },
+  {
+    "id": "held1.too_orange",
+    "event": {"heard": "Rho, it looks too orange in here. Can you make it whiter?"},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": ["light_cool"]}
+  },
+  {
+    "id": "held1.say_hi_to_friend",
+    "event": {"heard": "Rho, say hi to my friend."},
+    "expect": {"gesture": ["wave"], "sayRequired": false, "action": [null], "eyes": [null, "happy"]}
+  },
+  {
+    "id": "held1.bro_whats_on_your_left",
+    "event": {"heard": "Bro, check what's over on your left."},
+    "expect": {"gesture": ["look_left"], "sayRequired": false, "action": [null]}
+  },
+  {
+    "id": "held1.nod_if_you_hear_me",
+    "event": {"heard": "Rho, if you can hear me, give me a nod."},
+    "expect": {"gesture": ["nod"], "sayRequired": false, "action": [null]}
+  },
+  {
+    "id": "held1.grumpiest_face",
+    "event": {"heard": "Rho, give me your grumpiest face."},
+    "expect": {"gesture": [null, "rest"], "sayRequired": false, "action": [null], "eyes": ["angry"]}
+  },
+  {
+    "id": "held1.how_tired_are_you",
+    "event": {"heard": "Row, show me how tired you are after today."},
+    "expect": {"gesture": [null, "rest"], "sayRequired": false, "action": [null], "eyes": ["sleepy"]}
+  },
+  {
+    "id": "held1.shocked_face",
+    "event": {"heard": "Rho, pull a shocked face for me."},
+    "expect": {"gesture": [null], "sayRequired": false, "action": [null], "eyes": ["surprised"]}
+  },
+  {
+    "id": "held1.peek_a_boo",
+    "event": {"heard": "Rho, let's do peek-a-boo."},
+    "expect": {"gesture": [null], "sayRequired": false, "action": [null], "eyes": ["peekaboo"]}
+  },
+  {
+    "id": "held1.between_us",
+    "event": {"heard": "Ro, keep this between us, okay?"},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": [null], "eyes": ["wink"]}
+  },
+  {
+    "id": "held1.dont_turn_light_off",
+    "event": {"heard": "Rho, don't turn the light off, I'm still working."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": [null]}
+  },
+  {
+    "id": "held1.bought_new_lamp",
+    "event": {"heard": "Rho, I bought a new lamp for the lounge today."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": true, "action": [null]}
+  },
+  {
+    "id": "held1.kid_waved_at_bus",
+    "event": {"heard": "Row, a little kid waved at the bus driver this morning. It was so cute."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": true, "action": [null]}
+  },
+  {
+    "id": "held1.no_need_to_wave",
+    "event": {"heard": "No need to wave, Rho."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": [null]}
+  },
+  {
+    "id": "held1.never_mind_lights",
+    "event": {"heard": "Never mind the lights, Ro."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": [null]}
+  },
+  {
+    "id": "held1.time_in_tokyo",
+    "event": {"heard": "Rho, what's the time in Tokyo right now?"},
+    "expect": {"gesture": [null, "shrug"], "sayRequired": true, "action": [null]}
+  },
+  {
+    "id": "held1.light_or_load_shedding",
+    "event": {"heard": "Rho, did you switch the light off earlier or was that load shedding?"},
+    "expect": {"gesture": [null, "shrug"], "sayRequired": true, "action": [null]}
+  },
+  {
+    "id": "held1.dusty_light_bar",
+    "event": {"heard": "Bro, the light bar is a bit dusty. I should clean it."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": true, "action": [null]}
+  },
+  {
+    "id": "held1.leave_lights_perfect",
+    "event": {"heard": "Rho, leave the lights as they are, they're perfect."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": false, "action": [null]}
+  },
+  {
+    "id": "held1.interview_went_badly",
+    "event": {"heard": "Rho, rough day. The interview didn't go well."},
+    "expect": {"gesture": [null, "nod"], "sayRequired": true, "action": [null], "eyes": [null]}
+  }
+]
