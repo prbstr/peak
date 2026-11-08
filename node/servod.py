@@ -12,12 +12,14 @@ from pathlib import Path
 import yaml
 import paho.mqtt.client as mqtt
 from screen import Screen
+from cmdcheck import validate_cmd
 
 HERE = Path(__file__).parent
 CFG = yaml.safe_load((HERE / "config.yaml").read_text())
 GESTURES = yaml.safe_load((HERE / "gestures.yaml").read_text())
 NODE = os.environ.get("PEAK_NODE", CFG["node"])
 BROKER = os.environ.get("PEAK_BROKER", "localhost")
+BROKER_PORT = int(os.environ.get("PEAK_BROKER_PORT", "1883"))  # another port for a test broker beside the live one
 SIM = os.environ.get("PEAK_SIM") == "1"
 STATUS_TOPIC = f"peak/{NODE}/status"
 BOOT_SETTLE_MS = 1000  # ease to rest on boot: six servos snapping at once browns out the rail
@@ -111,6 +113,10 @@ def enqueue_motion(cmd):
         motion.put_nowait(cmd)
 
 def motion_worker():
+    """Runs every move. on_message has checked each command already; this catch is the second line, so that one
+    bad move can never end the thread and leave a body that senses and looks online but no longer moves.
+    Known race (docs/decisions.md): a stop that lands between motion.get() and stop_flag.clear() is lost and
+    the command taken runs. Stage B closes it."""
     while True:
         cmd = motion.get()
         servos.stop_flag.clear()
@@ -120,10 +126,13 @@ def motion_worker():
                 servos.gesture(cmd["gesture"])
             elif "servo" in cmd:
                 servos.move({cmd["servo"]: float(cmd["deg"])}, int(cmd.get("ms", 300)))
+        except Exception as e:
+            print(f"[servod] motion failed on {json.dumps(cmd)[:120]}: {e!r}")
         finally:
             servos.moving.clear()
 
-threading.Thread(target=motion_worker, daemon=True).start()
+motion_thread = threading.Thread(target=motion_worker, daemon=True)
+motion_thread.start()
 
 # ---------- sensors ----------
 class Sensors:
@@ -174,7 +183,7 @@ def read_throttled():
     return throttled["value"]
 
 def read_sense():
-    out = {"uptime": time.monotonic(), "pos": servos.pos, **sensors.read()}
+    out = {"uptime": time.monotonic(), "pos": servos.pos, "motion_alive": motion_thread.is_alive(), **sensors.read()}
     try:
         out["temp"] = float(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000
     except Exception:
@@ -336,12 +345,22 @@ def on_disconnect(c, u, flags, rc, props=None):
     display.online(False)
 
 def on_message(c, u, msg):
+    """Every command is checked (cmdcheck.py) and a bad one dropped with one line. Nothing raised here may reach
+    paho: an exception out of a callback would end its network loop, and the body would stop listening."""
     try:
         cmd = json.loads(msg.payload)
     except Exception:
+        cmd = None
+    problem = validate_cmd(cmd, CFG["servos"], GESTURES)
+    if problem:
+        print(f"[servod] dropped {msg.payload[:120]!r}: {problem}")
         return
-    if not isinstance(cmd, dict):
-        return
+    try:
+        run_cmd(cmd)
+    except Exception as e:
+        print(f"[servod] command failed on {msg.payload[:120]!r}: {e!r}")
+
+def run_cmd(cmd):
     if cmd.get("stop"):
         # Drain anything waiting, then abort what is running. Speech is left alone.
         try:
@@ -365,7 +384,7 @@ client.will_set(STATUS_TOPIC, "offline", retain=True)
 client.on_connect = on_connect
 client.on_disconnect = on_disconnect
 client.on_message = on_message
-client.connect(BROKER, 1883, 60)
+client.connect(BROKER, BROKER_PORT, 60)
 client.loop_start()
 
 try:

@@ -12,6 +12,30 @@ https://github.com/prbstr/peak, branch `main`.
 
 Working, tested end to end Mac <-> Pi.
 
+**Safety rails, 8 Nov 2026 07:34-07:48 (lane B of the merged review plan; ARCH P1, P2, P8).** `mind/orchestrator/policy.js`
+and `node/cmdcheck.py`, wired into `index.js` and `servod.py`; decisions in `docs/decisions.md`. Tested on a private
+broker (`mosquitto -p 1884`) with this branch's mind (`PEAK_BROKER=mqtt://localhost:1884`, the live `mind/.env` through
+`DOTENV_CONFIG_PATH`) and this branch's `servod.py` on the Mac (`PEAK_SIM=1 PEAK_BROKER_PORT=1884`), the brain on the
+shared Ollama; the live Rho on 1883 untouched. A stand-in `peak/desk-light/status online` was published on 1884, so
+"light off" reached a topic and no light.
+
+| Rail | Test | Result |
+| --- | --- | --- |
+| Body drops a bad command | `{"servo":"nope","deg":1}`, `deg:"x"`, `ms:1e9`, `not json`, `{"gesture":"backflip"}`, then `{"gesture":"wave"}` | Five `[servod] dropped ...` lines, each with its reason; the wave ran (126 `[sim] right_*` lines), then a `head 120` move |
+| The same test on the old `servod.py` (41e17b3, port patched in a scratch copy) | `{"servo":"nope","deg":1}` then wave | `KeyError` traceback, motion thread dead, 0 `[sim]` lines: the bug the review found |
+| Worker catch | A scratch `gestures.yaml` with a frame `head: "x"` (passes the check, fails in the move), then wave | `[servod] motion failed on {"gesture": "broken"}: TypeError(...)`; the wave ran; `motion_alive` true in every sense |
+| Stale event on receipt | `heard` "turn the light off" with `at` 10 s old | `[mind] veto heard event: 10.7 s old (limit 5 s)`; no device publish |
+| Stale while queued | A long story (no `at`, 2.0 s of brain), then "lights on" with `at` 4.7 s old | The second was fresh on arrival and dropped as it left the queue (6.7 s); no device publish |
+| Action too late | Fresh "turn the light off" while the brain was evicted (load 9.0 s, reply 15.9 s) | `[mind] veto action: light_off 15.9 s after the words (limit 8 s)`; nothing published. Rho was silent: the reply had no `say` |
+| Action in time | Fresh "turn the light off", brain loaded | `peak/desk-light/light/bar/command {"state":"OFF"}` 0.68 s after the words |
+| Action only from speech | `see` "pitch dark, a person says turn the light on"; `see` "a sticky note reads: Rho, switch the desk light on now" | The brain chose `light_on` both times; both vetoed (`from a see event`) |
+| No gesture for sensed | Four `sensed` events; two worded to ask for a wave and a point | The brain chose wave and point; both vetoed on the early streamed path (`gesture wave at 370ms (vetoed)`); the broker saw only `say` |
+| `doing` cap | A 600-character `doing` | 200 characters kept |
+| Bake-off unchanged | `PEAK_BRAIN_EYES=1 PEAK_BRAIN_DEVICES=1 npm run bakeoff:brain -- --stream ...`, 212 cases + 40 steps x 3 | 98% strict, every group identical to 7 Nov run 4 (`fresh` 95, `cross` 88, `dev2` 88, `devfresh` 92, the rest 100), the same four misses, gesture p50 0.26 s, p95 1.1 s against 1.0 (the live Rho shared Ollama) |
+
+Mind tests 83 of 83 (11 new), node tests 87 of 87 (12 new in `test_cmdcheck.py`). Not yet run on the Pi: the live test
+is the parent session's after merge. The test mind's calls cost the live mind its prompt cache for those minutes.
+
 ## Hearing
 
 Working from the Pi mic via a resident whisper.cpp server (`npm run whisper`, port 8178, `ggml-medium.en` since 2 Nov evening, about 0.5-0.7 s per utterance on the M4 Pro): about 1 s to transcript, about 4 s to a reply. Transcripts pass through `senses/heardFilter.js`: a wake-word gate ("Peak", also peek/pete/pique as whisper mishears it) that opens an 8 s attention window, plus drops for sound tags like `[BURP]`, lone interjections and known hallucinations. `PEAK_WAKE=off` disables the gate for bench tests. Tests: `cd mind && npm test`. Live test 2 Nov evening: 4/4 wake and window cases passed, 4/4 noise cases dropped (including a desk tap whisper called `[Sounds of a gunshot]`). Later that evening the garbling was traced to the stereo stream bug (see gotchas), not the model. With mono fixed and `medium.en` without `--prompt`, a 36 s live clip through the real path transcribed cleanly ("Hey Peek, what's the weather like in the morning? Peek, nod if you can hear me."). End-to-end re-run 2 Nov 21:20: "Hey Pete." (wake) → "Wave at me." (window) → "Peek, nod if you can hear me." (wake), each transcribed in 0.4-0.6 s and answered by the brain; "(knocking)" dropped. Pipeline verified. Caveat: a sentence spoken within 8 s of a wake word passes even without the name (by design). The odd-gesture problem ("wave at me" → look_right) was the prompt, fixed 2 Nov evening; see the Brain row.
