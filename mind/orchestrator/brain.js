@@ -1,6 +1,6 @@
 // The brain: builds the prompt, asks Ollama, parses the reply. No MQTT in here so the bake-off and
 // tests can drive it exactly the way the orchestrator does.
-import { chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
+import { BRAIN_HOST, chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
 import { DESCRIBE, gestureNames } from './gestures.js';
 import { loadTricks } from './tricks.js';
 import { DEVICES as KNOWN_DEVICES } from './devices.js';
@@ -206,10 +206,11 @@ export function gestureConfidence(content, logprobs) {
 /** One brain call. Returns the parsed reply, the raw content, any leaked thinking, Ollama's timing, and the
  *  gesture's confidence. With onGesture(gesture, ms) the reply is streamed and the callback fires the moment the
  *  gesture field is complete, before the spoken line is generated. */
-export async function askBrain({ model = MODEL, messages, options = {}, onGesture }) {
+export async function askBrain({ model = MODEL, messages, options = {}, onGesture, host = BRAIN_HOST }) {
   const body = {
+    host,
     model,
-    think: await thinkFlag(model),
+    think: await thinkFlag(model, host),
     format: REPLY_SCHEMA,
     logprobs: true,
     options: { ...loadOptions(), temperature: TEMPERATURE, num_predict: 400, ...options },

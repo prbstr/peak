@@ -5,6 +5,9 @@
 import 'dotenv/config';
 
 export const OLLAMA = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
+/** The brain may run on an Ollama of its own (PEAK_BRAIN_HOST, e.g. http://127.0.0.1:11435) so the desk camera's
+ *  model, the embedder and other programs on the shared one can never evict it. Unset: the shared one. */
+export const BRAIN_HOST = process.env.PEAK_BRAIN_HOST || OLLAMA;
 export const KEEP_ALIVE = process.env.PEAK_KEEP_ALIVE ?? '30m';
 export const loadOptions = () => ({ num_ctx: Number(process.env.PEAK_NUM_CTX ?? 4096) });
 
@@ -28,8 +31,8 @@ export const statsOf = r => {
 export const formatStats = s =>
   `${(s.totalMs / 1000).toFixed(1)}s (load ${s.loadMs}ms, prompt ${s.promptTokens} tok ${s.promptMs}ms, out ${s.evalTokens} tok ${s.evalMs}ms, ${s.tokPerS} tok/s)`;
 
-async function post(path, body, signal) {
-  const res = await fetch(`${OLLAMA}${path}`, {
+async function post(path, body, signal, host = OLLAMA) {
+  const res = await fetch(`${host}${path}`, {
     method: 'POST',
     signal,
     headers: { 'content-type': 'application/json' },
@@ -39,24 +42,24 @@ async function post(path, body, signal) {
   return res;
 }
 
-async function get(path) {
-  const res = await fetch(`${OLLAMA}${path}`);
+async function get(path, host = OLLAMA) {
+  const res = await fetch(`${host}${path}`);
   if (!res.ok) throw new Error(`ollama ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 /** POST /api/chat without streaming. Returns the message, timing stats and token logprobs when asked for.
  *  An AbortSignal as `signal` cancels the call; Ollama stops generating when the connection closes. */
-export async function chat({ signal, ...body }) {
-  const r = await (await post('/api/chat', { stream: false, keep_alive: KEEP_ALIVE, ...body }, signal)).json();
+export async function chat({ signal, host, ...body }) {
+  const r = await (await post('/api/chat', { stream: false, keep_alive: KEEP_ALIVE, ...body }, signal, host)).json();
   return { message: r.message, stats: statsOf(r), logprobs: r.logprobs ?? r.message?.logprobs ?? null };
 }
 
 /** POST /api/chat streaming. onChunk(contentSoFar, msSinceStart) runs per NDJSON line so a caller can act on
  *  the first field of a JSON reply before the rest is generated. Resolves to the same shape as chat(). */
-export async function chatStream(body, onChunk = () => {}) {
+export async function chatStream({ host, ...body }, onChunk = () => {}) {
   const t0 = performance.now();
-  const res = await post('/api/chat', { keep_alive: KEEP_ALIVE, ...body, stream: true });
+  const res = await post('/api/chat', { keep_alive: KEEP_ALIVE, ...body, stream: true }, undefined, host);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '', content = '', thinking = '', logprobs = [], last = null;
@@ -82,28 +85,29 @@ export async function chatStream(body, onChunk = () => {}) {
 }
 
 /** Loaded models: [{ name, size, size_vram, context_length, expires_at }] */
-export async function ps() {
-  return (await get('/api/ps')).models ?? [];
+export async function ps(host = OLLAMA) {
+  return (await get('/api/ps', host)).models ?? [];
 }
 
 /** Installed model names. */
-export async function tags() {
-  return ((await get('/api/tags')).models ?? []).map(m => m.name);
+export async function tags(host = OLLAMA) {
+  return ((await get('/api/tags', host)).models ?? []).map(m => m.name);
 }
 
-export async function show(model) {
-  return (await post('/api/show', { model })).json();
+export async function show(model, host = OLLAMA) {
+  return (await post('/api/show', { model }, undefined, host)).json();
 }
 
 const capsCache = new Map();
-export async function capabilities(model) {
-  if (!capsCache.has(model)) capsCache.set(model, (await show(model)).capabilities ?? []);
-  return capsCache.get(model);
+export async function capabilities(model, host = OLLAMA) {
+  const key = `${host} ${model}`;
+  if (!capsCache.has(key)) capsCache.set(key, (await show(model, host)).capabilities ?? []);
+  return capsCache.get(key);
 }
 
 /** Ollama rejects a `think` field on models without the thinking capability, so only send it where it applies. */
-export async function thinkFlag(model) {
-  return (await capabilities(model)).includes('thinking') ? false : undefined;
+export async function thinkFlag(model, host = OLLAMA) {
+  return (await capabilities(model, host)).includes('thinking') ? false : undefined;
 }
 
 /** Pull a model, calling onProgress({ status, completed, total }) per NDJSON line. */
@@ -128,8 +132,8 @@ export async function pull(model, onProgress = () => {}) {
 }
 
 /** Evict a model now. */
-export async function unload(model) {
-  await post('/api/generate', { model, keep_alive: 0 });
+export async function unload(model, host = OLLAMA) {
+  await post('/api/generate', { model, keep_alive: 0 }, undefined, host);
 }
 
 /** POST /api/embed: one vector per input string. The embedding model stays loaded as long as the brain does. */

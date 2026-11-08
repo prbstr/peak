@@ -6,12 +6,14 @@ import 'dotenv/config';
 import { createHash } from 'node:crypto';
 import mqtt from 'mqtt';
 import { runTool } from './tools.js';
-import { MODEL, TEMPERATURE, TRICKS, DEVICES, askBrain, buildMessages, trimHistory, visibleExample } from './brain.js';
+import { MODEL, TEMPERATURE, TRICKS, DEVICES, askBrain, buildMessages, trimHistory, visibleExample, trickNames, actionNames } from './brain.js';
+import { gestureNames } from './gestures.js';
+import { createFastLane } from './fastlane.js';
 import { K as EXAMPLES_K, PICK as EXAMPLES_PICK, pickExamples, warmExamples } from './examples.js';
 import { createTrickPlayer } from './tricks.js';
 import { createDeviceHub } from './devices.js';
 import { EVENT_MAX_AGE_MS, ACTION_MAX_AGE_MS, age, allowed, apply, capDoing, kindOf, stale } from './policy.js';
-import { KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
+import { BRAIN_HOST, KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
 import { brokerAuth } from '../lib/broker.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
@@ -36,12 +38,19 @@ const history = [];
  *  latest thing heard or seen is the one worth answering, not a backlog. */
 let thinking = false;
 let waiting = null;
+/** Exact spoken commands answered without the brain (fastlane.js). Its turns wait in laneTurns while the brain is
+ *  mid-reply, so history keeps alternating user and assistant. Every stop bumps stopEpoch: a reply that was being
+ *  thought when the stop came is dropped, not acted on. */
+const lane = createFastLane({ gestures: gestureNames, tricks: trickNames, actions: actionNames });
+const laneTurns = [];
+let stopEpoch = 0;
 
 // What this mind is really running with, so a log answers "was devices on?" without guessing at .env.
 console.log(`[mind] settings: eyes ${Object.keys(TRICKS).length ? 'on' : 'off'}, devices ${Object.keys(DEVICES.actions).length ? 'on' : 'off'}, `
   + `examples_k ${EXAMPLES_K}${EXAMPLES_K > 0 ? ` (${EXAMPLES_PICK})` : ' (all)'}, temperature ${TEMPERATURE}, keep_alive ${KEEP_ALIVE}, `
-  + `num_ctx ${loadOptions().num_ctx}, ollama ${OLLAMA}, vision model ${process.env.PEAK_VISION_MODEL ?? '(vision.js default)'}, `
-  + `rails: events ${EVENT_MAX_AGE_MS} ms, actions ${ACTION_MAX_AGE_MS} ms and heard only, no gesture for sensed`);
+  + `num_ctx ${loadOptions().num_ctx}, ollama ${OLLAMA}, brain on ${BRAIN_HOST}, vision model ${process.env.PEAK_VISION_MODEL ?? '(vision.js default)'}, `
+  + `rails: events ${EVENT_MAX_AGE_MS} ms, actions ${ACTION_MAX_AGE_MS} ms and heard only, no gesture for sensed, `
+  + `fast lane ${lane.enabled ? `on (${lane.templates.size} phrases)` : 'off'}`);
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { console.log(`[mind] exiting on ${sig}`); process.exit(0); });
 process.on('exit', code => console.log(`[mind] exited (code ${code})`));
 
@@ -87,6 +96,9 @@ client.on('message', (topic, payload) => {
     const at = Number.isFinite(sent) ? sent : null;
     // an event that arrives too old is not answered, and must not push out a fresher one that is waiting
     if (stale(event, at, Date.now())) return vetoStale(event, at);
+    // an exact command acts now, even while the brain is busy, and never reaches the brain
+    const hit = 'heard' in event ? lane.match(event.heard) : null;
+    if (hit) return fast(node, event, at, hit, Date.now());
     if (waiting) console.log(`[mind] busy, replaced the waiting event${perfKind(waiting.event)}`);
     waiting = { node, event, at, recv: Date.now() };
     drain();
@@ -104,8 +116,46 @@ async function drain() {
     console.error('[mind] think failed:', e.message);
   } finally {
     thinking = false;
+    flushLaneTurns();
     drain();
   }
+}
+
+function flushLaneTurns() {
+  if (!laneTurns.length) return;
+  history.push(...laneTurns.splice(0));
+  trimHistory(history);
+}
+
+/** A fast-lane hit: act now, under the same rails as a brain reply, and keep the turn in the conversation. */
+function fast(node, event, at, hit, recv) {
+  if (hit.kind === 'stop') {
+    client.publish(`peak/${node}/cmd`, JSON.stringify({ stop: true }));
+    player.stop(node);
+    stopEpoch++;
+    if (waiting) console.log(`[mind] stop dropped the waiting event${perfKind(waiting.event)}`);
+    waiting = null;
+  } else {
+    const vetoes = allowed(event, at, hit.reply, Date.now());
+    for (const v of vetoes) console.log(`[mind] veto ${v.field}: ${v.why} (fast lane)`);
+    const reply = apply(hit.reply, vetoes);
+    if (reply.gesture) runTool(client, node, 'gesture', { name: reply.gesture });
+    if (reply.action && !hub.run(reply.action)) console.warn(`[mind] no such action ${reply.action}`);
+    if (reply.eyes) {
+      const trickAction = TRICKS[reply.eyes]?.steps?.find(step => 'action' in step)?.action;
+      const actionVeto = trickAction ? allowed(event, at, { action: trickAction }, Date.now()) : [];
+      for (const v of actionVeto) console.log(`[mind] veto trick ${reply.eyes} action step: ${v.why}`);
+      player.play(node, reply.eyes, { skip: actionVeto.length ? ['action'] : [] }).catch(e => console.error('[mind] trick failed:', e.message));
+    }
+  }
+  const messages = buildMessages([], node, event, hive, desk.get(node));
+  laneTurns.push(messages.at(-1), { role: 'assistant', content: JSON.stringify(hit.reply) });
+  if (!thinking) flushLaneTurns();
+  const r = hit.reply;
+  const text = hit.kind === 'stop' ? '[stop]' : [r.gesture && `*${r.gesture}*`, r.eyes && `(${r.eyes})`, r.action && `[${r.action}]`].filter(Boolean).join(' ');
+  client.publish('peak/brain/intent', JSON.stringify({ node, text, at: Date.now() }));
+  const done = Date.now();
+  console.log(`[mind] fast lane "${hit.phrase}" -> ${text} in ${done - recv} ms${at != null ? `, ${done - at} ms since heard` : ''}${thinking ? ' (brain busy)' : ''}`);
 }
 
 function vetoStale(event, at) {
@@ -123,6 +173,8 @@ function logVetoes(vetoes, logged) {
 
 async function think(node, event, { at = null, recv = Date.now() } = {}) {
   const t = { start: Date.now() };
+  const epoch = stopEpoch;
+  const stopped = () => epoch !== stopEpoch;
   // a busy brain (or an evicted model reloading) can leave an event waiting past its moment
   if (stale(event, at, t.start)) return vetoStale(event, at);
   // the examples for this event: the whole bank, or the nearest few (PEAK_EXAMPLES_K in .env; examples.js)
@@ -141,6 +193,7 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
     messages,
     onGesture: (gesture, ms) => {
       early = gesture;
+      if (stopped()) return console.log(`[mind] gesture ${gesture} at ${ms}ms dropped: a stop came while thinking`);
       const vetoes = allowed(event, at, { gesture }, Date.now());
       logVetoes(vetoes, logged);
       if (gesture && !vetoes.length) runTool(client, node, 'gesture', { name: gesture });
@@ -153,6 +206,7 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
   // a load after the first call means Ollama evicted the brain (another model took the slot)
   if (stats.loadMs > 1000) console.warn('[mind] brain was reloaded (evicted?)');
   if (!raw) return console.error('[mind] unparseable reply:', content);
+  if (stopped()) return console.log('[mind] reply dropped: a stop came while thinking');
   // the action's age is judged now, after the brain, when it would actually switch something
   const vetoes = allowed(event, at, raw, Date.now());
   logVetoes(vetoes, logged);
@@ -199,7 +253,8 @@ const shortHash = s => createHash('sha1').update(s).digest('hex').slice(0, 8);
  *  else changed it, first for the first call. */
 function logPerf({ event, at, recv, t, stats, gestureMs, messages, content }) {
   const before = JSON.stringify(messages.slice(0, -1));
-  const prefix = lastPrefix === null ? 'first' : before === lastPrefix ? 'kept' : 'cut';
+  // kept: this request starts with the last request and its answer (fast-lane turns may follow them)
+  const prefix = lastPrefix === null ? 'first' : before.startsWith(lastPrefix.slice(0, -1)) ? 'kept' : 'cut';
   lastPrefix = JSON.stringify([...messages, { role: 'assistant', content }]);
   const f = {
     kind: perfKind(event).trim(),
