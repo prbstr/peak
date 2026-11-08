@@ -100,6 +100,48 @@ each run loaded the brain cold (5.7-5.9 s) because OpenClaw's coder model had ev
 system memory free. The 4B and the brain evicted each other every 8 s from 07:24:20 to 07:26:09 (`system_limited`);
 the Mac had 17.6 of 18.4 GB swap in use. Mind tests 72 of 72.
 
+**8 Nov 2026, 12:20-12:45, held1 and the fast lane (merged plan, session 6).** `held1`: 30 cases written by a fresh
+agent that saw only the gesture, trick and action names and the case format, committed with its sha256 before any run
+(`mind/bakeoff/brain/HELDOUT.md`). The fast lane's templates were written before `held1` was read and not changed after.
+
+| Run (3 runs each, eyes and devices on) | Tuned strict | Held-out strict | Unasked actions | Lane |
+| --- | --- | --- | --- | --- |
+| Brain alone, `held1` only | | 92% (83/90) | 0 | |
+| With the fast lane, `held1` only | | 93% (84/90) | 0 | 6 hits, all right |
+| With the fast lane, everything | 98% of 756, every group as run 4 | 92% of 90 | 0 | 147 hits, all right, none on a chat or negation case |
+
+The held-out misses are the brain's: it waves at "my kid waved at the bus" (3/3), shows sleepy eyes after "the
+interview didn't go well" (3/3), and once brightened for "it's really dark in here" where `light_on` was asked. The
+tuned misses are run 4's four (`stt_not_head`, `cross.still_angry`, `dev2.harsh`, `devfresh.see`). The 95% held-out
+gate fails, by the brain, not the lane; nothing was tuned on `held1`, so it stays held out. The lane caught only 2 of
+the 12 held-out light requests ("lights off", "warmer"): real speech is mostly phrased loosely ("kill the lights, I'm
+heading out", "switch the light on, um"), and those go to the brain, which got them right. Live, through the running
+mind with faked `heard` events: "Rho, wave at me." waved 1 ms after the mind received it; "Rho, stop!" sent 0.3 s into
+a brain reply stopped the body (`[sim] stop: all servos released`) and the brain's reply was dropped; "Bro, lights off."
+and "Turn the lights on, Rho." switched the light 10 ms after `at`; "Rho, don't turn the lights on." went to the brain
+("Leaving it dark.", no action). Mind tests 102 of 102.
+
+**8 Nov 2026, 12:27-12:50, the brain on its own Ollama.** `mind/bakeoff/brainhost.js`, 20 real brain calls ("Rho, wave
+at me") per phase at random moments; looks = the 4B describing a photo back to back on Homebrew's Ollama (about 300 per
+run); openclaw = as looks, after `qwen2.5-coder:7b-instruct` was loaded there with a 3 min keep-alive. Before the test
+the Mac had 9.1 of 10 GB swap in use.
+
+| Brain on | Phase | Gesture p50 | Gesture p95 | Reply p50 | Reply p95 | Brain reloads | Free memory |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Homebrew's :11434 | quiet | 0.21 s | 0.23 s | 0.62 s | 0.99 s | 0 | 27% |
+| Homebrew's :11434 | looks | 0.27 s | 20.0 s | 1.00 s | 20.7 s | 2 | 14% |
+| Homebrew's :11434 | openclaw | 0.25 s | 17.9 s | 0.92 s | 19.2 s | 1 | 17% |
+| its own :11435 | quiet | 0.17 s | 0.25 s | 0.55 s | 0.83 s | 0 | 15% |
+| its own :11435 | looks | 0.24 s | 0.53 s | 0.85 s | 1.19 s | 0 | 14% |
+| its own :11435 | openclaw | 0.22 s | 0.31 s | 0.84 s | 0.91 s | 0 | 23% |
+
+Gate (plan): gesture p95 under 1 s and no reload: passed on its own instance only. On Homebrew's Ollama during the
+own-instance run, the coder evicted the 4B at 12:32:06 and the 4B evicted the coder at 12:32:10: that fight is now
+theirs. Made permanent at 12:34 as `sh.peak.ollama-brain` (`run-part.sh ollama-brain`); `kill -9` of it at 12:36 was
+back under launchd in under 12 s, its llama-server runner died with it (no orphan), and the brain loaded again with
+keep-alive "Forever" (3.8 s load, 10.6 s for the first call). Full bake-off on it with the fast lane: 98% tuned with
+every group as run 4, `held1` 93%, 0 unasked actions, 147/147 lane answers right, 0 reloads, p50 0.7 s.
+
 ## Vision
 
 Working from an image file, now through the same Qwen3-VL model as the brain (`eyes.js` comparison: the only one of three not to hallucinate a person). On Ollama 0.40.13 a fresh frame takes 5.6 s to describe (1.8 s on 0.24); the `PEAK_VISION_COOLDOWN_S` 10 s loop still works, the `{see}` event just lands later.

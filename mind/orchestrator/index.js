@@ -13,7 +13,7 @@ import { K as EXAMPLES_K, PICK as EXAMPLES_PICK, pickExamples, warmExamples } fr
 import { createTrickPlayer } from './tricks.js';
 import { createDeviceHub } from './devices.js';
 import { EVENT_MAX_AGE_MS, ACTION_MAX_AGE_MS, age, allowed, apply, capDoing, kindOf, stale } from './policy.js';
-import { BRAIN_HOST, KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
+import { BRAIN_HOST, BRAIN_KEEP_ALIVE, KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
 import { brokerAuth } from '../lib/broker.js';
 
 const BROKER = process.env.PEAK_BROKER ?? 'mqtt://localhost:1883';
@@ -48,7 +48,7 @@ let stopEpoch = 0;
 // What this mind is really running with, so a log answers "was devices on?" without guessing at .env.
 console.log(`[mind] settings: eyes ${Object.keys(TRICKS).length ? 'on' : 'off'}, devices ${Object.keys(DEVICES.actions).length ? 'on' : 'off'}, `
   + `examples_k ${EXAMPLES_K}${EXAMPLES_K > 0 ? ` (${EXAMPLES_PICK})` : ' (all)'}, temperature ${TEMPERATURE}, keep_alive ${KEEP_ALIVE}, `
-  + `num_ctx ${loadOptions().num_ctx}, ollama ${OLLAMA}, brain on ${BRAIN_HOST}, vision model ${process.env.PEAK_VISION_MODEL ?? '(vision.js default)'}, `
+  + `num_ctx ${loadOptions().num_ctx}, ollama ${OLLAMA}, brain on ${BRAIN_HOST} (keep_alive ${BRAIN_KEEP_ALIVE}), vision model ${process.env.PEAK_VISION_MODEL ?? '(vision.js default)'}, `
   + `rails: events ${EVENT_MAX_AGE_MS} ms, actions ${ACTION_MAX_AGE_MS} ms and heard only, no gesture for sensed, `
   + `fast lane ${lane.enabled ? `on (${lane.templates.size} phrases)` : 'off'}`);
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { console.log(`[mind] exiting on ${sig}`); process.exit(0); });

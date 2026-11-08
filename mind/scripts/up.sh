@@ -15,14 +15,14 @@ PEAK_MIND="${PEAK_MIND:-192.168.0.139}"
 PI="${PEAK_PI:-lupin@mech.local}"
 AGENTS="${PEAK_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
 DOMAIN="gui/$(id -u)"
-WANT="${*:-whisper mind hearing vision presence voice health body}"
+WANT="${*:-whisper ollama-brain mind hearing vision presence voice health body}"
 wants() { case " $WANT " in *" $1 "*) return 0;; esac; return 1; }
 
 # what each part's process looks like, to find a copy started outside launchd (by hand, or by the old nohup up.sh)
 pattern() {
   case $1 in
     whisper) echo "whisper-server" ;; mind) echo "orchestrator/index.js" ;; health) echo "orchestrator/health.js" ;;
-    voice) echo "voice/[a-z]*\.py" ;; *) echo "senses/$1.js" ;;
+    voice) echo "voice/[a-z]*\.py" ;; ollama-brain) echo "[o]llama-brain-has-no-pattern" ;; *) echo "senses/$1.js" ;;
   esac
 }
 agent_pid() { launchctl print "$DOMAIN/sh.peak.$1" 2>/dev/null | awk '/^\tpid = /{print $3}'; }
@@ -45,7 +45,7 @@ start() {
 }
 
 # whisper first: hearing needs it; the mind needs only the broker
-for part in whisper mind hearing vision presence voice health; do wants "$part" && start "$part"; done
+for part in whisper ollama-brain mind hearing vision presence voice health; do wants "$part" && start "$part"; done
 
 # The body: servod (servos simulated until the PCA9685 is wired), the camera and mic streams. A daemon whose systemd
 # unit is enabled is left to systemd. Otherwise it is started by hand over ssh, one plain command each, and judged

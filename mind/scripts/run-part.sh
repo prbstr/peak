@@ -2,7 +2,7 @@
 # Run one part of Rho's Mac side in the foreground, with mind/.env loaded. Each LaunchAgent (sh.peak.<part>, written
 # by install-agents.sh) runs this, so no setting or secret lives in a plist. The last step is exec, so the process
 # launchd watches, and a kill -9 hits, is the part itself, not this shell.
-#   scripts/run-part.sh whisper|mind|hearing|vision|presence|voice|health
+#   scripts/run-part.sh whisper|ollama-brain|mind|hearing|vision|presence|voice|health
 #   scripts/run-part.sh selftest     logs, waits 20 s and exits 3 (to prove KeepAlive without touching Rho)
 # Each start leaves one line in the part's log, so a restart is visible. PEAK_PART tells the part its name, which
 # turns on its retained peak/mind/<part>/status (senses/lib.js connect()).
@@ -44,6 +44,12 @@ case "$part" in
             if [ "${PEAK_VOICE_BACKEND:-homepod}" = kokoro ]; then exec voice/.venv-kokoro/bin/python -u voice/local.py
             else exec voice/.venv/bin/python -u voice/homepod.py; fi ;;
   health)   exec node orchestrator/health.js ;;
+  # the brain's own Ollama (docs/decisions.md, 8 Nov): one model slot, kept loaded for ever, the same model files and
+  # cache settings as Homebrew's Ollama; the mind reaches it through PEAK_BRAIN_HOST in .env. NOPRUNE: two servers
+  # share ~/.ollama, and neither may delete blobs at start.
+  ollama-brain) export OLLAMA_HOST="127.0.0.1:${PEAK_BRAIN_PORT:-11435}" OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=-1 \
+                  OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_NOPRUNE=1
+                exec /opt/homebrew/opt/ollama/bin/ollama serve ;;
   selftest) echo "[selftest] alive in $(pwd), PATH has node: $(command -v node || echo none)"; sleep 20
             echo "[selftest] exiting 3"; exit 3 ;;
   *)        echo "run-part.sh: unknown part '$part'" >&2; exit 64 ;;

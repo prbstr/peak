@@ -12,7 +12,7 @@ MIND="$(cd "$(dirname "$0")/.." && pwd)"
 RUN="$MIND/run"
 PI="${PEAK_PI:-lupin@mech.local}"
 DOMAIN="gui/$(id -u)"
-ALL="hearing vision presence voice health mind whisper" # hearing first so its ffmpeg lets go of UDP :5001
+ALL="hearing vision presence voice health mind ollama-brain whisper" # hearing first so its ffmpeg lets go of UDP :5001
 
 parts=""
 for a in "$@"; do [ "$a" = body ] || parts="$parts $a"; done
@@ -21,7 +21,7 @@ for a in "$@"; do [ "$a" = body ] || parts="$parts $a"; done
 pattern() {
   case $1 in
     whisper) echo "whisper-server" ;; mind) echo "orchestrator/index.js" ;; health) echo "orchestrator/health.js" ;;
-    voice) echo "voice/[a-z]*\.py" ;; *) echo "senses/$1.js" ;;
+    voice) echo "voice/[a-z]*\.py" ;; ollama-brain) echo "[o]llama-brain-has-no-pattern" ;; *) echo "senses/$1.js" ;;
   esac
 }
 

@@ -8,7 +8,7 @@
 //   PEAK_WHISPER_URL      whisper-server (default http://127.0.0.1:8178)
 import { pathToFileURL } from 'node:url';
 import { connect, logExits } from '../senses/lib.js';
-import { tags } from '../lib/ollama.js';
+import { BRAIN_HOST, OLLAMA, tags } from '../lib/ollama.js';
 
 export const PARTS = (process.env.PEAK_HEALTH_PARTS ?? 'whisper mind hearing vision presence voice').split(/[\s,]+/).filter(Boolean);
 const EVERY_MS = Number(process.env.PEAK_HEALTH_EVERY_S ?? 30) * 1000;
@@ -27,7 +27,9 @@ export const summarize = ({ statuses, probes, now, parts = PARTS }) => {
   }
   const down = Object.entries(partState).filter(([, s]) => s !== 'online').map(([p]) => p);
   if (!probes.ollama.ok) down.push('ollama');
-  return { at: now, ok: down.length === 0, down, parts: partState, bodies, ollama: probes.ollama, whisper: probes.whisper };
+  // the brain's own Ollama (PEAK_BRAIN_HOST), when the brain has one
+  if (probes.brain && !probes.brain.ok) down.push('ollama-brain');
+  return { at: now, ok: down.length === 0, down, parts: partState, bodies, ollama: probes.ollama, whisper: probes.whisper, ...(probes.brain ? { brain: probes.brain } : {}) };
 };
 
 const withTimeout = (promise, ms) =>
@@ -53,6 +55,7 @@ const probeWhisper = () => probe(async () => {
 
 // /api/tags lists models and loads none, so it never disturbs the brain
 const probeOllama = () => probe(tags, models => ({ models: models.length }));
+const probeBrain = () => (BRAIN_HOST === OLLAMA ? null : probe(() => tags(BRAIN_HOST), models => ({ models: models.length })));
 
 const main = () => {
   logExits('health');
@@ -67,8 +70,8 @@ const main = () => {
   client.on('message', (topic, payload) => statuses.set(topic, String(payload)));
 
   const tick = async () => {
-    const [whisper, ollama] = await Promise.all([probeWhisper(), probeOllama()]);
-    const health = summarize({ statuses, probes: { whisper, ollama }, now: Date.now() });
+    const [whisper, ollama, brain] = await Promise.all([probeWhisper(), probeOllama(), probeBrain()]);
+    const health = summarize({ statuses, probes: { whisper, ollama, ...(brain ? { brain } : {}) }, now: Date.now() });
     if (!client.connected) return; // the broker is down: nothing to publish to, and nobody to tell
     const w = health.parts.whisper;
     if (w && w !== lastWhisper) client.publish('peak/mind/whisper/status', w, { retain: true, qos: 1 });

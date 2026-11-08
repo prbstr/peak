@@ -1,6 +1,6 @@
 // The brain: builds the prompt, asks Ollama, parses the reply. No MQTT in here so the bake-off and
 // tests can drive it exactly the way the orchestrator does.
-import { BRAIN_HOST, chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
+import { BRAIN_HOST, BRAIN_KEEP_ALIVE, chat, chatStream, loadOptions, thinkFlag } from '../lib/ollama.js';
 import { DESCRIBE, gestureNames } from './gestures.js';
 import { loadTricks } from './tricks.js';
 import { DEVICES as KNOWN_DEVICES } from './devices.js';
@@ -210,6 +210,7 @@ export async function askBrain({ model = MODEL, messages, options = {}, onGestur
   const body = {
     host,
     model,
+    keep_alive: host === BRAIN_HOST ? BRAIN_KEEP_ALIVE : undefined,
     think: await thinkFlag(model, host),
     format: REPLY_SCHEMA,
     logprobs: true,

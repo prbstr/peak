@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Rho's brain on its own Ollama (127.0.0.1:11435), so no other model can evict it (docs/decisions.md, 8 Nov).
+     A template: scripts/install-agents.sh fills in the mind folder, the log folder and PATH, and writes ~/Library/LaunchAgents/sh.peak.ollama-brain.plist.
+     No settings here: run-part.sh reads mind/.env. Restarted after any exit but a clean one (a kill -9 or a crash
+     counts), at most once every 10 s. stdout and stderr are appended to @LOGS@/ollama-brain.log. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>sh.peak.ollama-brain</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>@MIND@/scripts/run-part.sh</string>
+    <string>ollama-brain</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@MIND@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@PATH@</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>@LOGS@/ollama-brain.log</string>
+  <key>StandardErrorPath</key>
+  <string>@LOGS@/ollama-brain.log</string>
+</dict>
+</plist>

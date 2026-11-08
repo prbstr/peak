@@ -96,4 +96,10 @@ Given when the parts were chosen; none of it has been tested, because the AliExp
   pip-installs it from GitHub's release URL on the spot. On 8 Nov at 11:49 that URL answered 504 for minutes. A voice
   started then would have died at start-up and launchd would have restarted it into the same failure. The wheel is now
   a line in `mind/voice/requirements-kokoro.txt`, so it comes with the venv or the venv build fails where you can see it.
+- **The Pi's mic hears Rho on the Mac speaker.** Since the voice moved to the Mac mini (8 Nov), whisper transcribes
+  Rho's own lines: `hearing.log` that day dropped "Hey, good to see you." (4), "Lights off, sleep well." (2) and "That
+  looks like a soldiering iron." (2) for having no wake word. A line with the name in it ("I'm Rho") would pass the gate
+  and wake Rho itself. Music in the room also comes back as lyrics (`♪ ... ♪`), dropped the same way. Silero VAD cannot
+  help: both are speech. The fix is half-duplex: `hearing.js` drops what it hears while `peak/mind/speaking` is set
+  (the Kokoro voice publishes it; the senses' broker user cannot read it yet, `broker/peak.acl`).
 

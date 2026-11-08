@@ -8,6 +8,10 @@ export const OLLAMA = process.env.OLLAMA_HOST ?? 'http://localhost:11434';
 /** The brain may run on an Ollama of its own (PEAK_BRAIN_HOST, e.g. http://127.0.0.1:11435) so the desk camera's
  *  model, the embedder and other programs on the shared one can never evict it. Unset: the shared one. */
 export const BRAIN_HOST = process.env.PEAK_BRAIN_HOST || OLLAMA;
+/** How long the brain stays loaded after a call: for ever (-1) on its own Ollama, where nothing else wants the room,
+ *  else the shared KEEP_ALIVE. PEAK_BRAIN_KEEP_ALIVE overrides either. */
+const keep = v => (/^-?\d+$/.test(String(v)) ? Number(v) : v);
+export const BRAIN_KEEP_ALIVE = keep(process.env.PEAK_BRAIN_KEEP_ALIVE ?? (BRAIN_HOST === OLLAMA ? KEEP_ALIVE : -1));
 export const KEEP_ALIVE = process.env.PEAK_KEEP_ALIVE ?? '30m';
 export const loadOptions = () => ({ num_ctx: Number(process.env.PEAK_NUM_CTX ?? 4096) });
 

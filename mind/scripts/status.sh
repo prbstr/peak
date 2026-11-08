@@ -16,8 +16,8 @@ HOST=${hostport%%:*}; PORT=${hostport##*:}; [ "$PORT" = "$hostport" ] && PORT=18
 retained=$(mosquitto_sub -h "$HOST" -p "$PORT" -v -W 2 -t 'peak/mind/+/status' -t 'peak/+/status' -t 'peak/mind/health' 2>/dev/null)
 topic() { printf '%s\n' "$retained" | awk -v t="$1" '$1 == t { $1 = ""; sub(/^ /, ""); print; exit }'; }
 
-printf '%-9s %-9s %-8s %-7s %-8s %s\n' part launchd pid runs mqtt "last log line"
-for part in whisper mind hearing vision presence voice health; do
+printf '%-12s %-9s %-8s %-7s %-8s %s\n' part launchd pid runs mqtt "last log line"
+for part in whisper ollama-brain mind hearing vision presence voice health; do
   info=$(launchctl print "$DOMAIN/sh.peak.$part" 2>/dev/null)
   if [ -n "$info" ]; then
     state=$(printf '%s\n' "$info" | awk '/^\tstate = /{print $3; exit}')
@@ -27,7 +27,7 @@ for part in whisper mind hearing vision presence voice health; do
   mqtt=$(topic "peak/mind/$part/status"); [ -n "$mqtt" ] || mqtt="-"
   log="$LOGS/$part.log"; [ -f "$log" ] || log="$MIND/run/$part.log"
   last=$( [ -f "$log" ] && tail -1 "$log" | cut -c1-70 )
-  printf '%-9s %-9s %-8s %-7s %-8s %s\n' "$part" "$state" "${pid:--}" "${runs:--}" "$mqtt" "$last"
+  printf '%-12s %-9s %-8s %-7s %-8s %s\n' "$part" "$state" "${pid:--}" "${runs:--}" "$mqtt" "$last"
 done
 echo
 printf '%s\n' "$retained" | awk '{ n = split($1, p, "/") } n == 3 && p[1] == "peak" && p[3] == "status" && p[2] != "mind" { printf "%-11s %s\n", p[2], $2 }'

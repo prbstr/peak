@@ -228,3 +228,19 @@ Decision: the default stays **all examples** (`PEAK_EXAMPLES_K=0`), and teaching
 Retrieval stays in the code as an option for when the bank is too big to show whole; at 23 examples it costs accuracy
 and time. The five lessons stay in `learned.yaml`. The bake-off runs with whatever is in that file, so a lesson is part
 of the prompt it scores; run `npm run teach` to list them.
+
+## Held out and the fast lane, 8 Nov 2026
+
+`heldout/*.json` are cases nobody tuned on (`HELDOUT.md` has the rule and the hashes). Every run now prints a
+"Tuned, held-out and gates" table: strict on each set, and the gates held-out strict >= 95%, unasked actions = 0 and,
+with `--fastlane`, lane precision = 100%. `--fastlane` answers a matched `heard` case the way the mind does, without the
+brain. `--only held1` scores just the held-out file.
+
+| Run | Tuned | held1 | Lane |
+| --- | --- | --- | --- |
+| Brain alone | (98%, run 4) | 92% | |
+| Fast lane on | 98%, every group as run 4 | 92-93% | 147/147 right, 0 on chat or negation |
+
+`held1` fails the 95% gate on the brain's own misses (a wave at "my kid waved at the bus", sleepy eyes for a bad
+day). Fixing them with a lesson moves `held1` into `cases.json` in the same commit, and `held2` is written blind.
+

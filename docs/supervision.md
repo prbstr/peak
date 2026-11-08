@@ -7,7 +7,7 @@ merged review plan, findings P3 and P9). The dated tests are in `docs/log.md`, "
 
 ```
 Mac (launchd, your login)                                      Pi (systemd, at boot)
- sh.peak.whisper  ─┐                                            peak-servod  ── servod.py (PEAK_SIM=1)
+ sh.peak.whisper  ─┐   sh.peak.ollama-brain: the brain's own Ollama on :11435 (8 Nov), no MQTT status; health probes it                                            peak-servod  ── servod.py (PEAK_SIM=1)
  sh.peak.mind      │  each: /bin/sh run-part.sh <part>          peak-camd    ── camd.sh   ── UDP :5000 ──> vision
  sh.peak.hearing   │        → reads mind/.env                   peak-audiod  ── audiod.sh ── UDP :5001 ──> hearing
  sh.peak.vision    │        → exec the part (same pid)           Restart=always, 3 s; logs appended to ~/peak/<d>.log

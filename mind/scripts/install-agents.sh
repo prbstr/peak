@@ -17,7 +17,7 @@ MIND="$(cd "$(dirname "$0")/.." && pwd)"
 AGENTS="${PEAK_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
 LOGS="${PEAK_LOGS:-$HOME/Library/Logs/peak}"
 DOMAIN="gui/$(id -u)"
-ALL="whisper mind hearing vision presence voice health"
+ALL="whisper ollama-brain mind hearing vision presence voice health"
 
 mode=install selftest=""
 while [ $# -gt 0 ]; do
