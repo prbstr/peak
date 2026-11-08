@@ -16,9 +16,13 @@ const NAME = /\brho\b/i;
 // Whisper mostly writes a homophone instead, and those are ordinary words ("three in a row", "roll the dice").
 // They count as the name only where a name stands: opening the utterance, after a greeting or not, or closing
 // it after a comma, and set off by punctuation either way. "Roll." alone is how a bare "Rho" came back.
-const SOUNDS_LIKE = 'row|roe|ro|roh|rowe|roll|bro'; // bro added 7 Nov 2026 at the owner's word: whisper wrote every Rho that evening as Bro
+const SOUNDS_LIKE = 'row|roe|ro|roh|rowe|roll|bro|road'; // bro added 7 Nov 2026 at the owner's word: whisper wrote every Rho that evening as Bro; road 8 Nov ("Road, tell me a long story")
 const ADDRESSED = new RegExp(`^(?:(?:hey|hi|hello|okay|ok|yo)[\\s,!.]+)?(?:${SOUNDS_LIKE})(?:[,.!?]|$)|,\\s*(?:${SOUNDS_LIKE})[.!?]*$`, 'i');
-const WAKE = { test: text => NAME.test(text) || ADDRESSED.test(text) };
+// The spoken stop must never wait on a comma: on 8 Nov whisper wrote "Bro stop" with none and the stop was dropped
+// while Rho talked on. A sound-alike name next to a stop word, set off by anything or nothing, is the whole utterance.
+const STOPS = 'stop|freeze|halt';
+const STOP_CALL = new RegExp(`^(?:rho|${SOUNDS_LIKE})[\\s,.!?]+(?:${STOPS})(?:[\\s,.!?]+(?:${STOPS}|it|that|now))*[\\s.!?]*$|^(?:${STOPS})[\\s,.!?]+(?:rho|${SOUNDS_LIKE})[\\s.!?]*$`, 'i');
+const WAKE = { test: text => NAME.test(text) || ADDRESSED.test(text) || STOP_CALL.test(text) };
 // stage directions and sound tags, with or without the words around them
 const TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*/g;
 // invented on near-silence, or echoes of the server's own prompt hint

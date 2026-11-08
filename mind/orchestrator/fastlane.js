@@ -11,7 +11,7 @@
 
 export const FAST_LANE = (process.env.PEAK_FAST_LANE ?? '1') !== '0';
 
-const WAKE = 'rho|row|roe|ro|roh|rowe|roll|bro';
+const WAKE = 'rho|row|roe|ro|roh|rowe|roll|bro|road'; // the sound-alikes senses/heardFilter.js wakes on
 const LEAD = new RegExp(`^(?:(?:hey|hi|hello|okay|ok|yo)[\\s,!.]+)?(?:${WAKE})(?:[\\s,.!?]+|$)`, 'i');
 const TAIL = new RegExp(`[\\s,]+(?:${WAKE})[\\s.!?]*$`, 'i');
 const TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*/g;

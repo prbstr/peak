@@ -103,3 +103,11 @@ Given when the parts were chosen; none of it has been tested, because the AliExp
   help: both are speech. The fix is half-duplex: `hearing.js` drops what it hears while `peak/mind/speaking` is set
   (the Kokoro voice publishes it; the senses' broker user cannot read it yet, `broker/peak.acl`).
 
+
+### A spoken stop dropped by the wake gate (8 Nov 2026)
+
+During the session 6 window the owner said "Rho, stop!" while Rho told a 14 s story. Whisper wrote "Bro stop", with no
+comma, and `heardFilter.js` counts a sound-alike name only when punctuation sets it off; the 8 s attention window from
+the story request had closed. The stop never reached the mind and the story played out. The fast lane would have
+matched it. Since 20:49 a sound-alike name beside a stop word passes with or without punctuation. Rule: anything that
+must work in a hurry may not depend on whisper's punctuation.

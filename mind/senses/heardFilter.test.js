@@ -26,6 +26,26 @@ test('the same words inside ordinary speech do not wake it', () => {
   }
 });
 
+test('a spoken stop passes with or without a comma after the name (8 Nov: "Bro stop" was dropped)', () => {
+  const { f } = fresh();
+  for (const t of ['Bro stop', 'Bro stop!', 'Rho stop.', 'Row, stop.', 'Bro, stop, stop!', 'Bro freeze', 'Bro stop it', 'Stop, Bro!']) {
+    assert.equal(f.consider(t).why, 'wake word', t);
+  }
+});
+
+test('a stop word inside ordinary speech still does not wake it', () => {
+  const { f } = fresh();
+  for (const t of ['Bro stop being so dramatic.', 'Stop.', 'Row stop signs ahead.', 'Please stop the car.']) {
+    assert.equal(f.consider(t).why === 'wake word', false, t);
+  }
+});
+
+test('road wakes it only where a name stands', () => {
+  const { f } = fresh();
+  assert.equal(f.consider('Road, tell me a long story about a robot.').why, 'wake word');
+  assert.equal(fresh().f.consider('Road works ahead, drive slowly.').why, 'no wake word');
+});
+
 test('the old name no longer wakes it', () => {
   const { f } = fresh();
   assert.equal(f.consider('Hey Peak, wave at me.').why, 'no wake word');

@@ -71,6 +71,23 @@ empty in about 30 ms instead of a tag in 370, so whisper is free sooner for the 
 before it: 489 drops, 390 of them sound tags, 87 with no wake word (8 of those Rho's own voice from the Mac speaker,
 the rest mostly sung lyrics from music in the room), 8 inventions ("you").
 
+**Session 6 spoken window, 8 Nov 20:45-20:47** (owner at the Pi mic, all eight parts up, VAD on; read from `mind.log`,
+`hearing.log`, `voice.log` and the Pi's `servod.log`):
+
+| Said | Heard as | What happened |
+| --- | --- | --- |
+| "Rho, wave at me" (twice) | "Bro, wave at me." | Fast lane both times, 0 ms to act, 1-2 ms since heard; `[sim]` wave on the Pi; nothing said, as designed |
+| "Rho, what's two plus two?" | "Bro, what's 2+2?" | Brain: "Four.", gesture at 1.56 s (history had just been cut, `prefix=cut`, prompt 1.4 s), first sound 0.46 s |
+| "Rho, tell me a long story about a robot" | first "Road, ..." (dropped, no wake word), then "Roll, ..." | Brain at 2.15 s, 72 tokens; the 200-character `say` cap ended the story mid-sentence ("...who asked him"); spoken for 14.4 s |
+| "Rho, stop!" during the story | "Bro stop" | **Dropped by the wake gate**: no comma after the sound-alike name, and the 8 s window after "Roll, ..." had closed. The story played to the end. |
+| "Rho, lights off" / "lights on" | "Bro, lights off." / "Bro, lights on!" | Fast lane each time, 0-1 ms (eight light requests in 70 s); the light's retained state ended ON at full |
+| (one "lights on") | "Bro, lights on! Is someone there?" | Rho's own "Is someone there?" from the Mac speaker ran into the owner's request; the lane missed it, the brain still answered `[light_on]` in 0.62 s. Half-duplex, live. |
+
+Fixed at 20:49: `heardFilter.js` lets a sound-alike name next to a stop word through with or without punctuation
+("Bro stop", "Rho stop.", "Stop, Bro!"), but not "Bro stop being so dramatic" or a bare "Stop."; "road" joins the
+sound-alikes where a name stands ("Road, tell me..." wakes, "Road works ahead" does not); the fast lane strips "road"
+too. 105 mind tests pass; hearing and the mind restarted. **Not yet tested by voice.**
+
 ## Brain
 
 `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes, 5.3 GB resident. Prompt tuned 3 Nov 2026: **100% strict** on the 97-step bake-off (was 94%), 95% on 22 cases written after tuning, 100% valid JSON. The orchestrator streams the reply and fires the gesture at 0.24 s, before the spoken line (0.4 s). Known miss: "can you not your head" (STT for nod) gets no nod. Live test 3 Nov 2026: wave, nod (from "not if you can hear me"), look_left, look_right and a words-only weather answer, all correct, gesture command 255-324 ms after each event, full reply 0.4-0.7 s.
