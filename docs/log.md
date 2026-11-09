@@ -144,6 +144,25 @@ the real hearing.js was spoiled: the Pi streamed live into the same port. No sof
 the problem acoustic echo cancellation solves (a canceller fed the audio being played); a mic array with it on chip
 replaces the patching (`CLAUDE.md`, Next steps 9).
 
+**Stop fixes live, 9 Nov 2026 19:39-19:43** (commits `c61d19c`, `91c8353`, `b8ee18c`; fix brief
+`reviews/fix-brief-2026-11-09.md`). 125 mind tests pass. whisper, the brain's Ollama, mind, hearing, voice and health
+up by `npm run up`, vision and presence off; the owner spoke to the Pi mic over Kokoro stories (at most 200 characters,
+7-13 s).
+
+| Test | Result | Evidence |
+| --- | --- | --- |
+| "Stop" over a story, five stories | 5 of 5 cut | Heard 6.8-8.5 s into the line; `fast lane "stop" -> [stop]` 1-3 ms after heard, `[voice] stop: line cut` 8 ms later. One more stop came 0.7 s after a story had ended by itself, not counted |
+| "Wait, stop", no name, 8.4 s in | Cut | `(a stop; near Rho's line, 0% Rho's words)`, `fast lane "wait stop" -> [stop] in 1 ms, 2 ms since heard`, line cut 8 ms later |
+| "Where is the bus stop?" (heard "Where does the bus stop?") and "Is that enough?" said over a story | Neither cut | Both stories `done at 13.5s` / `13.0s` with no "cut by a stop" |
+| Queue | 0 `queue full` lines | |
+
+The two false-stop phrases arrived 9.1 s after the wake, past the 8 s window, so the wake gate's `isStopIntent` judged
+them (and dropped them, `no wake word`); the fast lane never saw them. On the exact transcripts `isStopIntent` is false
+for all three wordings and true for "Wait stop", so inside the window the lane would not stop either: checked by code,
+not live. Rho's echo during the stories: 15 phrases dropped as its own voice, none answered. Not from these commits: 3
+of 12 story requests were dropped as `no wake word`, whisper writing "Ro tell me..." / "Bro tell me..." with no comma
+after the name.
+
 ## Brain
 
 `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes, 5.3 GB resident. Prompt tuned 3 Nov 2026: **100% strict** on the 97-step bake-off (was 94%), 95% on 22 cases written after tuning, 100% valid JSON. The orchestrator streams the reply and fires the gesture at 0.24 s, before the spoken line (0.4 s). Known miss: "can you not your head" (STT for nod) gets no nod. Live test 3 Nov 2026: wave, nod (from "not if you can hear me"), look_left, look_right and a words-only weather answer, all correct, gesture command 255-324 ms after each event, full reply 0.4-0.7 s.
