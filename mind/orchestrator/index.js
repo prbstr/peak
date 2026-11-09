@@ -12,7 +12,7 @@ import { createFastLane } from './fastlane.js';
 import { K as EXAMPLES_K, PICK as EXAMPLES_PICK, pickExamples, warmExamples } from './examples.js';
 import { createTrickPlayer } from './tricks.js';
 import { createDeviceHub } from './devices.js';
-import { EVENT_MAX_AGE_MS, ACTION_MAX_AGE_MS, age, allowed, apply, capDoing, kindOf, stale } from './policy.js';
+import { EVENT_MAX_AGE_MS, ACTION_MAX_AGE_MS, STOP_MAX_AGE_MS, age, allowed, apply, capDoing, kindOf, route, stale } from './policy.js';
 import { BRAIN_HOST, BRAIN_KEEP_ALIVE, KEEP_ALIVE, OLLAMA, formatStats, loadOptions } from '../lib/ollama.js';
 import { brokerAuth } from '../lib/broker.js';
 
@@ -94,11 +94,14 @@ client.on('message', (topic, payload) => {
   if (kind === 'event') {
     const { at: sent, ...event } = data;
     const at = Number.isFinite(sent) ? sent : null;
-    // an event that arrives too old is not answered, and must not push out a fresher one that is waiting
-    if (stale(event, at, Date.now())) return vetoStale(event, at);
-    // an exact command acts now, even while the brain is busy, and never reaches the brain
-    const hit = 'heard' in event ? lane.match(event.heard) : null;
-    if (hit) return fast(node, event, at, hit, Date.now());
+    // a stop goes out first, however late (up to a minute); then an event that arrives too old is not answered and
+    // must not push out a fresher one that is waiting; an exact command acts now, even while the brain is busy, and
+    // never reaches the brain (policy.js route)
+    const now = Date.now();
+    const r = route(event, at, now, lane.match);
+    if (r.route === 'old-stop') return console.log(`[mind] stop "${event.heard}" ${(age(at, now) / 1000).toFixed(1)} s old (limit ${STOP_MAX_AGE_MS / 1000} s), not sent`);
+    if (r.route === 'stale') return vetoStale(event, at);
+    if (r.route === 'stop' || r.route === 'fast') return fast(node, event, at, r.hit, now);
     if (waiting) console.log(`[mind] busy, replaced the waiting event${perfKind(waiting.event)}`);
     waiting = { node, event, at, recv: Date.now() };
     drain();
@@ -175,7 +178,9 @@ async function think(node, event, { at = null, recv = Date.now() } = {}) {
   const t = { start: Date.now() };
   const epoch = stopEpoch;
   const stopped = () => epoch !== stopEpoch;
-  // a busy brain (or an evicted model reloading) can leave an event waiting past its moment
+  // a busy brain (or an evicted model reloading) can leave an event waiting past its moment.
+  // NEVER a stop here: route() sends every stop to fast() before an event can wait, so this age check cannot drop
+  // one. A refactor that lets a stop reach the brain must keep stops out of this check (fix brief 9 Nov, item 2).
   if (stale(event, at, t.start)) return vetoStale(event, at);
   // the examples for this event: the whole bank, or the nearest few (PEAK_EXAMPLES_K in .env; examples.js)
   const picked = await pickExamples(event, { filter: visibleExample });

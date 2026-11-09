@@ -26,6 +26,23 @@ export function stale(event, at, now, max = EVENT_MAX_AGE_MS) {
   return a != null && a > max;
 }
 
+/** A stop older than this is noise: a minute-old stop arriving from a hung hearing must not cut a fresh move. */
+export const STOP_MAX_AGE_MS = 60_000;
+
+/** Where an event goes, decided before anything acts. A stop is checked before the age rule, because a stop is the
+ *  one command that is always safe to run late (fix brief 9 Nov, item 2; ARCH B2). `match` is the fast lane's.
+ *    { route: 'stop', hit }      publish the stop, whatever the age up to STOP_MAX_AGE_MS
+ *    { route: 'old-stop', hit }  a stop older than that: logged, not published
+ *    { route: 'stale' }          too old to answer (a fast-lane gesture or action included)
+ *    { route: 'fast', hit }      an exact command, fresh
+ *    { route: 'think' }          everything else goes to the brain */
+export function route(event, at, now, match = () => null) {
+  const hit = event && typeof event.heard === 'string' ? match(event.heard) : null;
+  if (hit?.kind === 'stop') return stale(event, at, now, STOP_MAX_AGE_MS) ? { route: 'old-stop', hit } : { route: 'stop', hit };
+  if (stale(event, at, now)) return { route: 'stale' };
+  return hit ? { route: 'fast', hit } : { route: 'think' };
+}
+
 /** The kind of event: heard, see, sensed, or other. */
 export function kindOf(event) {
   return ['heard', 'see', 'sensed'].find(k => event && k in event) ?? 'other';

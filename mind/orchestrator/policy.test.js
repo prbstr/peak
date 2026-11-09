@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACTION_MAX_AGE_MS, DOING_MAX, EVENT_MAX_AGE_MS, allowed, apply, capDoing, kindOf, stale } from './policy.js';
+import { ACTION_MAX_AGE_MS, DOING_MAX, EVENT_MAX_AGE_MS, STOP_MAX_AGE_MS, allowed, apply, capDoing, kindOf, route, stale } from './policy.js';
+import { createFastLane } from './fastlane.js';
 
 const NOW = 1_800_000_000_000;
 const heard = { heard: 'Rho, lights off' };
@@ -84,4 +85,23 @@ test('doing text is cut to 200 characters', () => {
   assert.equal(DOING_MAX, 200);
   assert.equal(capDoing('typing').length, 6);
   assert.equal(capDoing('x'.repeat(5000)).length, 200);
+});
+
+test('route: a stop goes out before the age rule; anything else 30 s old is vetoed (fix brief 9 Nov, item 2)', () => {
+  const lane = createFastLane({ gestures: ['wave'], actions: ['light_off'], enabled: true });
+  const r = (text, ago) => route({ heard: text }, NOW - ago, NOW, lane.match);
+  assert.equal(STOP_MAX_AGE_MS, 60_000);
+  assert.equal(r('Rho, stop!', 30_000).route, 'stop', 'a stop 30 s late still goes out');
+  assert.equal(r('Wait, stop.', 30_000).hit.kind, 'stop');
+  assert.equal(r('Rho, stop!', 60_001).route, 'old-stop', 'a stop over a minute old is noise');
+  assert.equal(r('Rho, wave at me', 30_000).route, 'stale', 'a fast-lane gesture still ages');
+  assert.equal(r('Rho, lights off', 30_000).route, 'stale', 'so does a fast-lane action');
+  assert.equal(r('Rho, tell me a story', 30_000).route, 'stale');
+  assert.equal(r('Rho, wave at me', 1000).route, 'fast');
+  assert.equal(r('Rho, tell me a story', 1000).route, 'think');
+  assert.equal(route({ heard: 'Stop.' }, null, NOW, lane.match).route, 'stop', 'no at: fresh');
+  assert.equal(route({ see: 'a cup' }, NOW - 30_000, NOW, lane.match).route, 'stale');
+  assert.equal(route({ sensed: 'something close' }, NOW, NOW, lane.match).route, 'think');
+  const off = createFastLane({ enabled: false });
+  assert.equal(route({ heard: 'Stop.' }, NOW - 30_000, NOW, off.match).route, 'stale', 'PEAK_FAST_LANE=0: stops go the way of the brain');
 });
