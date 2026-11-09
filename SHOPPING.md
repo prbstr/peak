@@ -8,6 +8,7 @@ Prices are in ZAR, including VAT. AliExpress 11.11 sale ends **19 Nov, 09:59 (GM
 | --- | --- | --- | --- | --- |
 | Nov 2026 | AliExpress | — | — | Section 1 |
 | 2 Nov 2026 | Communica | #WKZUNXNZL | R1,858.63 (free shipping) | Standard courier, 2–4 working days |
+| 7 Nov 2026 | Communica Midrand (in store) | 2 receipts | R4,982.50 + ~R1,618 | Collected |
 
 ## 1. Core: ordered from AliExpress
 
@@ -92,6 +93,41 @@ GPIO ── 1k ── BC337 base
 
 - [ ] **"Technic pins axles beams bulk"** (MOC parts mix), 1 bag. ~R200
 - [ ] **"servo extension cable 3 pin"**, 15cm and 30cm, ×6. ~R40
+
+## 6. Desk light hack (CLAUDE.md step 14): parts bought 7 Nov, see section 7
+
+Only if the light bar itself is MJGJD01YL (no wifi). Cart brief for a browser agent: `shopping/cart-desk-light.md`.
+
+- [ ] **ESP32 dev board**, ESP32-WROOM-32 (Communica "BMT ESP-32 WIFI B/T DEV BOARD" or "HKD ESP-32 WIFI B/T DEV BOARD"), ×1. ~R120
+- [ ] **nRF24L01+ module**, plain PCB-antenna version, not PA+LNA (Communica "BMT NRF24L01+ TRANSCEIVER MODULE"; showed sold out on 6 Nov, so try Micro Robotics), ×1. ~R40
+- [ ] **Female-to-female jumpers**, 20 cm, ×8 (or a 40-pack). ~R30
+- [ ] **10 µF electrolytic capacitor**, 16 V+, ×2 (optional, across the nRF's VCC/GND). ~R5
+- Power the nRF24 from the ESP's **3.3V** pin only. 5V kills it.
+
+## 7. Bought in store, Communica Midrand, 7 Nov 2026
+
+- [x] PSU 5V 3A micro-USB (SWM, "suitable for Pi 3B+"): replaces the undervolting supply (CLAUDE.md step 1)
+- [x] BDD nRF24L01+ ×1, ESP32-C6 dev board ×2, ESP32-C3 dev board ×1, 10 µF 100 V caps ×4: desk light (step 14). The C6 is RISC-V; check the remote-emulation component builds for it
+- [x] Breadboard 400TP, ribbon jumpers 40W M/M 30 cm and M/F 30 cm
+- [x] ADS1115 (BMT 16-bit ADC), CQ211N blade fuse holder + 5 A fuses ×10
+- [x] BDD DC/DC buck 5 A with display: stands in for the 5 A UBEC. Set it to 5.0 V with the multimeter, then glue the pot
+- [x] FNIRSI DMT-99 multimeter
+- [x] CXD98 48 W soldering station, 60/40 **leaded** solder 0.9 mm 500 g (300–320 °C, wash hands), flux pen, solder wick, desoldering pump
+- [x] HT5021 strippers, PRK side cutters, ESD tweezers ×6, helping hands with magnifier, MS-710 safety glasses, antistatic PVC work mat (not heat-proof)
+- [x] LD2410C radar ×2, ESP32-CAM ×2, relay board 4ch, 37-in-1 sensor kit, WS2812 8-LED stick
+- [x] Speaker 1.5 in 8 Ω 0.5 W (bare driver), DF-P1L-42P = lever **micro switch** (bought by mistake for a DFPlayer; use as a bump/limit sensor)
+
+Still outstanding:
+- [ ] LiPo/battery safe bag: before charging the 18650s
+- [ ] DFPlayer Mini (Micro Robotics, ~R50)
+- [ ] Headband magnifier PRK MA-016
+- [ ] Precision screwdriver set
+- [ ] Tip tinner; USB-C data cable for the ESP32-C6s if no spare
+- [ ] MG90S ×4 + PCA9685 + pan-tilt bracket (optional, before the AliExpress servos)
+- [ ] Bench supply FNIRSI DPS-150 (~R1,370, optional)
+- [ ] AliExpress before 19 Nov 09:59: 2S 8.4 V charger board; confirm the 5 A UBEC was ordered
+- [ ] Takealot: Broadlink RM4 Pro, Aqara FP2 (home brain, parked)
+- [ ] **Projector (BenQ W1070+, RS-232 route), added 7 Nov evening:** MAX3232 TTL-to-RS232 module with DB9 ×1 (~R35); DB9 straight-through cable M/F 1.5 m ×1 (~R40, match the module's DB9 gender); 3.5 mm mono cable for the projector's 12V trigger → screen, if the screen has a trigger input. Drives the second ESP32-C6. IR fallback needs nothing new: the 37-in-1 kit's VS1838 receiver and KY-005 emitter (about 1 m range without a transistor)
 
 ## 5. Next body (optional)
 
