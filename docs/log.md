@@ -123,6 +123,27 @@ Network check, 21:19 (`lsof -i` on every running part): the only connections off
 to the Pi (192.168.0.226) and the desk light (192.168.0.150), and the Pi's UDP audio and video streams. Nothing reaches
 the internet while Rho runs.
 
+**Speech said right after Rho's line, 9 Nov 2026 14:28-15:10.** The 8 Nov garble ("Rho, wave at me" said the moment
+"Four." ended came back "Throw away that meat") is one utterance holding Rho's echo and the owner's request: it ended
+273 ms after the line, so it started inside it, and the segmenter ends an utterance only after 700 ms of quiet. Rho's
+echo reaches the Pi mic at -19 to -28 dB peak over a -34 dB room, the owner's speech at -14 to -28 dB, so loudness
+cannot tell them apart. Bench, all Pi-mic audio (Rho's recorded echo, 0.15-0.5 s of room noise, the owner's 2 Nov
+request clips, through hearing.js's segmenter and whisper with VAD), 144 mixes; worse than the request heard alone:
+
+| Handling of an utterance near Rho's line | Worse |
+| --- | --- |
+| Today | 40 |
+| A 200 ms end-of-utterance pause during the line and 1 s after | 67 (it splits the owner's own requests) |
+| Cut at the quietest point near the line's end, drop the head if it is Rho's words | 39 |
+| Rho's line as whisper's prompt, its words stripped from the front | 47 (whisper invents "sir.") |
+
+In most failures Rho's words were glued in front ("2+2 is 4 Turn your head..."). Recording with the owner, seven
+requests each said the moment a line ended (whisper on fixed cuts): "Roll wave at me.", "Hello there Bro lights off",
+"Bro, tell me a joke.", "Bro, what's 2+3?", "Bro, bro look left", "Bro, lights on.", "Yes. Bro, not.". A replay through
+the real hearing.js was spoiled: the Pi streamed live into the same port. No software change made. Decision: this is
+the problem acoustic echo cancellation solves (a canceller fed the audio being played); a mic array with it on chip
+replaces the patching (`CLAUDE.md`, Next steps 9).
+
 ## Brain
 
 `huihui_ai/qwen3-vl-abliterated:8b-instruct` for brain and eyes, 5.3 GB resident. Prompt tuned 3 Nov 2026: **100% strict** on the 97-step bake-off (was 94%), 95% on 22 cases written after tuning, 100% valid JSON. The orchestrator streams the reply and fires the gesture at 0.24 s, before the spoken line (0.4 s). Known miss: "can you not your head" (STT for nod) gets no nod. Live test 3 Nov 2026: wave, nod (from "not if you can hear me"), look_left, look_right and a words-only weather answer, all correct, gesture command 255-324 ms after each event, full reply 0.4-0.7 s.
