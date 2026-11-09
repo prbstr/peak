@@ -296,6 +296,34 @@ and "Roll away with me" (no wake word) were dropped by the gate. No veto fired.
 checks). Anonymous clients refused; every part, the body and the desk light logged back in; a trick, an owner `nod` and
 a light action went through. Health now republishes whisper's status after a broker restart.
 
+**Dead-man switch, 9 Nov 2026 06:50-07:01.** `node/deadman.py` (10 unit tests) wired into `servod`: the mind's
+retained `peak/mind/mind/status` turning `offline` or the body's broker link dropping cancels the move and the waiting
+one, and the servos hold (no release). Keepalive 60 s to 5 s. The stop race in `motion_worker` closed with a cancel
+count on each queued move. Node tests 97 pass.
+
+Dry run on the Mac first, real `servod.py` in sim against a private broker on port 18830 (the live broker and the Pi
+untouched):
+
+| Case | Result |
+| --- | --- |
+| Mind `offline` 1 s into a 4 s head move to 170°, a wave queued behind it | Held at head 100°; the wave dropped; one `deadman: hold (mind offline); move cancelled` line |
+| A nod sent while the mind is offline | Ran (30 steps): hand commands are not gated |
+| Mind back `online` | `deadman: mind online, commands run again` |
+| Wave then stop, back to back, five times | The stop won every time |
+| Broker killed 1 s into a 4 s waist move | `hold (broker link lost)`, waist held at 100° |
+
+On the real Pi (`PEAK_SIM=1`): `rsync` of `node/`, then a kill of `servod`'s pid as `lupin`; systemd's
+`Restart=always` brought it back on the new code in under 8 s with no `sudo`. At start it read the mind's retained
+`offline` (Rho was stopped) and logged one hold.
+
+| Live test | Result |
+| --- | --- |
+| `npm run up -- mind`, a 5 s head move to 170° and a wave, `kill -9` of the mind 1.5 s later | Head held at 108°; 77 steps of 20 ms ran (1.54 s), so the hold landed within about 0.1 s of the kill; 0 arm steps, the wave never started. launchd restarted the mind and the body logged `mind online` |
+| `launchctl kickstart -k` of Mosquitto 1.5 s into a 5 s waist move | Held at waist 111° after 74 steps (1.48 s). The mind's `offline` reached the body before its own disconnect, so one hold, then `disconnected`, `connected`, `mind online`. Body, mind and desk light all back online within 20 s |
+
+Not checked: a silent Wi-Fi drop on the Pi (the keepalive path; it needs the Pi's network taken down, which needs
+`sudo`), and real servos holding torque. The mind was stopped again afterwards.
+
 ## Pi service
 
 `peak-servod.service` exists but is not installed on the Pi. Since 8 Nov there are units for camd and audiod too and

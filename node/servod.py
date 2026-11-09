@@ -13,6 +13,7 @@ import yaml
 import paho.mqtt.client as mqtt
 from screen import Screen
 from cmdcheck import validate_cmd
+from deadman import DeadMan, MIND_STATUS_TOPIC
 
 HERE = Path(__file__).parent
 CFG = yaml.safe_load((HERE / "config.yaml").read_text())
@@ -23,6 +24,10 @@ BROKER_PORT = int(os.environ.get("PEAK_BROKER_PORT", "1883"))  # another port fo
 SIM = os.environ.get("PEAK_SIM") == "1"
 STATUS_TOPIC = f"peak/{NODE}/status"
 BOOT_SETTLE_MS = 1000  # ease to rest on boot: six servos snapping at once browns out the rail
+# How soon a dead link is noticed: paho pings after this many seconds with nothing heard and gives up after as many
+# again, and the broker sends the body's Last Will after 1.5 times it. Was 60, which noticed a Wi-Fi drop after
+# up to two minutes, long after any move had ended; the dead-man switch needs it short (deadman.py).
+KEEPALIVE_S = int(os.environ.get("PEAK_KEEPALIVE_S", "5"))
 
 # ---------- hardware ----------
 class Servos:
@@ -86,9 +91,9 @@ class Servos:
             else:
                 time.sleep(ms / 1000)
 
-    def stop(self):
-        """Abort the current move and let every servo go limp."""
-        self.stop_flag.set()
+    def release(self):
+        """Let every servo go limp. Today's {"stop": true} does this after cancelling the motion; the dead-man
+        switch does not (a limp arm drops under gravity)."""
         for s in CFG["servos"].values():
             if self.kit:
                 self.kit.release(s["ch"])
@@ -101,26 +106,44 @@ servos = Servos()
 # One move at a time, at most one waiting. A newer command replaces the waiting one:
 # a robot should do the latest thing it was told, not catch up on a backlog.
 motion = queue.Queue(maxsize=1)
+# Each queued command carries the number of cancels (stops and dead-man holds) made before it. The worker drops one
+# that a cancel has overtaken, and clears stop_flag under the same lock a cancel sets it under, so a stop can no
+# longer land between motion.get() and the clear and be lost (the race written down in docs/decisions.md, 8 Nov).
+motion_lock = threading.Lock()
+cancels = [0]
 
 def enqueue_motion(cmd):
-    try:
-        motion.put_nowait(cmd)
-    except queue.Full:
+    with motion_lock:
+        item = (cancels[0], cmd)
+        try:
+            motion.put_nowait(item)
+        except queue.Full:
+            try:
+                motion.get_nowait()
+            except queue.Empty:
+                pass
+            motion.put_nowait(item)
+
+def cancel_motion():
+    """Drop the waiting move and abort the running one. The servos stay where the cancel found them."""
+    with motion_lock:
+        cancels[0] += 1
         try:
             motion.get_nowait()
         except queue.Empty:
             pass
-        motion.put_nowait(cmd)
+        servos.stop_flag.set()
 
 def motion_worker():
     """Runs every move. on_message has checked each command already; this catch is the second line, so that one
-    bad move can never end the thread and leave a body that senses and looks online but no longer moves.
-    Known race (docs/decisions.md): a stop that lands between motion.get() and stop_flag.clear() is lost and
-    the command taken runs. Stage B closes it."""
+    bad move can never end the thread and leave a body that senses and looks online but no longer moves."""
     while True:
-        cmd = motion.get()
-        servos.stop_flag.clear()
-        servos.moving.set()
+        made_at, cmd = motion.get()
+        with motion_lock:
+            if made_at != cancels[0]:
+                continue  # a stop or a hold came after it was queued
+            servos.stop_flag.clear()
+            servos.moving.set()
         try:
             if "gesture" in cmd:
                 servos.gesture(cmd["gesture"])
@@ -334,19 +357,54 @@ def speak(text):
         return
     subprocess.Popen(["espeak-ng", "--", text], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+# ---------- dead-man switch ----------
+deadman = DeadMan()  # touched only from paho's thread (the callbacks below)
+
+def hold(why):
+    """Nobody can stop the body any more (deadman.py): cancel the move and the waiting one, keep the servos where
+    they are, give the eyes back to the reflexes. One line, so the log shows every hold and its cause."""
+    was_moving = servos.moving.is_set()
+    cancel_motion()
+    display.tell("release")
+    pos = ", ".join(f"{n} {d:.0f}" for n, d in servos.pos.items())
+    print(f"[servod] deadman: hold ({why}){'; move cancelled' if was_moving else ''}; servos held at {pos}")
+
 # ---------- mqtt ----------
 def on_connect(c, u, flags, rc, props=None):
+    if rc.is_failure:
+        print(f"[servod] broker refused: {rc}")
+        return
     print(f"[servod] connected to {BROKER} as {NODE}")
-    c.subscribe(f"peak/{NODE}/cmd")
+    deadman.on_broker(True)
+    c.subscribe([(f"peak/{NODE}/cmd", 0), (MIND_STATUS_TOPIC, 0)])
     c.publish(STATUS_TOPIC, "online", retain=True)
-    display.online(True)
+    display.online(deadman.alive)
 
 def on_disconnect(c, u, flags, rc, props=None):
+    why = deadman.on_broker(False)
+    print(f"[servod] disconnected from {BROKER}: {rc}")
+    if why:
+        hold(why)
     display.online(False)
+
+def on_mind_status(payload):
+    was = deadman.alive
+    why = deadman.on_mind_status(payload)
+    if why:
+        hold(why)
+    elif deadman.alive and not was:
+        print("[servod] deadman: mind online, commands run again")
+    display.online(deadman.alive)
 
 def on_message(c, u, msg):
     """Every command is checked (cmdcheck.py) and a bad one dropped with one line. Nothing raised here may reach
     paho: an exception out of a callback would end its network loop, and the body would stop listening."""
+    if msg.topic == MIND_STATUS_TOPIC:
+        try:
+            on_mind_status(msg.payload)
+        except Exception as e:
+            print(f"[servod] mind status failed on {msg.payload[:40]!r}: {e!r}")
+        return
     try:
         cmd = json.loads(msg.payload)
     except Exception:
@@ -362,12 +420,10 @@ def on_message(c, u, msg):
 
 def run_cmd(cmd):
     if cmd.get("stop"):
-        # Drain anything waiting, then abort what is running. Speech is left alone.
-        try:
-            motion.get_nowait()
-        except queue.Empty:
-            pass
-        servos.stop()
+        # Drop anything waiting, abort what is running, then go limp (Stage B: stop will hold, release go limp).
+        # Speech is left alone.
+        cancel_motion()
+        servos.release()
         display.tell("release")
     elif "say" in cmd:
         speak(str(cmd["say"]))  # independent of motion, so a line is never held up by a wave
@@ -387,7 +443,7 @@ if os.environ.get("PEAK_MQTT_PASSWORD"):
 client.on_connect = on_connect
 client.on_disconnect = on_disconnect
 client.on_message = on_message
-client.connect(BROKER, BROKER_PORT, 60)
+client.connect(BROKER, BROKER_PORT, KEEPALIVE_S)
 client.loop_start()
 
 try:
