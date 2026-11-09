@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { connect, logExits, publishEvent, run } from './lib.js';
 import { createHeardFilter, isStop } from './heardFilter.js';
 import { createHalfDuplex } from './halfDuplex.js';
+import { next, push } from './utteranceQueue.js';
 
 const DEVICE = process.env.PEAK_AUDIO_DEVICE ?? '0';
 const SOURCE = process.env.PEAK_AUDIO_SOURCE;
@@ -68,12 +69,29 @@ const transcribe = async pcm => {
   }
 };
 
-// One transcription at a time; while one runs at most one utterance waits and a newer one replaces it.
-let busy = false, waiting = null;
-const handle = async (client, pcm, endedAt, loud = { from: endedAt - pcm.length / 2 / RATE * 1000, to: endedAt }) => {
-  if (busy) { waiting = { pcm, endedAt, loud }; return; }
+// One transcription at a time; while one runs, up to three wait, short ones (a spoken stop) first, and when a fourth
+// comes the longest goes (utteranceQueue.js). A newer utterance can no longer replace a waiting stop.
+let busy = false, queue = [];
+const pcmMs = pcm => pcm.length / 2 / RATE * 1000;
+const handle = (client, pcm, endedAt, loud = { from: endedAt - pcmMs(pcm), to: endedAt }) => {
+  const r = push(queue, { pcm, endedAt, loud, ms: pcmMs(pcm) });
+  queue = r.queue;
+  if (r.dropped) console.log(`[hearing] queue full, dropped a ${(r.dropped.ms / 1000).toFixed(1)}s utterance untranscribed (${queue.length} waiting: ${queue.map(x => (x.ms / 1000).toFixed(1)).join(', ')} s)`);
+  pump(client);
+};
 
+const pump = async client => {
+  if (busy) return;
   busy = true;
+  try {
+    for (let r = next(queue); r.item; r = next(queue)) {
+      queue = r.queue;
+      try { await hear(client, r.item); } catch (e) { console.error('[hearing] utterance failed:', e.message); }
+    }
+  } finally { busy = false; }
+};
+
+const hear = async (client, { pcm, endedAt, loud }) => {
   if (DUMP) writeFileSync(join(DUMP, `${new Date(endedAt).toISOString().replace(/[:.]/g, '-')}.wav`), wav(pcm));
   const text = await transcribe(pcm);
   if (process.env.PEAK_DEBUG) console.log(`[hearing] ${(pcm.length / RATE / 2).toFixed(1)}s utterance → "${text}"`);
@@ -90,8 +108,6 @@ const handle = async (client, pcm, endedAt, loud = { from: endedAt - pcm.length 
     if (clean) { console.log(`[hearing] ${latency}s after speech ended (${why}${near})`); publishEvent(client, { heard: clean }); }
     else console.log(`[hearing] dropped "${text}" (${why})`);
   }
-  busy = false;
-  if (waiting) { const w = waiting; waiting = null; handle(client, w.pcm, w.endedAt, w.loud); }
 };
 
 /** Feed 100 ms frames; calls onUtterance(pcm) at each pause after speech. */
