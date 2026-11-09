@@ -23,6 +23,15 @@ test('stop in its spoken forms', () => {
   for (const t of ['Rho, stop!', 'Stop.', 'Bro stop', 'Freeze!', 'Rho, stop it.', 'Stop, stop!']) assert.equal(kindName(t), 'stop:stop', t);
 });
 
+test('stop is matched broadly, before any template (fix brief 9 Nov, item 1)', () => {
+  for (const t of ['Wait, stop.', 'Stop moving.', 'No no stop', 'Stop it now, Rho.', 'Ok, enough.', 'Rho, stop waving.']) {
+    assert.equal(kindName(t), 'stop:stop', t);
+  }
+  // "can you" is stripped, leaving "stop the music": a false stop is cheap, and Rho plays no music
+  assert.equal(kindName('Can you stop the music?'), 'stop:stop');
+  for (const t of ["Don't stop.", "Rho, don't ever stop.", 'Where is the bus stop?']) assert.equal(lane.match(t), null, t);
+});
+
 test('exact commands map to their gesture, trick or action', () => {
   assert.equal(kindName('Rho, wave at me.'), 'gesture:wave');
   assert.equal(kindName('Row, look left.'), 'gesture:look_left');
@@ -37,7 +46,7 @@ test('exact commands map to their gesture, trick or action', () => {
 test('anything that is not a whole template goes to the brain', () => {
   for (const t of [
     "Rho, don't turn the light off.", 'No need to wave.', 'Never mind the lights.', 'Rho, wave at the postman.',
-    'Lights off in an hour.', 'My kid waved at the bus.', 'I bought a new lamp today.', 'Can you stop the music?',
+    'Lights off in an hour.', 'My kid waved at the bus.', 'I bought a new lamp today.',
     "Don't stop.", 'Rho, what is two plus two?', 'Turn off the lights after the movie.', 'Is it cooler outside?',
     'Rho, how are you?',
   ]) assert.equal(lane.match(t), null, t);
@@ -48,8 +57,8 @@ test('a bare command word is enough', () => {
   assert.equal(kindName('Nod.'), 'gesture:nod');
 });
 
-test('no template but stop contains a negating word, so a match is never a negated request', () => {
-  for (const [phrase, hit] of buildTemplates(all)) if (hit.kind !== 'stop') assert.ok(!NEGATION.test(phrase), phrase);
+test('no template contains a negating word, so a match is never a negated request', () => {
+  for (const [phrase] of buildTemplates(all)) assert.ok(!NEGATION.test(phrase), phrase);
 });
 
 test('the reply has the brain\'s fields and says nothing', () => {

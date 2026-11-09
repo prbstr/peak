@@ -40,6 +40,25 @@ test('a stop word inside ordinary speech still does not wake it', () => {
   }
 });
 
+test('a plain stop passes the gate without the name, and does not open the window (fix brief 9 Nov, item 1)', () => {
+  const { f, c } = fresh();
+  for (const t of ['Stop.', 'Wait, stop!', 'Stop moving.', 'No no stop.', 'Freeze!', 'Enough.']) {
+    assert.deepEqual(f.consider(t), { text: t, why: 'a stop' }, t);
+  }
+  c.tick(1000);
+  assert.equal(f.consider('wave at me').why, 'no wake word', 'a stop opened no window');
+  assert.equal(f.consider("Don't stop.").why, 'no wake word');
+  assert.equal(f.consider('Where is the bus stop?').why, 'no wake word');
+});
+
+test('a bare stop inside the window is not dropped as one word', () => {
+  const { f, c } = fresh();
+  f.consider('Hey Rho, tell me a story.');
+  c.tick(2000);
+  assert.equal(f.consider('Stop.').text, 'Stop.');
+  assert.equal(fresh({ gate: false }).f.consider('Freeze!').text, 'Freeze!');
+});
+
 test('road wakes it only where a name stands', () => {
   const { f } = fresh();
   assert.equal(f.consider('Road, tell me a long story about a robot.').why, 'wake word');

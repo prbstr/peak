@@ -5,33 +5,27 @@
 // answers every one. So the body only listens after its name, like a person does:
 //   - an utterance containing the wake word (its name, Rho) passes, and opens an attention window
 //   - inside the window, anything with real words passes (so "Hey Peak" ... "wave at me" works)
-//   - outside it, everything is dropped
+//   - outside it, everything is dropped, except a plain request to stop ("wait, stop", "Stop!"), which passes
+//     without opening the window: a stop must never be lost to the gate (fix brief 9 Nov, review note 1e)
 // Set PEAK_WAKE=off to publish every clean utterance (bench testing).
+
+import { SOUNDS_LIKE, TAGS } from '../lib/utterance.js';
+import { STOP_CALL, isStopIntent, isStrictStop } from '../lib/stop.js';
 
 const WAKE_WINDOW_MS = Number(process.env.PEAK_WAKE_WINDOW_MS ?? 8000);
 const WAKE_GATE = (process.env.PEAK_WAKE ?? 'on') !== 'off';
 
 // The body's name is Rho (it was Peak until 5 Nov 2026). Written as Rho it wakes the body anywhere.
 const NAME = /\brho\b/i;
-// Whisper mostly writes a homophone instead, and those are ordinary words ("three in a row", "roll the dice").
-// They count as the name only where a name stands: opening the utterance, after a greeting or not, or closing
-// it after a comma, and set off by punctuation either way. "Roll." alone is how a bare "Rho" came back.
-const SOUNDS_LIKE = 'row|roe|ro|roh|rowe|roll|bro|road'; // bro added 7 Nov 2026 at the owner's word: whisper wrote every Rho that evening as Bro; road 8 Nov ("Road, tell me a long story")
+// Whisper mostly writes a homophone instead (SOUNDS_LIKE, lib/utterance.js), and those are ordinary words ("three in a
+// row", "roll the dice"). They count as the name only where a name stands: opening the utterance, after a greeting or
+// not, or closing it after a comma, and set off by punctuation either way. "Roll." alone is how a bare "Rho" came back.
 const ADDRESSED = new RegExp(`^(?:(?:hey|hi|hello|okay|ok|yo)[\\s,!.]+)?(?:${SOUNDS_LIKE})(?:[,.!?]|$)|,\\s*(?:${SOUNDS_LIKE})[.!?]*$`, 'i');
 // The spoken stop must never wait on a comma: on 8 Nov whisper wrote "Bro stop" with none and the stop was dropped
-// while Rho talked on. A sound-alike name next to a stop word, set off by anything or nothing, is the whole utterance.
-const STOPS = 'stop|freeze|halt';
-const STOP_CALL = new RegExp(`^(?:rho|${SOUNDS_LIKE})[\\s,.!?]+(?:${STOPS})(?:[\\s,.!?]+(?:${STOPS}|it|that|now))*[\\s.!?]*$|^(?:${STOPS})[\\s,.!?]+(?:rho|${SOUNDS_LIKE})[\\s.!?]*$`, 'i');
+// while Rho talked on. A sound-alike name next to a stop word (STOP_CALL, lib/stop.js) is the whole utterance.
 const WAKE = { test: text => NAME.test(text) || ADDRESSED.test(text) || STOP_CALL.test(text) };
-// While Rho speaks, a stop with or without the name cuts it off (halfDuplex.js lets only this through)
-const BARE_STOP = new RegExp(`^(?:${STOPS})(?:[\\s,.!?]+(?:${STOPS}|it|that|now))*[\\s.!?]*$`, 'i');
-/** True when the whole utterance is a stop: "Bro stop", "Rho, stop!", "Stop, stop." */
-export const isStop = raw => {
-  const text = raw.replace(TAGS, ' ').replace(/\s+/g, ' ').trim();
-  return STOP_CALL.test(text) || BARE_STOP.test(text);
-};
-// stage directions and sound tags, with or without the words around them
-const TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*/g;
+/** True when the whole utterance is a stop. The strict matcher, for the half-duplex bypass; see lib/stop.js. */
+export const isStop = isStrictStop;
 // invented on near-silence, or echoes of the server's own prompt hint
 const HALLUCINATIONS = /^(thanks? for watching|thank you( so much)?|you|bye|okay|so|the end|subtitles? by.*|\.+)[\s.!,]*$/i;
 // a single interjection is a cough or a chair, not a request
@@ -50,6 +44,8 @@ export const createHeardFilter = ({ now = Date.now, windowMs = WAKE_WINDOW_MS, g
     const woke = WAKE.test(text);
     const t = now();
     if (woke) attentiveUntil = t + windowMs;
+    // a stop passes the gate and the one-word rule (a bare "Stop." is one word), but never opens the window
+    if (!woke && isStopIntent(text)) return { text, why: 'a stop' };
     if (gate && !woke && t >= attentiveUntil) return { text: null, why: 'no wake word' };
     if (!woke && text.split(' ').length < 2) return { text: null, why: 'one word' };
     return { text, why: woke ? 'wake word' : gate ? 'in attention window' : 'gate off' };
